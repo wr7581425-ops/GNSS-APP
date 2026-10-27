@@ -1,0 +1,8 @@
+{
+  "appId": "br.com.coletoragnss.app",
+  "appName": "Coletora GNSS",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  }
+}

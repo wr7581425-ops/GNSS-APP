@@ -1,0 +1,1442 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0F1720">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font-size:14px;-webkit-tap-highlight-color:transparent}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>Coletora GNSS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: app de campo em uma coluna, barra de status no topo, navegação embaixo. Tema escuro único por escolha (leitura no sol). */
+:root{
+  --bg:#0F1720; --panel:#17212C; --panel2:#131C26; --line:#263241; --fg:#E8EEF4; --muted:#9FB0C2;
+  --accent:#FF8A1F; --accent-ink:#1A0E02; --accent-bg:#2A1A0A; --fix:#3DDC84; --fix-bg:#12301F; --float:#FFC24B; --float-bg:#33270A; --bad:#FF6B5E; --bad-bg:#3A1512;
+  --ui:"Barlow",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--ui)}
+.app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;background:var(--bg)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  padding:14px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));display:flex;justify-content:space-between;align-items:center;gap:10px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ttl{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{font-size:12px;font-weight:700;padding:6px 10px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
+.c-fix{color:var(--fix);background:var(--fix-bg)}.c-float{color:var(--float);background:var(--float-bg)}.c-off{color:var(--muted);background:var(--panel)}.c-bad{color:var(--bad);background:var(--bad-bg)}
+main{flex:1;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.card.hl{border:2px solid var(--accent)}
+.card h3{margin:0;font-size:15px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kv{display:flex;flex-direction:column;min-width:0}
+.kv span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.kv b{font-family:var(--mono);font-size:18px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ring{width:84px;height:84px;flex:0 0 84px;border-radius:50%;border:6px solid var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring b{font-size:21px}.ring small{font-size:11px;color:var(--muted)}
+.coords{display:grid;grid-template-columns:26px 1fr;row-gap:6px;font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+.coords i{font-style:normal;color:var(--accent);font-weight:700}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+input,select{font:600 16px var(--ui);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;height:46px;padding:0 12px;width:100%;min-width:0}
+input.m,.m{font-family:var(--mono)}
+input[type=checkbox]{width:22px;height:22px;height:22px;accent-color:var(--accent);padding:0}
+.ck{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--fg)}
+button{font:700 16px var(--ui);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 14px;cursor:pointer}
+button.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.big{min-height:64px;font-size:20px}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.opt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:62px}
+.opt small{font-size:12px;font-weight:500;color:var(--muted)}
+.opt[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-bg)}
+.opt[aria-pressed="true"] small{color:#FFB066}
+.subtabs{display:flex;gap:6px;overflow-x:auto}
+.subtabs button{min-height:40px;font-size:14px;font-weight:600;flex:0 0 auto}
+.subtabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+nav.bottom{position:sticky;bottom:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--panel2);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.bottom button{border:0;border-radius:0;background:transparent;color:var(--muted);font-size:13px;padding:0 2px;font-weight:600;min-height:58px}
+nav.bottom button[aria-current="page"]{color:var(--accent);font-weight:700}
+nav.bottom button{min-height:62px!important;font-size:12px!important}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:76px 1fr auto;gap:8px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-size:14px;align-items:center}
+.row:last-child{border-bottom:0}
+.muted{color:var(--muted)}.small{font-size:13px}
+.st-fix{color:var(--fix);font-weight:700}.st-float{color:var(--float);font-weight:700}
+.monitor{background:#0A1118;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:500 11px/1.6 var(--mono);color:#8FD6A8;height:120px;overflow:auto;white-space:pre}
+.proj{text-align:left;display:flex;flex-direction:column;gap:6px;padding:14px 16px;font-weight:500}
+.proj[aria-pressed="true"]{border:2px solid var(--accent)}
+textarea{width:100%;min-height:150px;background:#0A1118;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;font:500 12px var(--mono)}
+.banner{background:var(--float-bg);border:1px solid var(--float);color:#FFE3A3;border-radius:10px;padding:10px 12px;font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;z-index:20;max-width:90vw;text-align:center}
+.split{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <button type="button" id="hBack" data-act="voltar" aria-label="Voltar" hidden style="min-height:40px;width:40px;padding:0;flex:0 0 40px;font-size:22px;line-height:1">‹</button>
+    <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+      <span class="eyebrow" id="hEyebrow">Receptor</span>
+      <span class="ttl" id="hTitle">Nenhum conectado</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center"><span class="chip c-off" id="hChip">Desconectado</span><button type="button" data-go="config" aria-label="Configurações" style="min-height:40px;width:40px;padding:0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="bottom" aria-label="Navegação principal">
+    <button type="button" data-aba="projeto" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Projeto</button>
+    <button type="button" data-aba="dispositivo" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v2c0 1.7 3.1 3 7 3s7-1.3 7-3V6M12 11v10"/></svg>Dispositivo</button>
+    <button type="button" data-aba="levantamento" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>Levantamento</button>
+    <button type="button" data-aba="ferramentas" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>Ferramentas</button>
+  </nav>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// ---------- Estado ----------
+const KEY="coletora-gnss-v1";
+const S={
+  tela:"home", aba:"levantamento", sub:"conexao",
+  receptores:[{id:1,marca:"ComNav",modelo:"S6",serie:"S6-2210-48731",nivel:"completo"},{id:2,marca:"CHC",modelo:"i73",serie:"I73-0091-22410",nivel:"completo"},{id:3,marca:"Trimble",modelo:"R10",serie:"",nivel:"leitura"}],
+  ativo:1, conexao:"wifi", ip:"192.168.1.1", porta:"9902", conectado:false, conectando:false, desde:0,
+  modo:"rover", mascara:"10", taxa:"1", pdopMax:"4,0",
+  correcao:"ntrip", caster:"rbmc-ip.ibge.gov.br", cport:"2101", mount:"MAN10", user:"", senha:"", enviaGGA:true, freq:"463.125", canal:"3", proto:"TRIMTALK",
+  corrLigada:false, corrDesde:0,
+  sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
+  projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
+  codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"5", coletando:0,
+  baseModo:"atual", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", baseLigada:false, baseMedindo:0, baseFonte:"",
+  zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
+  baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
+  est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
+  arquivos:[],
+  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"P-",digitos:"4",somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+       nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"grade",unidadeArea:"m2"},
+};
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos"])if(s[k]!==undefined)S[k]=s[k];
+  if(s.cfg)S.cfg=Object.assign(S.cfg,s.cfg);if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
+function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+// ---------- Simulador do receptor ----------
+const G={fix:0,sats:0,pdop:9.9,hrms:9,vrms:9,lat:-3.10207,lon:-60.02553,E:0,N:0,h:42.316,idade:0,course:35,vel:0,const:{GPS:9,GLONASS:6,Galileo:5,BeiDou:4},nmea:[]};
+// ---------- Sistema de coordenadas (por projeto) ----------
+const SIS_PADRAO={datum:"SIRGAS 2000",proj:"UTM",zona:"auto",hemi:"S"};
+function sis(){const p=S.projetos.find(p=>p.id===S.projAtivo);return Object.assign({},SIS_PADRAO,p?.sis||{})}
+function zonaDe(lon){return Math.floor((lon+180)/6)+1}
+function zonaAtual(){const s=sis();return s.zona==="auto"?zonaDe(G.lon):+s.zona}
+function hemiAtual(){const s=sis();return s.hemi==="auto"?(G.lat<0?"S":"N"):s.hemi}
+function toUTM(lat,lon,zona,hemi){ // GRS80 (SIRGAS 2000) ~ WGS 84
+  const a=6378137,f=1/298.257222101,k0=0.9996,e2=f*(2-f),ep2=e2/(1-e2),d=Math.PI/180;
+  const L=lat*d,lam0=((zona-1)*6-180+3)*d,N=a/Math.sqrt(1-e2*Math.sin(L)**2),T=Math.tan(L)**2,C=ep2*Math.cos(L)**2,A=Math.cos(L)*(lon*d-lam0);
+  const M=a*((1-e2/4-3*e2**2/64-5*e2**3/256)*L-(3*e2/8+3*e2**2/32+45*e2**3/1024)*Math.sin(2*L)+(15*e2**2/256+45*e2**3/1024)*Math.sin(4*L)-(35*e2**3/3072)*Math.sin(6*L));
+  const E=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120)+500000;
+  let Nn=k0*(M+N*Math.tan(L)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720));
+  if(hemi==="S")Nn+=10000000;return [E,Nn];
+}
+function atualizaEN(){[G.E,G.N]=toUTM(G.lat,G.lon,zonaAtual(),hemiAtual())}
+function ptEN(p){if(p.lat===undefined)return [p.E,p.N];return toUTM(p.lat,p.lon,zonaAtual(),hemiAtual())}
+function sisTxt(){const s=sis();return s.proj==="UTM"?`${s.datum} · UTM ${zonaAtual()}${hemiAtual()}${s.zona==="auto"?" (auto)":""}`:`${s.datum} · Geográficas`}
+function gms(v,pos,neg){const a=Math.abs(v),g=Math.floor(a),m=Math.floor((a-g)*60),s=((a-g)*60-m)*60;return `${g}°${String(m).padStart(2,"0")}'${s.toFixed(4).padStart(7,"0").replace(".",",")}" ${v<0?neg:pos}`}
+function coordsHTML(lat,lon,E,N,h){
+  const s=sis();
+  if(s.proj==="UTM")return `<i>E</i><span>${br(E,dc())}</span><i>N</i><span>${br(N,dc())}</span><i>h</i><span>${br(h,dc())} m</span>`;
+  if(s.proj==="GMS")return `<i>φ</i><span style="font-size:17px">${gms(lat,"N","S")}</span><i>λ</i><span style="font-size:17px">${gms(lon,"E","W")}</span><i>h</i><span>${br(h)} m</span>`;
+  return `<i>φ</i><span>${br(lat,8)}°</span><i>λ</i><span>${br(lon,8)}°</span><i>h</i><span>${br(h)} m</span>`;
+}
+atualizaEN();
+const FIXNOME=["SEM SINAL","AUTÔNOMO","DGPS","","RTK FIX","RTK FLOAT"];
+function tick(){
+  const now=Date.now();
+  if(!S.conectado){G.fix=0;G.sats=0;G.prevFix=0;render(false);return}
+  if(S.fonte&&S.fonte!=="sim"){tickReal(now);return}
+  const t=(now-S.desde)/1000;
+  G.sats=t<3?Math.min(24,Math.floor(t*8)):22+Math.round(Math.random()*3);
+  if(!S.corrLigada) G.fix=G.sats>4?1:0;
+  else{const c=(now-S.corrDesde)/1000;G.fix=c<3?1:c<9?5:4}
+  if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}
+  if(G.prevFix!==4&&G.fix===4&&G.prevFix!==undefined&&S.cfg.somFix)bip("ok");
+  G.prevFix=G.fix;
+  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
+  const base={0:9,1:1.8,5:0.25,4:0.008}[G.fix]||1;
+  G.hrms=+(base*(0.8+Math.random()*0.4)).toFixed(3);G.vrms=+(G.hrms*1.7).toFixed(3);
+  G.pdop=+(1.1+Math.random()*0.3).toFixed(1);
+  const j=G.hrms*0.6;let dE=(Math.random()-0.5)*j,dN=(Math.random()-0.5)*j;G.h+= (Math.random()-0.5)*j*1.5;
+  if(S.anda){
+    let v=0.9;const al=alvoEN();
+    if(al){const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn);G.course=(Math.atan2(de,dn)*180/Math.PI+(Math.random()-0.5)*(dist>3?16:4)+360)%360;v=Math.min(0.9,dist*0.45)}
+    else G.course=(G.course+(Math.random()-0.5)*18+360)%360;
+    const r=G.course*Math.PI/180;dE+=Math.sin(r)*v;dN+=Math.cos(r)*v;G.vel=v}else G.vel=0;
+  G.lat+=dN/111320;G.lon+=dE/(111320*Math.cos(G.lat*Math.PI/180));atualizaEN();
+  G.idade=S.corrLigada?+(0.8+Math.random()*0.6).toFixed(1):0;
+  // NMEA GGA a partir de lat/lon aproximados
+  const lat=G.lat, lon=G.lon;
+  const hh=new Date().toISOString().slice(11,19).replace(/:/g,"")+".00";
+  const dm=(v,d)=>{const a=Math.abs(v),g=Math.floor(a),m=(a-g)*60;return String(g).padStart(d,"0")+m.toFixed(5).padStart(8,"0")};
+  const cs=s=>{let c=0;for(const ch of s)c^=ch.charCodeAt(0);return c.toString(16).toUpperCase().padStart(2,"0")};
+  const q={0:0,1:1,5:5,4:4}[G.fix];
+  const lines=[];
+  if(S.sent.GGA){const b=`GNGGA,${hh},${dm(lat,2)},S,${dm(lon,3)},W,${q},${G.sats},${G.pdop.toFixed(1)},${G.h.toFixed(3)},M,-12.4,M,${G.idade||""},0001`;lines.push(`$${b}*${cs(b)}`)}
+  if(S.sent.RMC){const b=`GNRMC,${hh},A,${dm(lat,2)},S,${dm(lon,3)},W,0.02,0.0,271026,,,R`;lines.push(`$${b}*${cs(b)}`)}
+  if(S.sent.GST){const b=`GNGST,${hh},0.011,${G.hrms.toFixed(3)},${G.hrms.toFixed(3)},82.3,${G.hrms.toFixed(3)},${G.hrms.toFixed(3)},${G.vrms.toFixed(3)}`;lines.push(`$${b}*${cs(b)}`)}
+  if(S.sent.VTG){const b=`GNVTG,0.0,T,,M,0.02,N,0.04,K,D`;lines.push(`$${b}*${cs(b)}`)}
+  if(S.sent.ZDA){const b=`GNZDA,${hh},27,10,2026,00,00`;lines.push(`$${b}*${cs(b)}`)}
+  if(S.sent.GSA){const b=`GNGSA,A,3,02,05,12,13,15,18,20,25,29,,,,${G.pdop.toFixed(1)},0.6,1.0`;lines.push(`$${b}*${cs(b)}`)}
+  G.nmea=G.nmea.concat(lines).slice(-40);
+  render(false);
+}
+setInterval(tick,1000);
+
+// ---------- Utilidades ----------
+const $=id=>document.getElementById(id);
+const br=(v,d=3)=>v.toLocaleString(S.cfg.sepDec==="ponto"?"en-US":"pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const dc=()=>+S.cfg.dec||3;
+// ---------- Som e vibração ----------
+let actx=null;
+// iPhone: o som só é liberado se o áudio for "destravado" dentro de um toque
+function destravarAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();
+  const b=actx.createBuffer(1,1,22050),src=actx.createBufferSource();src.buffer=b;src.connect(actx.destination);src.start(0)}catch(e){}}
+["touchstart","touchend","mousedown","click"].forEach(ev=>document.addEventListener(ev,destravarAudio,{passive:true}));
+function bip(tipo){
+  const c=S.cfg;
+  if(c.vibrar)vib(tipo==="ok"?[60,60,60]:tipo==="erro"?[300]:[150,80,150]);
+  if(tipo==="ok"&&!c.somColeta)return; if(tipo==="fix"&&!c.somFix)return;
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();
+    const notas=tipo==="ok"?[[1320,0,.09],[1760,.13,.12]]:tipo==="erro"?[[330,0,.35]]:[[880,0,.15],[660,.2,.15],[880,.4,.15]];
+    for(const [f,t,d] of notas){const o=actx.createOscillator(),g=actx.createGain();o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.08,actx.currentTime+t);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+t+d);o.connect(g).connect(actx.destination);o.start(actx.currentTime+t);o.stop(actx.currentTime+t+d+.02)}
+  }catch(e){}
+}
+let wake=null;
+async function manterTela(){if(!S.cfg.telaLigada||wake)return;try{wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null)}catch(e){}}
+function fmtAng(a){if(S.cfg.ang==="dec")return br(a,4)+"°";if(S.cfg.ang==="grad")return br(a*400/360,4)+" gon";return azGMS(a)}
+function hm(t){return new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function dur(s){s=Math.max(0,Math.floor(s));return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,"0")).join(":")}
+const num=v=>parseFloat(String(v).replace(",","."));
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+const rec=()=>S.receptores.find(r=>r.id===S.ativo);
+const proj=()=>S.projetos.find(p=>p.id===S.projAtivo);
+function stCls(){return !S.conectado?"c-off":G.fix===4?"c-fix":G.fix===5?"c-float":G.fix===1?"c-bad":"c-off"}
+
+// ---------- Cabeçalho ----------
+function header(){
+  const r=rec();
+  $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"Coletora GNSS":"Receptor ativo";
+  $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(r?`${r.marca} ${r.modelo} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
+  const c=$("hChip");c.className="chip "+stCls();
+  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?"Autônomo (sem correção)":"Buscando satélites";
+  if(S.tela!=="home"&&ABA_DE[S.tela])S.aba=ABA_DE[S.tela];
+  $("hBack").hidden=S.tela==="home";
+  document.querySelectorAll("[data-aba]").forEach(b=>b.setAttribute("aria-current",b.dataset.aba===S.aba?"page":"false"));
+}
+
+// ---------- Telas ----------
+function vPainel(){
+  if(!S.conectado) return `<div class="card hl"><h3>Nenhum receptor conectado</h3><p class="muted small" style="margin:0">Conecte o receptor para ver a posição e o status do RTK.</p><button class="pri" data-act="irConexao">Conectar receptor</button></div>`+demoNota();
+  const fixTxt=G.fix===4?"FIX":G.fix===5?"FLOAT":G.fix===1?"AUTÔN.":"—";
+  const ringColor=G.fix===4?"var(--fix)":G.fix===5?"var(--float)":G.fix===1?"var(--bad)":"var(--muted)";
+  return `
+  <section class="card" style="flex-direction:row;align-items:center;gap:16px">
+    <div class="ring" style="border-color:${ringColor}"><b style="color:${ringColor}">${fixTxt}</b><small>${G.fix>=4?"RTK":"GNSS"}</small></div>
+    <div class="grid2" style="flex:1">
+      <div class="kv"><span>Satélites</span><b>${G.sats} / 31</b></div>
+      <div class="kv"><span>PDOP</span><b>${br(G.pdop,1)}</b></div>
+      <div class="kv"><span>Precisão H</span><b>${br(G.hrms)} m</b></div>
+      <div class="kv"><span>Precisão V</span><b>${br(G.vrms)} m</b></div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="split"><span class="eyebrow">Posição atual</span><button class="small" style="min-height:32px;font-size:13px;padding:0 10px" data-go="projetos">${sisTxt()} ›</button></div>
+    <div class="coords">${coordsHTML(G.lat,G.lon,G.E,G.N,G.h)}</div>
+  </section>
+  <section class="grid3">
+    <div class="card" style="padding:10px;gap:2px"><span class="muted small">Correção</span><b>${S.corrLigada?S.correcao.toUpperCase():"Desligada"}</b><span class="muted small">${S.corrLigada&&S.correcao==="ntrip"?esc(S.mount):S.corrLigada&&S.correcao==="radio"?esc(S.freq)+" MHz":"—"}</span></div>
+    <div class="card" style="padding:10px;gap:2px"><span class="muted small">Idade corr.</span><b class="m">${S.corrLigada?br(G.idade,1)+" s":"—"}</b><span class="muted small">${S.corrLigada?esc(S.mount||""):"sem base"}</span></div>
+    <div class="card" style="padding:10px;gap:2px"><span class="muted small">Saída NMEA</span><b>${S.servidor?"TCP :"+esc(S.sport):"Desligada"}</b><span class="muted small">${S.servidor?(NATIVO?R.clientes.length+" cliente(s)":"2 clientes (simulado)"):"—"}</span></div>
+  </section>
+  <section style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px">${Object.entries(G.const).map(([k,v])=>`<span style="padding:4px 10px;border-radius:99px;background:#1E2B38">${k} ${S.conectado?v:0}</span>`).join("")}</section>
+  ${!S.corrLigada?`<div class="banner">Sem correção: a precisão está em metros. Ligue o NTRIP ou o rádio em Receptor › Correção para chegar ao FIX.</div>`:""}
+  <button class="pri big" data-go="coleta">Coletar ponto</button>`;
+}
+function proxNome(){if(S.pNum)return S.pNum;const p=proj();const n=(p?.pontos.length||0)+1;return (S.cfg.prefixo??"P-")+String(n).padStart(+S.cfg.digitos||4,"0")}
+function incNome(n){const m=String(n).match(/^(.*?)(\d+)([^\d]*)$/);if(!m)return n+"-1";return m[1]+String(+m[2]+1).padStart(m[2].length,"0")+m[3]}
+function rotulo(p){const r=S.cfg.rotuloMapa;return r==="nenhum"?"":r==="desc"?(p.cod||p.nome):r==="ambos"?(p.nome+(p.cod?" · "+p.cod:"")):p.nome}
+function descRecentes(){const v=[];for(const p of [...(proj()?.pontos||[])].reverse()){if(p.cod&&!v.includes(p.cod)&&p.st!=="CALC")v.push(p.cod);if(v.length>=6)break}return v}
+function vColeta(){
+  const p=proj();
+  if(!p) return `<div class="card"><h3>Nenhum projeto aberto</h3><button class="pri" data-go="projetos">Abrir ou criar projeto</button></div>`;
+  const pode=podeColetar();
+  const motivo=!S.conectado?"Conecte o receptor primeiro.":S.soFix&&G.fix!==4?"Aguardando FIX (critério 'Somente FIX' ligado).":"";
+  const ult=p.pontos.slice(-5).reverse();
+  return `
+  <div class="grid2">
+    <label class="f">Número do ponto<input class="m" id="pNome" data-bind="pNum" value="${esc(proxNome())}"></label>
+    <label class="f">Descrição<input id="pCod" value="${esc(S.codigo)}" data-bind="codigo" placeholder="Ex.: MF, poste, cerca"></label>
+    <label class="f">Altura do bastão (m)<input class="m" id="pAlt" inputmode="decimal" value="${esc(S.altura)}" data-bind="altura"></label>
+    <label class="f">Medida da altura<select id="pTipo"><option>Base da rosca</option><option>Centro de fase</option><option>Inclinada</option></select></label>
+  </div>
+  ${descRecentes().length?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="muted small">Recentes:</span>${descRecentes().map(d=>`<button style="min-height:36px;font-size:14px;padding:0 12px" data-desc="${esc(d)}" aria-pressed="${S.codigo===d}">${esc(d)}</button>`).join("")}</div>`:""}
+  <section class="card">
+    <span class="eyebrow">Critérios de aceite</span>
+    <div class="grid3">
+      <label class="ck small"><input type="checkbox" id="soFix" ${S.soFix?"checked":""}> Somente FIX</label>
+      <label class="f">Tolerância H (m)<input class="m" id="tolH" inputmode="decimal" value="${esc(S.tolH)}" data-bind="tolH"></label>
+      <label class="f">Épocas (s)<input class="m" id="ep" inputmode="numeric" value="${esc(S.epocas)}" data-bind="epocas"></label>
+    </div>
+  </section>
+  <button class="pri big" data-act="coletar" ${pode?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:"Coletar "+proxNome()}</button>
+  ${motivo?`<p class="muted small" style="margin:0">${motivo}</p>`:""}
+  <button data-go="mapa">Ver pontos no mapa</button>
+  <section style="display:flex;flex-direction:column;gap:8px">
+    <div class="split"><span class="eyebrow">Últimos pontos</span><span class="muted small">${p.pontos.length} no projeto</span></div>
+    ${ult.length?`<div class="list">${ult.map(x=>`<div class="row"><b class="m">${esc(x.nome)}</b><span class="muted">${esc(x.cod)} · ${br(x.h_rms)} m</span><span class="${x.st==="FIX"?"st-fix":"st-float"}">${x.st}</span></div>`).join("")}</div>`:`<p class="muted small" style="margin:0">Nenhum ponto ainda. O primeiro aparece aqui.</p>`}
+  </section>`;
+}
+let exportTxt="";
+function vProjetos(){
+  return `
+  <div class="split"><span class="ttl">Projetos</span><button class="pri" data-act="novoProj">Novo projeto</button></div>
+  <div id="novoProjForm" hidden class="card">
+    <label class="f">Nome do projeto<input id="npNome" placeholder="Ex.: Batimetria Igarapé do Quarenta"></label>
+    <label class="f">Cliente<input id="npCli" placeholder="Nome do cliente"></label>
+    <button class="pri" data-act="criarProj">Criar e abrir</button>
+  </div>
+  ${S.projetos.map(p=>`<button class="proj card" data-proj="${p.id}" aria-pressed="${p.id===S.projAtivo}">
+     <span class="split" style="width:100%"><b style="font-size:17px">${esc(p.nome)}</b>${p.id===S.projAtivo?`<span style="font-size:12px;color:var(--accent);font-weight:700">ABERTO</span>`:""}</span>
+     <span class="muted small">Cliente: ${esc(p.cliente||"—")} · ${esc(Object.assign({},SIS_PADRAO,p.sis||{}).datum)} / ${(p.sis?.proj||"UTM")==="UTM"?"UTM "+((p.sis?.zona||"auto")==="auto"?"auto":p.sis.zona+(p.sis.hemi||"S")):"Geográficas"}</span>
+     <span class="small"><b class="m">${p.pontos.length}</b> pontos</span></button>`).join("")}
+  ${proj()?sisCard():""}
+  ${proj()?`<section class="card" style="background:var(--panel2)">
+    <span class="eyebrow">Exportar ${esc(proj().nome)}</span>
+    <div class="grid3">
+      <button data-exp="csv">CSV</button><button data-exp="dxf">DXF</button><button data-exp="kml">KML</button>
+    </div>
+    ${exportTxt?`<textarea id="expTxt" readonly aria-label="Arquivo exportado">${esc(exportTxt)}</textarea>${NATIVO?`<button class="pri" data-act="compartilhar">Enviar arquivo (WhatsApp, e-mail, Drive)</button><button data-act="copiar">Copiar texto</button>`:`<button class="pri" data-act="copiar">Copiar arquivo</button>`}`:`<p class="muted small" style="margin:0">Nesta versão de teste o arquivo aparece na tela para copiar. No app instalado, ele vai direto para WhatsApp, e-mail ou Drive.</p>`}
+  </section>`:""}`;
+}
+// ---------- Ajustar base (PPP do IBGE + translação) ----------
+const ESPERA_PPP=150; // minutos após o fim do rastreio (processamento GPS com órbitas ultrarrápidas)
+function sAjuste(){
+  const A=S.ajuste, now=Date.now();
+  const net=`<label class="ck small"><input type="checkbox" id="semNet" ${S.semInternet?"checked":""}> Simular sem internet no local</label>`;
+  if(!S.baseLigada&&!A) return `<section class="card"><h3>Ajuste de base no mesmo dia</h3>
+    <span class="muted small">1. Em Base/Rover, pegue a <b>posição atual</b> da base e toque em Iniciar base. A gravação RINEX começa junto.<br>2. Colete normalmente com o rover.<br>3. Encerre o rastreio aqui: o app envia ao IBGE-PPP e, quando a coordenada corrigida chegar, aplica a correção na base e em todos os pontos do dia.</span>
+    <button class="pri" data-sub="baserover">Ir para Base/Rover</button></section>
+    ${manualAjuste()}`;
+  if(A&&!A.prov&&A.status==="gravando") return `<section class="card"><h3>Base em coordenada conhecida</h3><span class="muted small">Esta base foi iniciada com ${esc(S.baseFonte||"coordenada digitada")}. Não precisa de ajuste. Se mesmo assim quiser conferir pelo IBGE, encerre o rastreio abaixo.</span>
+    <button data-act="ajEncerrar">Encerrar rastreio e enviar ao IBGE-PPP</button></section>`;
+  const prov=S.baseProv, nPts=pontosDesde(S.baseInicio).length;
+  let corpo="";
+  if(A.status==="gravando"){const t=(now-S.baseInicio)/1000,mb=t/15*7/1024;
+    corpo=`<section class="card hl"><div class="split"><h3>Rastreando a base</h3><span class="st-fix small">● GRAVANDO</span></div>
+      <div class="grid2"><div class="kv"><span>Tempo</span><b>${dur(t)}</b></div><div class="kv"><span>Arquivo RINEX (15 s)</span><b>${br(mb,2)} MB</b></div>
+      <div class="kv"><span>Início</span><b>${hm(S.baseInicio)}</b></div><div class="kv"><span>Pontos coletados</span><b>${nPts}</b></div></div>
+      ${t<3600?`<div class="banner">O IBGE recomenda pelo menos 1 hora de rastreio para precisão centimétrica. Faltam ${dur(3600-t)}.</div>`:`<span class="st-fix small">Tempo mínimo atingido.</span>`}
+      <span class="muted small">Enquanto isso, faça só <b>coleta</b>. A locação deve esperar o ajuste.</span>
+      ${net}
+      <button class="pri" data-act="ajEncerrar">Encerrar rastreio e enviar ao IBGE-PPP</button></section>`}
+  if(A.status==="fila") corpo=`<section class="card" style="border-color:var(--float)"><h3>Na fila de envio</h3>
+      <span class="muted small">Rastreio encerrado às ${hm(A.fim)} (${dur((A.fim-S.baseInicio)/1000)}). Sem internet agora: o arquivo será enviado sozinho assim que o celular pegar sinal.</span>${net}</section>`;
+  if(A.status==="aguardando"){const pronto=A.fim+ESPERA_PPP*60000,falta=(pronto-now)/1000;
+    corpo=`<section class="card hl"><h3>Enviado ao IBGE-PPP</h3>
+      <div class="grid2"><div class="kv"><span>Enviado</span><b>${hm(A.enviado)}</b></div><div class="kv"><span>Processa a partir de</span><b>${hm(pronto)}</b></div></div>
+      <span class="muted small">${falta>0?`Aguardando órbitas · faltam ${dur(falta)}. O app consulta o IBGE sozinho e avisa quando chegar.`:"Consultando o resultado…"}</span>
+      <button data-act="ajSimular">Simular: o IBGE respondeu agora</button></section>`}
+  if(A.status==="processado"||A.status==="aplicado"){const c=A.corr,dE=c.E-prov.E,dN=c.N-prov.N,dh=c.h-prov.h;
+    corpo=`<section class="card ${A.status==="aplicado"?"":"hl"}" ${A.status==="aplicado"?`style="background:var(--fix-bg);border-color:var(--fix)"`:""}>
+      <div class="split"><h3>${A.status==="aplicado"?"Ajuste aplicado ✓":"Coordenada corrigida recebida"}</h3><span class="muted small">${esc(A.origem)}</span></div>
+      <div class="tbl" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums">
+        <tr><th style="text-align:left;color:var(--muted);padding:4px 0"></th><th style="text-align:right;color:var(--muted)">Provisória</th><th style="text-align:right;color:var(--muted)">Corrigida</th><th style="text-align:right;color:var(--muted)">Diferença</th></tr>
+        <tr><td>E</td><td class="m" style="text-align:right">${br(prov.E)}</td><td class="m" style="text-align:right">${br(c.E)}</td><td class="m" style="text-align:right;color:var(--accent)">${dE>=0?"+":""}${br(dE)}</td></tr>
+        <tr><td>N</td><td class="m" style="text-align:right">${br(prov.N)}</td><td class="m" style="text-align:right">${br(c.N)}</td><td class="m" style="text-align:right;color:var(--accent)">${dN>=0?"+":""}${br(dN)}</td></tr>
+        <tr><td>h</td><td class="m" style="text-align:right">${br(prov.h)}</td><td class="m" style="text-align:right">${br(c.h)}</td><td class="m" style="text-align:right;color:var(--accent)">${dh>=0?"+":""}${br(dh)}</td></tr>
+      </table></div>
+      ${c.sig?`<span class="muted small">Precisão informada (1σ): E ${br(c.sig[0])} · N ${br(c.sig[1])} · h ${br(c.sig[2])} m</span>`:""}
+      ${A.status==="aplicado"?`<span class="small" style="color:#CDEFD9">${A.nAplic} pontos e a base foram transladados às ${hm(A.aplicado)}. O receptor da base já recebeu a coordenada nova. Pode locar.</span>`
+        :`<span class="small">Deslocamento horizontal: <b>${br(Math.hypot(dE,dN))} m</b>. Ao aplicar, a base e os <b>${nPts} pontos</b> coletados desde ${hm(S.baseInicio)} são corrigidos, e a coordenada nova é enviada ao receptor da base.</span>
+         <button class="pri" data-act="ajAplicar">Aplicar ajuste em ${nPts} pontos e na base</button>`}
+    </section>`}
+  return corpo+(A.status!=="aplicado"?manualAjuste():"")+(A.status==="aplicado"?`<button data-act="ajNovo">Iniciar nova sessão de base</button>`:"");
+}
+function manualAjuste(){
+  return `<section class="card" style="background:var(--panel2)"><h3>Recebeu a coordenada por outro meio?</h3>
+    <span class="muted small">Se alguém processou no escritório e mandou por WhatsApp ou telefone, digite aqui. Funciona sem internet. (${sisTxt()})</span>
+    <div class="grid3"><label class="f">E<input class="m" data-bind="ajE" value="${esc(S.ajE||"")}" inputmode="decimal"></label><label class="f">N<input class="m" data-bind="ajN" value="${esc(S.ajN||"")}" inputmode="decimal"></label><label class="f">h<input class="m" data-bind="ajH" value="${esc(S.ajH||"")}" inputmode="decimal"></label></div>
+    <button data-act="ajManual">Usar esta coordenada</button></section>`;
+}
+function pontosDesde(t){return (proj()?.pontos||[]).filter(p=>new Date(p.quando).getTime()>=t)}
+
+// ---------- Gravação estática ----------
+function pararEstatico(auto){
+  const e=S.est;if(!e.gravando)return;const fim=Date.now(),s=(fim-e.inicio)/1000;
+  const kb=e.formato.startsWith("CNB")?2.2:7;
+  S.arquivos.unshift({id:fim,nome:e.nome,inicio:e.inicio,fim,dur:s,taxa:e.taxa,destino:e.destino,formato:e.formato,altAnt:e.altAnt,medida:e.medida,mb:s/(+e.taxa)*kb/1024,ppp:"nao",lat:G.lat,lon:G.lon,h:G.h});
+  e.gravando=false;const m=e.nome.match(/^(.*?)(\d+)$/);if(m)e.nome=m[1]+String(+m[2]+1).padStart(m[2].length,"0");
+  salvar();bip("ok");toast(auto?"Tempo programado atingido: gravação encerrada":"Gravação estática encerrada");render();
+}
+function sEstatico(){
+  const e=S.est,now=Date.now();
+  if(e.gravando){const t=(now-e.inicio)/1000,kb=e.formato.startsWith("CNB")?2.2:7;
+    return `<section class="card hl"><div class="split"><h3>Gravando ${esc(e.nome)}</h3><span class="st-fix small">● GRAVANDO</span></div>
+      <div class="grid2"><div class="kv"><span>Tempo</span><b style="font-size:24px">${dur(t)}</b></div><div class="kv"><span>${+e.duracao>0?"Termina em":"Duração"}</span><b>${+e.duracao>0?dur(e.duracao*60-t):"livre"}</b></div>
+      <div class="kv"><span>Épocas</span><b>${Math.floor(t/+e.taxa)}</b></div><div class="kv"><span>Tamanho</span><b>${br(t/+e.taxa*kb/1024,2)} MB</b></div>
+      <div class="kv"><span>Satélites</span><b>${G.sats}</b></div><div class="kv"><span>PDOP</span><b>${br(G.pdop,1)}</b></div></div>
+      <span class="muted small">${e.formato} a cada ${e.taxa} s · salvando ${e.destino==="receptor"?"na memória do receptor":"neste celular"} · antena ${esc(e.altAnt)} m (${esc(e.medida)})</span>
+      <button class="pri big" data-act="estParar">Parar gravação</button></section>${listaArquivos()}`}
+  return `<section class="card">
+    <h3>Gravar estático</h3>
+    <div class="grid2">
+      <label class="f">Nome do ponto/arquivo<input class="m" value="${esc(e.nome)}" data-est="nome"></label>
+      <label class="f">Taxa de gravação<select data-est="taxa">${["1","5","10","15","30"].map(v=>`<option value="${v}" ${e.taxa===v?"selected":""}>${v} s</option>`).join("")}</select></label>
+      <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(e.altAnt)}" data-est="altAnt"></label>
+      <label class="f">Medida da altura<select data-est="medida">${["Base da rosca","Vertical (marca)","Inclinada (borda)","Centro de fase"].map(v=>`<option ${e.medida===v?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label class="f">Máscara de elevação (°)<input class="m" value="${esc(e.mascara)}" data-est="mascara"></label>
+      <label class="f">Duração programada<select data-est="duracao">${[["0","Parar manualmente"],["30","30 min"],["60","1 hora"],["120","2 horas"],["240","4 horas"],["360","6 horas"]].map(([v,n])=>`<option value="${v}" ${e.duracao===v?"selected":""}>${n}</option>`).join("")}</select></label>
+    </div>
+    <span class="eyebrow">Salvar em</span>
+    <div class="grid2">${optE("destino","receptor","Receptor","memória interna")}${optE("destino","coletora","Coletora","este celular")}</div>
+    <span class="eyebrow">Formato</span>
+    <div class="grid3">${optE("formato","CNB","CNB","nativo ComNav")}${optE("formato","RINEX 3.04","RINEX 3.04","padrão IBGE")}${optE("formato","RINEX 2.11","RINEX 2.11","softwares antigos")}</div>
+    ${e.formato==="CNB"?`<span class="muted small">CNB é o formato nativo da ComNav, menor e mais completo. Para enviar ao IBGE-PPP o app converte para RINEX automaticamente.</span>`:""}
+    ${e.destino==="coletora"?`<span class="muted small">Gravando no celular, a conexão com o receptor precisa ficar ativa durante todo o rastreio.</span>`:`<span class="muted small">Gravando no receptor, você pode desligar o celular. Depois, baixe o arquivo pela lista abaixo.</span>`}
+    <button class="pri big" data-act="estIniciar" ${S.conectado?"":"disabled"}>Iniciar gravação</button>
+    ${S.conectado?"":`<span class="muted small">Conecte o receptor primeiro.</span>`}
+  </section>${listaArquivos()}`;
+}
+const optE=(k,v,t,sm)=>`<button class="opt" data-estopt="${k}" data-val="${v}" aria-pressed="${S.est[k]===v}">${t}<small>${sm}</small></button>`;
+function listaArquivos(){
+  if(!S.arquivos.length)return "";
+  return `<span class="eyebrow">Arquivos gravados</span>${S.arquivos.map(f=>`<section class="card" style="padding:12px 14px;gap:6px">
+    <div class="split"><b class="m">${esc(f.nome)}</b><span class="muted small">${f.destino==="receptor"?"no receptor":"no celular"}</span></div>
+    <span class="muted small">${new Date(f.inicio).toLocaleDateString("pt-BR")} ${hm(f.inicio)} · ${dur(f.dur)} · ${f.formato} · ${f.taxa} s · ${br(f.mb,2)} MB</span>
+    ${f.ppp==="ok"?`<span class="small" style="color:var(--fix)">IBGE-PPP: E ${br(f.res[0])} · N ${br(f.res[1])} · h ${br(f.res[2])} m (σ ${br(f.res[3])} m)</span>`:f.ppp==="aguardando"?`<span class="small" style="color:var(--float)">Enviado ao IBGE-PPP · processa a partir das ${hm(f.fim+ESPERA_PPP*60000)}</span>`:f.ppp==="fila"?`<span class="small" style="color:var(--float)">Na fila: envia quando houver internet</span>`:""}
+    <div class="grid3">
+      ${f.destino==="receptor"?`<button style="min-height:40px;font-size:13px" data-arq="baixar" data-id="${f.id}">Baixar p/ celular</button>`:`<button style="min-height:40px;font-size:13px" data-arq="compart" data-id="${f.id}">Compartilhar</button>`}
+      ${f.ppp==="nao"?`<button style="min-height:40px;font-size:13px" data-arq="ppp" data-id="${f.id}">Enviar IBGE</button>`:f.ppp==="aguardando"?`<button style="min-height:40px;font-size:13px" data-arq="simppp" data-id="${f.id}">Simular resposta</button>`:`<span></span>`}
+      <button style="min-height:40px;font-size:13px" data-arq="apagar" data-id="${f.id}">Apagar</button>
+    </div></section>`).join("")}`;
+}
+
+// ---------- Página de Locação ----------
+function vLocacao(){
+  if(S.loc){
+    const al=alvoEN();const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360;
+    const tol=num(S.locTol)||0.03,R=130,esc_=Math.max(dist*1.25,tol*6,0.2),pr=Math.min(dist/esc_*R,R);
+    const tx=150+Math.sin(az*Math.PI/180)*pr,ty=150-Math.cos(az*Math.PI/180)*pr,ok=dist<=tol;
+    const aneis=[1,2,3,4].map(i=>`<circle cx="150" cy="150" r="${R*i/4}" fill="none" stroke="#263241"/>`).join("");
+    const lbl=[1,2,3,4].map(i=>`<text x="${150+4}" y="${150-R*i/4-3}" fill="#9FB0C2" font-size="10" font-family="Barlow, sans-serif">${br(esc_*i/4,esc_<2?2:1)} m</text>`).join("");
+    return `${locPainel()}
+    <section class="card" style="align-items:center;padding:10px">
+      <svg viewBox="0 0 300 300" width="100%" style="max-width:320px" role="img" aria-label="Radar de aproximação até o ponto">
+        ${aneis}${lbl}<line x1="150" y1="20" x2="150" y2="280" stroke="#1E2B38"/><line x1="20" y1="150" x2="280" y2="150" stroke="#1E2B38"/>
+        <text x="150" y="14" fill="#E8EEF4" font-size="12" text-anchor="middle" font-weight="700" font-family="Barlow, sans-serif">N</text>
+        ${S.conectado?`<line x1="150" y1="150" x2="${tx}" y2="${ty}" stroke="#FF8A1F" stroke-width="2.5" stroke-dasharray="6 5"/>
+        <g transform="translate(${tx} ${ty})"><circle r="11" fill="none" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="3"/><line x1="-16" y1="0" x2="16" y2="0" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="2"/><line x1="0" y1="-16" x2="0" y2="16" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="2"/></g>
+        <g transform="translate(150 150) rotate(${G.course})"><polygon points="0,-16 11,12 0,6 -11,12" fill="${G.fix===4?"#3DDC84":"#FFC24B"}" stroke="#0F1720" stroke-width="2"/></g>`:`<text x="150" y="155" fill="#9FB0C2" font-size="13" text-anchor="middle" font-family="Barlow, sans-serif">Conecte o receptor</text>`}
+      </svg>
+      <span class="muted small">${S.cfg.locVibrar||S.cfg.locSom?`Aviso de aproximação ligado a partir de ${S.cfg.locRaio} m: quanto mais perto, mais rápido.`:"Aviso de aproximação desligado nas Configurações."}</span>
+    </section>
+    <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada até o ponto</label>
+    <div class="grid2"><button data-go="mapa">Ver no mapa</button><button data-act="pararLoc">Parar locação</button></div>`;
+  }
+  const pts=proj()?.pontos||[], q=(S.lcBusca||"").toLowerCase();
+  const lista=pts.map((p,i)=>({p,i})).filter(({p})=>!q||p.nome.toLowerCase().includes(q)||(p.cod||"").toLowerCase().includes(q));
+  const locados=new Set((proj()?.locados||[]).map(l=>l.nome));
+  const modo=S.lcModo||"lista";
+  return `<span class="ttl">Locação</span>
+  <div class="subtabs" role="tablist">
+    <button role="tab" data-lcmodo="lista" aria-selected="${modo==="lista"}">Pontos do projeto</button>
+    <button role="tab" data-lcmodo="digitar" aria-selected="${modo==="digitar"}">Digitar coordenadas</button>
+    <button role="tab" data-ferr="locLinha">Locar linha</button>
+  </div>
+  ${modo==="lista"?`
+    <label class="f">Buscar por número ou descrição<input data-bind="lcBusca" value="${esc(S.lcBusca||"")}" placeholder="Ex.: 0012 ou estaca"></label>
+    ${lista.length?`<div class="list">${lista.slice().reverse().map(({p,i})=>{const [E,N]=ptEN(p);const d=S.conectado?Math.hypot(E-G.E,N-G.N):null;
+      return `<button class="row" style="grid-template-columns:1fr auto;text-align:left;border-radius:0;border:0;border-bottom:1px solid var(--line);min-height:56px" data-locp="${i}">
+        <span><b class="m">${esc(p.nome)}</b> <span class="muted small">${esc(p.cod||"")}${locados.has(p.nome)?" · locado ✓":""}</span></span>
+        <span class="muted small m">${d!==null?br(d,d<100?2:0)+" m":""}</span></button>`}).join("")}</div>`
+      :`<p class="muted small" style="margin:0">${pts.length?"Nenhum ponto encontrado.":"O projeto ainda não tem pontos. Use “Digitar coordenadas”."}</p>`}`
+  :`<section class="card">
+      <span class="muted small">${sisTxt()}</span>
+      <div class="grid2">
+        <label class="f">Número do ponto<input class="m" data-bind="lcNome" value="${esc(S.lcNome||"")}" placeholder="Ex.: E-12"></label>
+        <label class="f">Descrição<input data-bind="lcDesc" value="${esc(S.lcDesc||"")}" placeholder="Ex.: estaca do eixo"></label>
+        <label class="f">E (m)<input class="m" inputmode="decimal" data-bind="lcE" value="${esc(S.lcE||"")}" placeholder="${S.conectado?br(G.E):""}"></label>
+        <label class="f">N (m)<input class="m" inputmode="decimal" data-bind="lcN" value="${esc(S.lcN||"")}" placeholder="${S.conectado?br(G.N):""}"></label>
+        <label class="f">Cota de projeto (m)<input class="m" inputmode="decimal" data-bind="lcH" value="${esc(S.lcH||"")}" placeholder="opcional"></label>
+      </div>
+      <label class="ck small"><input type="checkbox" id="lcSalvar" ${S.lcSalvar!==false?"checked":""}> Salvar no projeto como ponto de projeto</label>
+      <button class="pri" data-act="locDigitado">Locar este ponto</button>
+    </section>`}
+  <div class="grid2"><label class="f">Tolerância "no ponto" (m)<input class="m" inputmode="decimal" data-bind="locTol" value="${esc(S.locTol)}"></label>
+    <div class="kv" style="justify-content:end"><span>Locados no projeto</span><b>${(proj()?.locados||[]).length}</b></div></div>`;
+}
+// aviso de aproximação: pulsos mais rápidos quanto mais perto
+let ultPulso=0,chegouAviso=false;
+setInterval(()=>{
+  if(!S.loc||!S.conectado){chegouAviso=false;return}
+  const c=S.cfg;if(!c.locVibrar&&!c.locSom)return;
+  const al=alvoEN();if(!al)return;const d=Math.hypot(al.E-G.E,al.N-G.N),tol=num(S.locTol)||0.03,raio=num(c.locRaio)||5,now=Date.now();
+  if(d<=tol){if(!chegouAviso){chegouAviso=true;if(c.locVibrar)vib([500,100,500],true);if(c.locSom)tom(1760,.4)}return}
+  chegouAviso=false;if(d>raio)return;
+  const per=Math.max(120,Math.min(1600,120+d/raio*1480));
+  if(now-ultPulso>=per){ultPulso=now;if(c.locVibrar)vib(35,true);if(c.locSom)tom(700+(1-d/raio)*900,.05)}
+},60);
+function tom(f,d){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(.12,actx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+d);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d+.02)}catch(e){}}
+
+// ---------- Página de Cálculos ----------
+const FERR=[["medir","Distância e azimute","entre pontos (inverso)"],["area","Área e perímetro","polígono por pontos"],["volume","Volume","corte e aterro"],["linha","Linha","ligar A→B→C…"],["locLinha","Locar linha","estaca e afastamento"],["offset","Offset","paralela a A→B"],["estender","Estender / dividir","prolongar A→B"],["irradiar","Irradiação","azimute + distância"],["intersecao","Interseção","de duas linhas"],["converter","Converter coordenadas","UTM ⇄ geográficas, fusos"]];
+function vCalc(){
+  const grade=`<div class="grid2">${FERR.map(([k,n,d])=>`<button class="opt" data-ferr="${k}" aria-pressed="${S.ferr===k}" style="min-height:66px">${n}<small>${d}</small></button>`).join("")}</div>`;
+  if(!S.ferr)return `<span class="ttl">Cálculos</span><span class="muted small">Escolha uma ferramenta. Os resultados que geram pontos entram no projeto em azul.</span>${grade}`;
+  const nome=(FERR.find(f=>f[0]===S.ferr)||[])[1];
+  return `<div class="split"><button style="min-height:38px;font-size:14px" data-act="calcVoltar">‹ Ferramentas</button><button style="min-height:38px;font-size:14px" data-go="mapa">Ver no mapa</button></div>
+  <span class="ttl">${nome}</span>${ferrCorpo()}`;
+}
+function parseAng(s){s=String(s||"").trim();if(!s)return NaN;const p=s.replace(/[°'"’”]/g," ").replace(",",".").trim().split(/\s+/).map(Number);if(p.some(isNaN))return NaN;return p.length===1?p[0]:p[0]+(p[1]||0)/60+(p[2]||0)/3600}
+function delaunay(P){ // Bowyer-Watson
+  const n=P.length;if(n<3)return [];let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;for(const p of P){minx=Math.min(minx,p.E);miny=Math.min(miny,p.N);maxx=Math.max(maxx,p.E);maxy=Math.max(maxy,p.N)}
+  const dm=Math.max(maxx-minx,maxy-miny)*20,mx=(minx+maxx)/2,my=(miny+maxy)/2;
+  const V=P.map(p=>({x:p.E,y:p.N})).concat([{x:mx-dm,y:my-dm},{x:mx,y:my+dm},{x:mx+dm,y:my-dm}]);
+  const cc=(a,b,c)=>{const A=V[a],B=V[b],C=V[c],d=2*(A.x*(B.y-C.y)+B.x*(C.y-A.y)+C.x*(A.y-B.y));const ux=((A.x**2+A.y**2)*(B.y-C.y)+(B.x**2+B.y**2)*(C.y-A.y)+(C.x**2+C.y**2)*(A.y-B.y))/d,uy=((A.x**2+A.y**2)*(C.x-B.x)+(B.x**2+B.y**2)*(A.x-C.x)+(C.x**2+C.y**2)*(B.x-A.x))/d;return {x:ux,y:uy,r:(A.x-ux)**2+(A.y-uy)**2}};
+  let T=[[n,n+1,n+2]].map(t=>({t,c:cc(...t)}));
+  for(let i=0;i<n;i++){const p=V[i],bad=T.filter(o=>(p.x-o.c.x)**2+(p.y-o.c.y)**2<o.c.r);const ed=[];
+    for(const o of bad)for(const [a,b] of [[o.t[0],o.t[1]],[o.t[1],o.t[2]],[o.t[2],o.t[0]]]){const k=ed.findIndex(e=>(e[0]===b&&e[1]===a)||(e[0]===a&&e[1]===b));if(k>=0)ed.splice(k,1);else ed.push([a,b])}
+    T=T.filter(o=>!bad.includes(o));for(const [a,b] of ed)T.push({t:[a,b,i],c:cc(a,b,i)})}
+  return T.map(o=>o.t).filter(t=>t.every(v=>v<n));
+}
+function calcVolume(ps,ref){
+  const tris=delaunay(ps);let corte=0,aterro=0,area=0;const K=8;
+  for(const [a,b,c] of tris){const A=ps[a],B=ps[b],C=ps[c];const ar=Math.abs((B.E-A.E)*(C.N-A.N)-(C.E-A.E)*(B.N-A.N))/2;area+=ar;
+    let sp=0,sn=0,cnt=0;for(let i=0;i<=K;i++)for(let j=0;j<=K-i;j++){const k=K-i-j,dz=(A.h*i+B.h*j+C.h*k)/K-ref;if(dz>0)sp+=dz;else sn+=-dz;cnt++}
+    corte+=ar*sp/cnt;aterro+=ar*sn/cnt}
+  return {corte,aterro,area,n:tris.length,tris};
+}
+function selLista(chave,rotulo){
+  const lista=(S[chave]||[]).map(getPt).filter(Boolean);
+  return `<div class="list">${lista.length?lista.map((p,i)=>`<div class="row" style="grid-template-columns:24px 1fr auto"><b>${i+1}</b><span>${esc(p.nome)}</span><button style="min-height:32px;font-size:12px" data-lrm="${chave}" data-i="${i}">Tirar</button></div>`).join(""):`<div class="row" style="grid-template-columns:1fr"><span class="muted">Nenhum ponto escolhido</span></div>`}</div>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">${rotulo}<select data-bind="sel_${chave}">${ptOpts(S["sel_"+chave]??"0",chave==="medList")}</select></label><button class="pri" style="align-self:end" data-ladd="${chave}">Adicionar</button></div>
+    <div class="grid2"><button data-lall="${chave}">Usar todos os pontos</button><button data-lclr="${chave}">Limpar</button></div>`;
+}
+
+// ---------- Telas iniciais com ícones ----------
+const IC={
+  conexao:'<rect x="4" y="2" width="9" height="16" rx="2"/><path d="M8 15h1"/><path d="M16 7l4 4-4 4M13 11h7"/>',
+  rover:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v2c0 1.7 3.1 3 7 3s7-1.3 7-3V6M12 11v11"/>',
+  base:'<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v2c0 1.7 3.1 3 7 3s7-1.3 7-3V5M12 10l-6 12M12 10l6 12M12 10v12"/>',
+  ajuste:'<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+  correcao:'<circle cx="12" cy="10" r="2"/><path d="M12 12v10M8 22h8M7.8 5.8a6 6 0 0 0 0 8.4M16.2 5.8a6 6 0 0 1 0 8.4M4.9 2.9a10 10 0 0 0 0 14.2M19.1 2.9a10 10 0 0 1 0 14.2"/>',
+  estatico:'<ellipse cx="10" cy="6" rx="7" ry="3"/><path d="M3 6v3c0 1.7 3.1 3 7 3"/><circle cx="17" cy="16" r="5"/><path d="M17 13.5V16l1.8 1.2"/>',
+  nmea:'<path d="M8 6l-6 6 6 6M16 6l6 6-6 6M13.5 4l-3 16"/>',
+  info:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 11v6M12 7.5v.5"/>',
+  receptores:'<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.5"/><circle cx="4.5" cy="12" r="1.5"/><circle cx="4.5" cy="18" r="1.5"/>',
+  painel:'<path d="M3 17a9 9 0 1 1 18 0"/><path d="M12 17l4-6"/><path d="M3 21h18"/>',
+  coletar:'<path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><path d="M12 6.5v7M8.5 10h7"/>',
+  locarPonto:'<path d="M5 22V3l11 4-11 4"/><circle cx="17" cy="17" r="3"/><path d="M17 11.5v2M17 20.5v1.5M11.5 17h2M20.5 17h1.5"/>',
+  locarLinha:'<path d="M4 20L20 4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/><path d="M13 17l4 2 2-4"/>',
+  mapa:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  linha:'<path d="M3 18l6-8 5 5 7-10"/><circle cx="3" cy="18" r="1.5"/><circle cx="9" cy="10" r="1.5"/><circle cx="14" cy="15" r="1.5"/><circle cx="21" cy="5" r="1.5"/>',
+  projetos:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  sistema:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  pontos:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="8" cy="17" r="2"/><circle cx="17" cy="18" r="2"/><path d="M3 21h18" stroke-dasharray="2 3"/>',
+  exportar:'<path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+  importar:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  medir:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  area:'<path d="M4 8l7-5 9 6-3 11H6z"/><path d="M8 14l4-4M11 17l6-6" stroke-dasharray="1.5 2"/>',
+  volume:'<path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12L3 7M12 12v10"/>',
+  offset:'<path d="M3 17L17 3M7 21L21 7"/><path d="M9 9l3 3" stroke-dasharray="1.5 2"/>',
+  estender:'<path d="M3 21l10-10"/><path d="M13 11l8-8" stroke-dasharray="2 2.5"/><circle cx="3" cy="21" r="1.5"/><circle cx="13" cy="11" r="1.5"/><path d="M16 3h5v5"/>',
+  irradiar:'<path d="M3 20h18M3 20L15 6"/><path d="M9 20a6 6 0 0 0-1.7-4.3"/><path d="M11 6h4v4"/>',
+  intersecao:'<path d="M4 4l16 16M20 4L4 20"/><circle cx="12" cy="12" r="2.5"/>',
+  converter:'<path d="M4 8h15l-3-3M20 16H5l3 3"/>',
+};
+const COR={verde:"#2E9E5B",roxo:"#9B4DCA",violeta:"#6E5BD9",laranja:"#E0702A",teal:"#138A7E",azul:"#2F7FD1",vermelho:"#C9453D",ambar:"#B8860B",rosa:"#C2477A",ciano:"#1D8FAE",cinza:"#55657A"};
+const TILES={
+  projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos","pontos","verde",()=>go("pontos")],
+           ["importar","Importar pontos","importar","violeta",()=>go("importar")],["exportar","Exportar","exportar","laranja",()=>go("projetos")],["config","Configurações","config","cinza",()=>go("config")]],
+  dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],
+           ["correcao","Correção (NTRIP, rádio)","correcao","azul",()=>sub("correcao")],["estatico","Gravar estático","estatico","laranja",()=>sub("estatico")],["ajuste","Ajustar base","ajuste","vermelho",()=>sub("ajuste")],
+           ["nmea","Saída NMEA","nmea","teal",()=>sub("nmea")],["info","Info do dispositivo","info","ambar",()=>go("info")],["receptores","Meus receptores","receptores","cinza",()=>sub("aparelhos")]],
+  levantamento:[["painel","Painel RTK","painel","verde",()=>go("painel")],["coletar","Coletar pontos","coletar","laranja",()=>go("coleta")],["mapa","Mapa","mapa","azul",()=>go("mapa")],
+           ["locarPonto","Locar ponto","locarPonto","vermelho",()=>{S.lcModo="lista";go("locacao")}],["locarLinha","Locar linha","locarLinha","rosa",()=>calc("locLinha")],["linha","Criar linha","linha","teal",()=>calc("linha")],
+           ["pontos2","Pontos","pontos","ciano",()=>go("pontos")]],
+  ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
+           ["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
+           ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
+};
+const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};
+const ABA_DE={painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
+function go(t){S.tela=t;exportTxt="";render()}
+function sub(k){S.sub=k;go("receptor")}
+function calc(k){S.ferr=k;go("calc")}
+function icone(k,cor,tam=30){return `<span aria-hidden="true" style="width:64px;height:64px;border-radius:50%;background:${COR[cor]};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35)"><svg width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg></span>`}
+function statusStrip(){
+  const s=sis(),c=S.conectado;
+  const cor=!c?"var(--muted)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
+  const txt=!c?"Sem receptor":G.fix===4?"Fixo":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
+  const coord=!c?`<span class="muted small">Toque em Dispositivo › Conexão para conectar o receptor.</span>`
+    :s.proj==="UTM"?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end">h: ${br(G.h,dc())} m</div>`
+    :`<div class="m" style="font-size:15px;line-height:1.5">B: ${gms(G.lat,"N","S")}<br>L: ${gms(G.lon,"E","W")}</div><div class="m" style="font-size:15px;align-self:end">h: ${br(G.h,dc())} m</div>`;
+  return `<section class="card" style="gap:8px;padding:12px 14px">
+    <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr auto;gap:8px;align-items:center">
+      <div style="display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px"><span style="width:14px;height:14px;border-radius:50%;background:${cor};box-shadow:0 0 0 3px rgba(255,255,255,.08)"></span>${txt}</span><span class="muted small">${c&&S.corrLigada?`Idade: ${br(G.idade,1)} s`:"Sem correção"}</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 7l4 4-6 6-4-4z"/><path d="M4 10l3-3 3 3-3 3zM14 20l3-3 3 3-3 3z"/><path d="M17 4a4 4 0 0 1 3 3"/></svg><span class="m" style="font-size:15px;line-height:1.2">${c?G.sats:0}<br><span class="muted">31</span></span></div>
+      <div class="m" style="font-size:14px;line-height:1.4">H:${c?br(G.hrms):"—"}<br>V:${c?br(G.vrms):"—"}</div>
+      <div title="Bateria do receptor" style="display:flex;flex-direction:column;align-items:center;font-size:11px" class="muted"><svg width="16" height="26" viewBox="0 0 16 26" aria-hidden="true"><rect x="5" y="0" width="6" height="3" fill="currentColor"/><rect x="1" y="3" width="14" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="${c?9:22}" width="8" height="${c?13:0}" fill="var(--fix)"/></svg>${c?"76%":""}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:10px">${coord}</div>
+  </section>`;
+}
+function vHome(){
+  const t=TILES[S.aba]||[];
+  return `${statusStrip()}
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ttl">${ABA_NOME[S.aba]}</span><span class="muted small">${esc(proj()?.nome||"")}</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px;padding:6px 0 18px">
+    ${t.map(([id,n,ic,cor])=>`<button data-tile="${id}" style="background:transparent;border:0;min-height:0;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:600;font-size:14px;line-height:1.2;text-align:center">${icone(ic,cor)}<span>${n}</span></button>`).join("")}
+  </div>`;
+}
+function vInfo(){
+  const r=rec();
+  return `<section class="card"><h3>${esc(r?.marca||"")} ${esc(r?.modelo||"")}</h3>
+    ${S.conectado?`<div class="grid2">
+      <div class="kv"><span>Número de série</span><b style="font-size:15px">${esc(r?.serie||"—")}</b></div><div class="kv"><span>Firmware</span><b style="font-size:15px">2.4.1</b></div>
+      <div class="kv"><span>Bateria</span><b>76%</b></div><div class="kv"><span>Memória livre</span><b style="font-size:15px">6,2 de 8 GB</b></div>
+      <div class="kv"><span>Placa GNSS</span><b style="font-size:15px">1408 canais</b></div><div class="kv"><span>Rádio interno</span><b style="font-size:15px">410–470 MHz</b></div>
+      <div class="kv"><span>Modo</span><b style="font-size:15px">${S.modo==="rover"?"Rover":"Base"}</b></div><div class="kv"><span>Licença</span><b style="font-size:15px">Válida</b></div></div>
+      <span class="muted small">Dados ilustrativos nesta versão de teste. No app instalado, lidos direto do receptor.</span>`
+    :`<span class="muted small">Conecte o receptor para ver as informações.</span><button class="pri" data-tile="conexao">Conectar</button>`}
+  </section>`;
+}
+function vPontos(){
+  const p=proj();if(!p)return `<span class="muted">Nenhum projeto aberto.</span>`;
+  const q=(S.ptBusca||"").toLowerCase(),lista=p.pontos.map((x,i)=>({x,i})).filter(({x})=>!q||x.nome.toLowerCase().includes(q)||(x.cod||"").toLowerCase().includes(q));
+  const tag=st=>st==="FIX"?`<span class="st-fix">FIX</span>`:st==="CALC"?`<span style="color:#5B9CFF;font-weight:700">CALC</span>`:st==="PROJ"?`<span style="color:var(--accent);font-weight:700">PROJ</span>`:`<span class="st-float">${st}</span>`;
+  return `<div class="split"><span class="ttl">Pontos</span><span class="muted small">${p.pontos.length} em ${esc(p.nome)}</span></div>
+  <label class="f">Buscar<input data-bind="ptBusca" value="${esc(S.ptBusca||"")}" placeholder="Número ou descrição"></label>
+  ${lista.length?`<div class="list">${lista.slice().reverse().map(({x,i})=>{const [E,N]=ptEN(x);return `<div class="row" style="grid-template-columns:1fr auto;gap:4px 8px">
+    <span><b class="m">${esc(x.nome)}</b> <span class="muted small">${esc(x.cod||"")}</span></span><span class="small">${tag(x.st)}</span>
+    <span class="m small muted" style="grid-column:1/-1">E ${br(E,dc())} · N ${br(N,dc())} · h ${br(x.h,dc())}${x.ajustado?" · ajustado":""}</span>
+    <div style="grid-column:1/-1;display:flex;gap:6px"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptdel="${i}">Apagar</button></div></div>`}).join("")}</div>`
+  :`<p class="muted small" style="margin:0">Nenhum ponto${q?" encontrado":" ainda"}.</p>`}`;
+}
+function vImportar(){
+  return `<span class="ttl">Importar pontos</span>
+  <section class="card"><span class="muted small">Cole uma lista de pontos, um por linha, no formato <b class="m">número, E, N, cota, descrição</b> (aceita vírgula, ponto e vírgula ou tabulação). Os pontos entram como pontos de projeto, prontos para locar. Sistema: ${sisTxt()}.</span>
+    <textarea data-bind="impTxt" placeholder="E-01;830650,12;9656660,45;43,20;eixo&#10;E-02;830670,12;9656660,45;43,10;eixo">${esc(S.impTxt||"")}</textarea>
+    <button class="pri" data-act="importar">Importar</button>
+    <span class="muted small">No app instalado também abre arquivos CSV, TXT, DXF e KML direto do WhatsApp, e-mail ou Drive.</span></section>`;
+}
+
+function ptSelCard(){
+  const p=proj()?.pontos[S.ptSel];if(S.ptSel==null||!p)return "";
+  const [E,N]=ptEN(p);const d=S.conectado?Math.hypot(E-G.E,N-G.N):null;
+  if(S.ptEdit)return `<section class="card hl"><div class="split"><h3>Editar ponto</h3><button style="min-height:34px;font-size:13px" data-act="ptFechar">Fechar</button></div>
+    <div class="grid2"><label class="f">Nº do ponto<input class="m" data-bind="peNome" value="${esc(S.peNome)}"></label><label class="f">Descrição<input data-bind="peDesc" value="${esc(S.peDesc)}"></label>
+    <label class="f">Cota (m)<input class="m" inputmode="decimal" data-bind="peH" value="${esc(S.peH)}"></label></div>
+    <div class="grid2"><button data-act="ptCancelar">Cancelar</button><button class="pri" data-act="ptSalvar">Salvar</button></div></section>`;
+  return `<section class="card hl" style="gap:8px">
+    <div class="split"><h3><span class="m">${esc(p.nome)}</span> <span class="muted small">${esc(p.cod||"")}</span></h3><button style="min-height:34px;font-size:13px" data-act="ptFechar">Fechar</button></div>
+    <span class="m small">E ${br(E,dc())} · N ${br(N,dc())} · h ${br(p.h,dc())}</span>
+    <span class="muted small">${p.st}${p.h_rms?` · precisão ${br(p.h_rms)} m`:""}${p.quando?` · ${new Date(p.quando).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:""}${d!==null?` · a ${br(d,2)} m de você`:""}</span>
+    <div class="grid3"><button class="pri" data-act="ptLocar">Locar</button><button data-act="ptEditar">Editar</button>${S.ptDelConf?`<button data-act="ptApagar" style="background:var(--bad-bg);border-color:var(--bad);color:var(--bad)">Confirmar</button>`:`<button data-act="ptDel">Apagar</button>`}</div>
+  </section>`;
+}
+// ---------- Configuração geral ----------
+function vConfig(){
+  const c=S.cfg;
+  const sel=(k,ops)=>`<select data-cfg="${k}">${ops.map(([v,n])=>`<option value="${v}" ${String(c[k])===String(v)?"selected":""}>${n}</option>`).join("")}</select>`;
+  const inp=(k,ph="")=>`<input class="m" data-cfg="${k}" value="${esc(c[k])}" placeholder="${ph}">`;
+  const ck=(k,t)=>`<label class="ck"><input type="checkbox" data-cfg="${k}" ${c[k]?"checked":""}> ${t}</label>`;
+  const sec=(t,body)=>`<section class="card"><h3>${t}</h3>${body}</section>`;
+  return `<span class="ttl">Configurações</span>
+  ${sec("Unidades e formato",`<div class="grid2">
+    <label class="f">Casas decimais nas coordenadas${sel("dec",[["2","2 (cm)"],["3","3 (mm)"],["4","4"]])}</label>
+    <label class="f">Separador decimal${sel("sepDec",[["virgula","Vírgula (1.234,567)"],["ponto","Ponto (1,234.567)"]])}</label>
+    <label class="f">Ângulos e azimutes${sel("ang",[["gms","Graus ° ' \""],["dec","Graus decimais"],["grad","Grados (gon)"]])}</label>
+    </div>
+    <span class="muted small">Sistema de coordenadas e fuso ficam em cada projeto (aba Projetos).</span>`)}
+  ${sec("Coleta",`<div class="grid2">
+    <label class="f">Prefixo do nome${inp("prefixo","P-")}</label>
+    <label class="f">Dígitos da numeração${sel("digitos",[["3","001"],["4","0001"],["5","00001"]])}</label>
+    <label class="f">Épocas por ponto (s)<input class="m" data-bind="epocas" value="${esc(S.epocas)}"></label>
+    <label class="f">Altura padrão do bastão (m)<input class="m" data-bind="altura" value="${esc(S.altura)}"></label>
+    <label class="f">Tolerância horizontal (m)<input class="m" data-bind="tolH" value="${esc(S.tolH)}"></label>
+    <label class="f">Tolerância vertical (m)${inp("tolV")}</label>
+    <label class="f">Alerta de PDOP acima de${inp("pdopAlerta")}</label>
+    <label class="f">Alerta de idade da correção (s)${inp("idadeMax")}</label></div>
+    <label class="ck"><input type="checkbox" id="soFix" ${S.soFix?"checked":""}> Aceitar somente FIX</label>`)}
+  ${sec("Sons e vibração",`${ck("somColeta","Toque ao coletar ponto")}${ck("somFix","Alerta sonoro ao perder ou recuperar o FIX")}${ck("vibrar","Vibrar junto com os alertas (Android)")}
+    <button data-act="testarSom">Testar toque</button>`)}
+  ${sec("Mapa",`<div class="grid2">
+    <label class="f">Fundo do mapa${sel("fundoMapa",[["grade","Grade (teste)"],["sat","Satélite (app instalado)"],["ruas","Ruas (app instalado)"]])}</label>
+    <label class="f">Tamanho dos pontos${sel("tamPonto",[["4","Pequeno"],["5","Médio"],["7","Grande"]])}</label></div>
+    <label class="f">Identificar os pontos no mapa por${sel("rotuloMapa",[["num","Número"],["desc","Descrição"],["ambos","Número e descrição"],["nenhum","Sem rótulo"]])}</label>`)}
+  ${sec("Locação e estaqueamento",`${ck("locVibrar","Vibrar mais rápido quanto mais perto do ponto")}${ck("locSom","Bipe de aproximação (funciona também no iPhone)")}
+    <div class="grid2"><label class="f">Começar o aviso a partir de (m)${sel("locRaio",[["2","2 m"],["5","5 m"],["10","10 m"],["20","20 m"]])}</label></div>
+    <div class="grid2">
+    <label class="f">Tolerância "no ponto" (m)<input class="m" data-bind="locTol" value="${esc(S.locTol)}"></label>
+    <label class="f">Intervalo de estaca (m)${sel("estacaInt",[["10","10 m"],["20","20 m"],["50","50 m"],["100","100 m"]])}</label></div>`)}
+  ${sec("Exportação",`<div class="grid2">
+    <label class="f">Formato padrão${sel("formatoPadrao",[["csv","CSV"],["dxf","DXF"],["kml","KML"]])}</label>
+    <label class="f">Separador do CSV${sel("csvSep",[[",","Vírgula"],[";","Ponto e vírgula"],["tab","Tabulação"]])}</label></div>
+    ${ck("cabecalho","Incluir linha com projeto e sistema no topo do arquivo")}`)}
+  ${sec("Tela",`<div class="grid2"><label class="f">Tamanho do texto${sel("fonte",[["normal","Normal"],["grande","Grande"],["maior","Maior (sol forte)"]])}</label></div>
+    ${ck("telaLigada","Manter a tela ligada durante o uso")}`)}
+  ${sec("Dados",`<span class="muted small">Projetos, pontos, receptores e configurações ficam salvos neste aparelho.</span>
+    <button data-act="apagarTudo">Apagar todos os dados de teste</button><button data-act="apagarConfirma" hidden id="apagarConfirma" class="pri">Confirmar: apagar tudo</button>`)}`;
+}
+function sisCard(){
+  const s=sis(), zAuto=zonaDe(G.lon);
+  const zonas=[18,19,20,21,22,23,24,25];
+  const ex=s.proj==="UTM"?`E ${br(G.E)} · N ${br(G.N)}`:s.proj==="GMS"?`${gms(G.lat,"N","S")} · ${gms(G.lon,"E","W")}`:`${br(G.lat,8)}° · ${br(G.lon,8)}°`;
+  return `<section class="card hl">
+    <div class="split"><h3>Sistema de coordenadas</h3><span class="muted small">${esc(proj().nome)}</span></div>
+    <div class="grid2">
+      <label class="f">Datum<select data-sis="datum">${["SIRGAS 2000","WGS 84"].map(v=>`<option ${s.datum===v?"selected":""}>${v}</option>`).join("")}<option disabled>SAD 69 (no app instalado)</option></select></label>
+      <label class="f">Projeção<select data-sis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
+      ${s.proj==="UTM"?`<label class="f">Fuso / zona UTM<select data-sis="zona"><option value="auto" ${s.zona==="auto"?"selected":""}>Automático (agora ${zAuto})</option>${zonas.map(z=>`<option value="${z}" ${String(s.zona)===String(z)?"selected":""}>Fuso ${z} · MC ${z*6-183}°</option>`).join("")}</select></label>
+      <label class="f">Hemisfério<select data-sis="hemi"><option value="S" ${s.hemi==="S"?"selected":""}>Sul (S)</option><option value="N" ${s.hemi==="N"?"selected":""}>Norte (N)</option><option value="auto" ${s.hemi==="auto"?"selected":""}>Automático</option></select></label>`:""}
+    </div>
+    <span class="muted small">${S.conectado?"Posição atual nesse sistema: "+ex:"Conecte o receptor para ver a posição nesse sistema."}</span>
+    ${s.proj==="UTM"&&s.zona!=="auto"&&+s.zona!==zAuto?`<div class="banner">Você está no fuso ${zAuto}, mas o projeto está fixo no fuso ${s.zona}. Isso é normal quando a obra fica perto da divisa de fusos; a deformação cresce longe do meridiano central.</div>`:""}
+  </section>`;
+}
+function vReceptor(){
+  const tabs=[["conexao","Conexão"],["baserover","Base/Rover"],["ajuste","Ajustar base"],["correcao","Correção"],["estatico","Estático"],["nmea","NMEA"],["aparelhos","Aparelhos"]];
+  return ({conexao:sConexao,baserover:sBase,ajuste:sAjuste,correcao:sCorr,estatico:sEstatico,nmea:sNmea,aparelhos:sAparelhos})[S.sub]();
+}
+const opt=(grp,val,cur,t,sm)=>`<button class="opt" data-opt="${grp}" data-val="${val}" aria-pressed="${cur===val}">${t}<small>${sm}</small></button>`;
+function sConexao(){
+  const r=rec();
+  return `
+  <label class="f">Receptor<select id="selRec">${S.receptores.map(x=>`<option value="${x.id}" ${x.id===S.ativo?"selected":""}>${esc(x.marca)} ${esc(x.modelo)}${x.serie?" · "+esc(x.serie):""}</option>`).join("")}</select></label>
+  <div class="grid2">
+    ${opt("conexao","wifi",S.conexao,"Wi-Fi","iPhone e Android")}
+    ${opt("conexao","ble",S.conexao,"Bluetooth LE","iPhone e Android")}
+    ${opt("conexao","bt",S.conexao,"Bluetooth clássico","só Android")}
+    ${opt("conexao","tcp",S.conexao,"TCP cliente","IP e porta")}
+    ${NATIVO?opt("conexao","celular",S.conexao,"GPS do celular","sem receptor, ±metros")+opt("conexao","demo",S.conexao,"Simulador","para treinar"):""}
+  </div>
+  ${S.conexao==="wifi"||S.conexao==="tcp"?`<section class="card"><h3>${S.conexao==="wifi"?"Wi-Fi do receptor":"TCP cliente"}</h3>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Endereço IP<input class="m" value="${esc(S.ip)}" data-bind="ip"></label><label class="f">Porta<input class="m" inputmode="numeric" value="${esc(S.porta)}" data-bind="porta"></label></div>
+    <span class="muted small">Protocolo: ${r?.nivel==="leitura"?"genérico, só leitura NMEA":esc(r?.marca)+" (automático pela marca)"}</span></section>`
+  :`<section class="card"><h3>${S.conexao==="ble"?"Bluetooth LE":"Bluetooth clássico"}</h3>${NATIVO?`<span class="muted small">Bluetooth entra na próxima versão. Por enquanto use o Wi-Fi do receptor.</span>`:`<span class="muted small">Procurando aparelhos próximos… (simulado)</span><div class="list"><div class="row"><b class="m">S6_48731</b><span class="muted">sinal forte</span><span class="st-fix">●</span></div></div>`}</section>`}
+  ${S.conectado?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Conectado há ${tempo(S.desde)}</b><span class="small" style="color:#CDEFD9">${S.fonte==="tcp"?(R.ultGGA?`Recebendo NMEA · última mensagem há ${Math.round((Date.now()-R.ultimo)/1000)} s`:"Conectado, aguardando NMEA…"):S.fonte==="celular"?"GPS do celular":"Simulador · bateria do receptor 76%"}</span></section>`:""}
+  <div class="grid2">${S.conectado?`<button data-act="desconectar">Desconectar</button>`:`<button class="pri" data-act="conectar" ${S.conectando?"disabled":""}>${S.conectando?"Conectando…":"Conectar"}</button>`}<button data-sub="baserover">Próximo: Base/Rover</button></div>`;
+}
+function sBase(){
+  return `<div class="grid2">${opt("modo","base",S.modo,"Base","transmite correção")}${opt("modo","rover",S.modo,"Rover","recebe correção")}</div>
+  ${S.modo==="rover"?`<section class="card"><h3>Rover</h3><div class="grid2">
+    <label class="f">Máscara de elevação (°)<input class="m" value="${esc(S.mascara)}" data-bind="mascara"></label>
+    <label class="f">Taxa de posição<select data-bind="taxa">${["1","5","10","20"].map(v=>`<option ${S.taxa===v?"selected":""} value="${v}">${v} Hz</option>`).join("")}</select></label>
+    <label class="f">Limite de PDOP<input class="m" value="${esc(S.pdopMax)}" data-bind="pdopMax"></label>
+    <label class="f">Inclinação (IMU)<select><option>Ligada</option><option>Desligada</option></select></label></div>
+    <span class="muted small">Constelações: GPS · GLONASS · Galileo · BeiDou · QZSS</span></section>`
+  :sBaseCfg()}
+  ${S.modo==="rover"?`<button class="pri" data-act="aplicarBase">Aplicar no receptor</button>`:""}`;
+}
+function sBaseCfg(){
+  const pts=proj()?.pontos||[];
+  const temCoord=S.baseE&&S.baseN&&S.baseH;
+  return `
+  <span class="eyebrow">Coordenada da base</span>
+  <div class="grid2">${opt("baseModo","atual",S.baseModo,"Posição atual","autônoma, sem correção")}${opt("baseModo","conhecida",S.baseModo,"Coordenada conhecida","marco ou ponto do projeto")}</div>
+  ${S.baseModo==="atual"?`<section class="card">
+      <h3>Pegar a posição onde a base está</h3>
+      <span class="muted small">O receptor calcula sozinho, sem correção. A precisão absoluta fica em torno de 1 a 3 m, mas as medidas do rover em relação à base ficam centimétricas. Bom para levantamento local; para amarrar ao SIRGAS, ajuste depois com um marco ou PPP do IBGE.</span>
+      <div class="grid2"><label class="f">Tempo de média<select data-bind="baseMedia"><option value="10">10 s (teste)</option><option value="60">1 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select></label>
+        <div class="kv"><span>Agora (autônomo)</span><b style="font-size:14px">${S.conectado?`E ${br(G.E,2)}<br>N ${br(G.N,2)}`:"—"}</b></div></div>
+      <button class="pri" data-act="pegarBase" ${S.conectado&&!S.baseMedindo?"":"disabled"}>${S.baseMedindo?`Calculando média… ${S.baseMedindo}s`:"Pegar posição atual"}</button>
+      ${S.conectado?"":`<span class="muted small">Conecte o receptor primeiro.</span>`}
+    </section>`
+  :`<section class="card">
+      <h3>Digitar coordenada conhecida</h3>
+      ${pts.length?`<label class="f">Usar um ponto do projeto<select id="basePto"><option value="">Escolher…</option>${pts.map((p,i)=>`<option value="${i}">${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}</select></label>`:""}
+      <label class="f">Nome do marco<input value="${esc(S.baseFonte)}" data-bind="baseFonte" placeholder="Ex.: M-01 ou SAT 93542"></label>
+    </section>`}
+  <section class="card ${temCoord?"hl":""}">
+    <div class="split"><h3>Coordenada da base</h3><span class="muted small">${sisTxt()}</span></div>
+    <div class="grid2">
+      <label class="f">Este E (m)<input class="m" inputmode="decimal" value="${esc(S.baseE)}" data-bind="baseE" placeholder="165432,184"></label>
+      <label class="f">Norte N (m)<input class="m" inputmode="decimal" value="${esc(S.baseN)}" data-bind="baseN" placeholder="9656218,907"></label>
+      <label class="f">Altitude h (m)<input class="m" inputmode="decimal" value="${esc(S.baseH)}" data-bind="baseH" placeholder="42,316"></label>
+      <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(S.baseAnt)}" data-bind="baseAnt"></label>
+    </div>
+    ${S.baseFonte?`<span class="muted small">Origem: ${esc(S.baseFonte)}</span>`:""}
+  </section>
+  <section class="card">
+    <h3>Transmissão da correção</h3>
+    <div class="grid2">
+      <label class="f">Sai por<select data-bind="baseSaida"><option value="radio" ${S.baseSaida==="radio"?"selected":""}>Rádio interno</option><option value="rede" ${S.baseSaida==="rede"?"selected":""}>Rede (NTRIP caster)</option></select></label>
+      <label class="f">Formato<select data-bind="baseFmt">${["RTCM 3.2 MSM4","RTCM 3.2 MSM5","RTCM 3.0","CMR+"].map(v=>`<option ${S.baseFmt===v?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label class="f">ID da base<input class="m" value="${esc(S.baseId)}" data-bind="baseId"></label>
+      <div class="kv"><span>Rádio</span><b style="font-size:14px">${esc(S.freq)} MHz · canal ${esc(S.canal)}</b></div>
+    </div>
+    <span class="muted small">Frequência e canal do rádio ficam em Correção › Rádio. O rover precisa usar os mesmos.</span>
+  </section>
+  ${S.baseLigada?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Base transmitindo ${esc(S.baseFmt)}</b><span class="small" style="color:#CDEFD9">${S.baseSaida==="radio"?`Rádio ${esc(S.freq)} MHz, canal ${esc(S.canal)}`:"Para o caster NTRIP"} · ID ${esc(S.baseId)}</span></section>`:""}
+  <button class="${S.baseLigada?"":"pri"}" data-act="${S.baseLigada?"pararBase":"iniciarBase"}" ${S.conectado?"":"disabled"}>${S.baseLigada?"Parar base":"Iniciar base"}</button>`;
+}
+function fmtBR(v){return v.toFixed(3).replace(".",",")}
+function vMapa(){
+  const pts=proj()?.pontos||[];
+  if(S.seguir||S.mapCE===null){S.mapCE=G.E;S.mapCN=G.N}
+  const W=360,H=420,mpp=S.zoom/100; // metros por pixel
+  const X=e=>W/2+(e-S.mapCE)/mpp, Y=n=>H/2-(n-S.mapCN)/mpp;
+  const passos=[1,2,5,10,20,50,100,200,500,1000];const gstep=passos.find(s=>s/mpp>=60)||1000;
+  let grid="";const e0=Math.floor((S.mapCE-W/2*mpp)/gstep)*gstep,n0=Math.floor((S.mapCN-H/2*mpp)/gstep)*gstep;
+  for(let e=e0;e<=S.mapCE+W/2*mpp;e+=gstep)grid+=`<line x1="${X(e)}" y1="0" x2="${X(e)}" y2="${H}" stroke="#263241" stroke-width="1"/>`;
+  for(let n=n0;n<=S.mapCN+H/2*mpp;n+=gstep)grid+=`<line x1="0" y1="${Y(n)}" x2="${W}" y2="${Y(n)}" stroke="#263241" stroke-width="1"/>`;
+  const pSvg=pts.map((p,i)=>{const [pe,pn]=ptEN(p);const x=X(pe),y=Y(pn);if(x<-20||x>W+20||y<-20||y>H+20)return"";return `<g data-ptsel="${i}" style="cursor:pointer">${S.ptSel===i?`<circle cx="${x}" cy="${y}" r="12" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>`:""}<circle cx="${x}" cy="${y}" r="18" fill="transparent"/><circle cx="${x}" cy="${y}" r="${+S.cfg.tamPonto||5}" fill="${p.st==="FIX"?"#3DDC84":p.st==="CALC"?"#5B9CFF":p.st==="PROJ"?"#FF8A1F":"#FFC24B"}" stroke="#0F1720" stroke-width="2"/><text x="${x+8}" y="${y-8}" fill="#E8EEF4" font-size="11" font-family="JetBrains Mono, monospace">${esc(rotulo(p))}</text></g>`}).join("");
+  let base="";if(S.baseE&&S.baseN){const bx=X(num(S.baseE)),by=Y(num(S.baseN));base=`<g><rect x="${bx-7}" y="${by-7}" width="14" height="14" fill="none" stroke="#FF8A1F" stroke-width="2.5" transform="rotate(45 ${bx} ${by})"/><text x="${bx+10}" y="${by+4}" fill="#FFB066" font-size="11" font-family="Barlow, sans-serif" font-weight="700">BASE</text></g>`}
+  const cx=X(G.E),cy=Y(G.N), acc=Math.min(Math.max(G.hrms/mpp,0),400);
+  const cor=G.fix===4?"#3DDC84":G.fix===5?"#FFC24B":"#FF6B5E";
+  const seta=S.conectado?`<circle cx="${cx}" cy="${cy}" r="${acc.toFixed(1)}" fill="${cor}" fill-opacity="0.12" stroke="${cor}" stroke-opacity="0.5"/>
+    <g transform="translate(${cx} ${cy}) rotate(${G.course})"><polygon points="0,-16 11,12 0,6 -11,12" fill="${cor}" stroke="#0F1720" stroke-width="2"/></g>`:"";
+  const barra=gstep/mpp;
+  const al=alvoEN();let alvo="";
+  if(al){const ax=X(al.E),ay=Y(al.N);alvo=`${S.conectado?`<line x1="${cx}" y1="${cy}" x2="${ax}" y2="${ay}" stroke="#FF8A1F" stroke-width="2" stroke-dasharray="6 5"/>`:""}<g><circle cx="${ax}" cy="${ay}" r="10" fill="none" stroke="#FF8A1F" stroke-width="2.5"/><line x1="${ax-15}" y1="${ay}" x2="${ax+15}" y2="${ay}" stroke="#FF8A1F" stroke-width="2"/><line x1="${ax}" y1="${ay-15}" x2="${ax}" y2="${ay+15}" stroke="#FF8A1F" stroke-width="2"/><text x="${ax+14}" y="${ay-12}" fill="#FFB066" font-size="12" font-weight="700" font-family="Barlow, sans-serif">${esc(al.nome)}</text></g>`}
+  const poly=(ps,cor,dash)=>ps.length>=2?`<polyline points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" ${dash?`stroke-dasharray="${dash}"`:""}/>`:"";
+  let linhas=linhasProj().map(l=>poly(linhaPts(l),"#E8EEF4","")).join("");
+  if(S.ferr==="medir")linhas+=poly((S.medList||[]).map(getPt).filter(Boolean),"#5BE3E3","4 4");
+  if(S.ferr==="linha")linhas+=poly((S.linhaPts||[]).map(getPt).filter(Boolean),"#FF8A1F","8 4");
+  if(S.ferr==="area"){const ps=(S.areaList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=`<polygon points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="#5BE3E3" fill-opacity="0.15" stroke="#5BE3E3" stroke-width="2"/>`}
+  if(S.ferr==="volume"){const ps=(S.volList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=delaunay(ps).map(([a,b,c])=>`<polygon points="${[a,b,c].map(i=>X(ps[i].E)+","+Y(ps[i].N)).join(" ")}" fill="none" stroke="#5B9CFF" stroke-opacity="0.6"/>`).join("")}
+  alvo=linhas+alvo;
+  return `${S.loc?locPainel():""}${ptSelCard()}
+  <section style="position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B131B">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Mapa com a posição atual e os pontos coletados" style="display:block;touch-action:none">
+      <rect width="${W}" height="${H}" fill="#0B131B"/>${grid}${pSvg}${base}${alvo}${seta}
+      <g transform="translate(14 ${H-18})"><rect width="${barra}" height="5" fill="#E8EEF4"/><text x="0" y="-6" fill="#E8EEF4" font-size="11" font-family="Barlow, sans-serif">${gstep} m</text></g>
+      <g transform="translate(${W-26} 30)"><polygon points="0,-14 7,6 0,2 -7,6" fill="#E8EEF4"/><text x="0" y="20" fill="#E8EEF4" font-size="11" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700">N</text></g>
+    </svg>
+    ${S.conectado?"":`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center" class="muted">Conecte o receptor para ver a sua posição no mapa.</div>`}
+  </section>
+  <div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <button data-act="zoomIn" aria-label="Aproximar">＋</button><button data-act="zoomOut" aria-label="Afastar">－</button>
+    <button data-act="seguir" aria-pressed="${S.seguir}" class="${S.seguir?"pri":""}">${S.seguir?"Seguindo":"Seguir"}</button>
+    <button data-act="verTudo">Ver tudo</button>
+  </div>
+  <section class="card" style="padding:10px 14px">
+    <div class="grid3"><div class="kv"><span>Rumo</span><b>${S.anda?Math.round(G.course)+"°":"—"}</b></div><div class="kv"><span>Velocidade</span><b>${br(G.vel*3.6,1)} km/h</b></div><div class="kv"><span>Pontos</span><b>${pts.length}</b></div></div>
+    <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada (teste da seta)</label>
+  </section>
+  <p class="muted small" style="margin:0">Nesta versão de teste o fundo é uma grade em metros. No app instalado entra imagem de satélite e mapa de ruas por baixo.</p>
+  ${acoesBar()}`;
+}
+function sCorr(){
+  const c=S.correcao;
+  return `<div class="grid3">${opt("correcao","radio",c,"Rádio","base local")}${opt("correcao","ntrip",c,"NTRIP","CORS / RBMC")}${opt("correcao","rtx",c,"RTX / PPP","satélite")}</div>
+  ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Caster<input class="m" value="${esc(S.caster)}" data-bind="caster"></label><label class="f">Porta<input class="m" value="${esc(S.cport)}" data-bind="cport"></label></div>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Ponto de montagem<input class="m" value="${esc(S.mount)}" data-bind="mount" placeholder="ex.: nome da estação"></label><button style="align-self:end" data-act="buscarMounts">Buscar lista</button></div>
+    ${R.mounts.length?`<div class="list" style="max-height:220px;overflow:auto">${R.mounts.map(m=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-mount="${esc(m.m)}"><span><b class="m">${esc(m.m)}</b> <span class="muted small">${esc(m.cid)} · ${esc(m.fmt)}</span></span><span class="muted small">${isNaN(m.d)?"":br(m.d,1)+" km"}</span></button>`).join("")}</div>`:""}
+    <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
+    <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
+    <span class="muted small">Internet do celular, repassada ao receptor.</span></section>`
+  :c==="radio"?`<section class="card hl"><h3>Rádio</h3><div class="grid2">
+    <label class="f">Frequência (MHz)<input class="m" value="${esc(S.freq)}" data-bind="freq"></label>
+    <label class="f">Canal<input class="m" value="${esc(S.canal)}" data-bind="canal"></label>
+    <label class="f">Protocolo<select data-bind="proto">${["TRIMTALK","TRANSEOT","SATEL","SOUTH","CHC"].map(p=>`<option ${S.proto===p?"selected":""}>${p}</option>`).join("")}</select></label>
+    <label class="f">Potência<select><option>1 W</option><option>2 W</option></select></label></div></section>`
+  :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">Correção via satélite (exige assinatura do serviço e receptor compatível). Convergência típica de alguns minutos.</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
+  <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
+  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte o receptor primeiro.</p>`}`;
+}
+function sNmea(){
+  return `<section class="card"><h3>Sentenças NMEA</h3><div class="grid3">${Object.keys(S.sent).map(k=>`<label class="ck m"><input type="checkbox" data-sent="${k}" ${S.sent[k]?"checked":""}>${k}</label>`).join("")}</div>
+    <label class="f">Frequência de saída<select data-bind="hz">${["1","5","10","20"].map(v=>`<option value="${v}" ${S.hz===v?"selected":""}>${v} Hz${v==="5"?" (recomendado p/ ecobatímetro)":""}</option>`).join("")}</select></label></section>
+  <section class="card ${S.servidor?"hl":""}"><div class="split"><h3>Servidor TCP no celular</h3><span class="${S.servidor?"st-fix":"muted"} small">${S.servidor?"LIGADO":"DESLIGADO"}</span></div>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><div class="f">Endereço deste celular<span class="m" style="height:46px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">${NATIVO?(R.srvIps.map(x=>x.split(" ")[1]).join(" · ")||"—"):"192.168.43.1"}</span></div><label class="f">Porta<input class="m" value="${esc(S.sport)}" data-bind="sport"></label></div>
+    ${S.servidor?(NATIVO?(R.clientes.length?`<div class="list">${R.clientes.map(ip=>`<div class="row" style="grid-template-columns:1fr auto"><span>Equipamento conectado</span><span class="m muted">${esc(ip)}</span></div>`).join("")}</div>`:`<span class="muted small">Nenhum equipamento conectado ainda. No computador, configure TCP cliente para o IP acima e a porta ${esc(S.sport)}.</span>`):`<div class="list"><div class="row" style="grid-template-columns:1fr auto"><span>Notebook · HYPACK</span><span class="m muted">192.168.43.12</span></div><div class="row" style="grid-template-columns:1fr auto"><span>Ecobatímetro</span><span class="m muted">192.168.43.20</span></div></div>`):""}
+    <button class="${S.servidor?"":"pri"}" data-act="servidor">${S.servidor?"Desligar servidor":"Ligar servidor"}</button></section>
+  <span class="eyebrow">Monitor de dados ao vivo</span>
+  <div class="monitor" id="mon">${S.conectado?esc(G.nmea.join("\n")):"Conecte o receptor para ver as sentenças."}</div>`;
+}
+function sAparelhos(){
+  return `${S.receptores.map(r=>`<section class="card ${r.id===S.ativo?"hl":""}"><div class="split"><b style="font-size:17px">${esc(r.marca)} ${esc(r.modelo)}</b>${r.nivel==="leitura"?`<span class="small" style="color:var(--float);font-weight:700">SÓ LEITURA</span>`:r.id===S.ativo?`<span class="small" style="color:var(--fix);font-weight:700">EM USO</span>`:""}</div>
+    <span class="muted small">Série <span class="m" style="color:var(--fg)">${esc(r.serie||"[não informado]")}</span></span>
+    <span class="muted small">${r.nivel==="leitura"?"Lê posição NMEA. Configurar base e rádio pelo app do fabricante.":"Configuração completa: base, rover, rádio e NTRIP."}</span>
+    ${r.id!==S.ativo?`<button data-usar="${r.id}">Usar este receptor</button>`:""}</section>`).join("")}
+  <section class="card" style="background:var(--panel2)"><h3>Adicionar receptor</h3>
+    <div class="grid2"><label class="f">Marca<select id="nrMarca">${["Spectra","ComNav","CHC","Trimble","Stonex","South","Emlid","Outra (genérico NMEA)"].map(m=>`<option>${m}</option>`).join("")}</select></label>
+    <label class="f">Modelo<input id="nrModelo" placeholder="Ex.: SP85"></label></div>
+    <label class="f">Número de série<input class="m" id="nrSerie" placeholder="Digite o serial da etiqueta"></label>
+    <button class="pri" data-act="addRec">Salvar receptor</button></section>`;
+}
+function demoNota(){return `<p class="muted small" style="margin:0">Versão de teste: o receptor é simulado. Os dados de posição, status e NMEA imitam um receptor real para você avaliar as telas.</p>`}
+function tempo(t){const s=Math.floor((Date.now()-t)/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,"0")).join(":")}
+
+// ---------- Render ----------
+let ultimaTela="";
+function render(full=true){
+  header();
+  const key=S.tela+"|"+S.sub;
+  const ativo=document.activeElement;
+  const editando=ativo&&["INPUT","SELECT","TEXTAREA"].includes(ativo.tagName)&&$("view").contains(ativo);
+  if(!full&&editando){ // não redesenha enquanto a pessoa digita; só atualiza o monitor
+    const m=$("mon");if(m&&S.conectado){m.textContent=G.nmea.join("\n");m.scrollTop=m.scrollHeight}return}
+  if(!full&&S.tela==="mapa"&&S.locPick&&!S.loc) return;
+  if(!full&&S.tela==="calc"&&!["medir","locLinha"].includes(S.ferr))return;
+  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&["nmea","conexao","correcao","baserover","estatico","ajuste"].includes(S.sub))) return;
+  const v=$("view");
+  document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
+  v.innerHTML=({home:vHome,info:vInfo,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
+  const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
+  if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
+}
+
+// ---------- Ações ----------
+document.addEventListener("click",e=>{
+  const sel=e.target.closest("[data-ptsel]");
+  if(sel){S.ptSel=+sel.dataset.ptsel;S.ptEdit=false;S.ptDelConf=false;S.seguir=false;render();return}
+  const b=e.target.closest("button");if(!b||b.disabled)return;
+  if(b.dataset.go){S.tela=b.dataset.go;exportTxt="";render();return}
+  if(b.dataset.aba){S.aba=b.dataset.aba;S.tela="home";S.ferr=null;render();window.scrollTo(0,0);return}
+  if(b.dataset.tile){const t=Object.values(TILES).flat().find(x=>x[0]===b.dataset.tile);if(t)t[4]();return}
+  if(b.dataset.ptdel!==undefined){const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
+  if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
+  if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&S.corrLigada){S.corrLigada=false;toast("Correção desligada ao trocar a fonte")}salvar();render();return}
+  if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";salvar();render();toast("Projeto aberto");return}
+  if(b.dataset.usar){S.ativo=+b.dataset.usar;if(S.conectado){S.conectado=false;S.corrLigada=false}salvar();render();toast("Receptor selecionado. Conecte em Receptor › Conexão.");return}
+  if(b.dataset.exp){exportar(b.dataset.exp);render();return}
+  manterTela();
+  if(b.dataset.estopt){S.est[b.dataset.estopt]=b.dataset.val;salvar();render();return}
+  if(b.dataset.arq){const f=S.arquivos.find(x=>x.id===+b.dataset.id);const k=b.dataset.arq;
+    if(k==="apagar"){S.arquivos=S.arquivos.filter(x=>x!==f);toast("Arquivo apagado")}
+    if(k==="baixar"){f.destino="coletora";toast("Arquivo copiado do receptor para o celular")}
+    if(k==="compart"){toast("No app instalado: abre WhatsApp, e-mail ou Drive com o arquivo")}
+    if(k==="ppp"){if(f.destino==="receptor"){toast("Baixe o arquivo para o celular antes de enviar");return}f.ppp=S.semInternet?"fila":"aguardando";f.enviado=Date.now();toast(S.semInternet?"Sem internet: arquivo na fila de envio":(f.formato==="CNB"?"Convertido para RINEX e enviado ao IBGE-PPP":"Enviado ao IBGE-PPP"))}
+    if(k==="simppp"){const [E,N]=toUTM(f.lat,f.lon,zonaAtual(),hemiAtual());f.res=[E+(Math.random()-.5)*3,N+(Math.random()-.5)*3,f.h+(Math.random()-.5)*4,f.dur>=3600?0.012:0.045];f.ppp="ok";bip("ok");toast("Resultado do IBGE-PPP recebido")}
+    salvar();render();return}
+  if(b.dataset.ferr){S.tela="calc";S.ferr=b.dataset.ferr;render();return}
+  if(b.dataset.lcmodo){S.lcModo=b.dataset.lcmodo;render();return}
+  if(b.dataset.locp!==undefined){S.loc={tipo:"ponto",idx:+b.dataset.locp};chegouAviso=false;S.seguir=true;render();toast("Locação iniciada");return}
+  if(b.dataset.mount){S.mount=b.dataset.mount;R.mounts=[];salvar();render();toast("Ponto de montagem: "+S.mount);return}
+  if(b.dataset.desc){S.codigo=b.dataset.desc;render();return}
+  if(b.dataset.cv){S.cvDe=b.dataset.cv;render();return}
+  if(b.dataset.ladd){const k=b.dataset.ladd,v=S["sel_"+k]??"0";if(!proj()?.pontos[+v]){toast("Escolha um ponto");return}(S[k]=S[k]||[]).push(v);const n=proj().pontos.length;S["sel_"+k]=String(Math.min(+v+1,n-1));render();return}
+  if(b.dataset.lall){S[b.dataset.lall]=(proj()?.pontos||[]).map((p,i)=>[p,String(i)]).filter(([p])=>!(b.dataset.lall==="volList"&&(p.st==="PROJ"||p.st==="CALC"))).map(x=>x[1]);render();return}
+  if(b.dataset.lclr){S[b.dataset.lclr]=[];render();return}
+  if(b.dataset.lrm){S[b.dataset.lrm].splice(+b.dataset.i,1);render();return}
+  if(b.dataset.medrm){S.medList.splice(+b.dataset.medrm,1);render();return}
+  if(b.dataset.linrm){S.linhaPts.splice(+b.dataset.linrm,1);render();return}
+  if(b.dataset.lindel){proj().linhas.splice(+b.dataset.lindel,1);salvar();render();toast("Linha apagada");return}
+  const a=b.dataset.act;
+  if(a==="irConexao"){S.tela="receptor";S.sub="conexao";render()}
+  if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
+  if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
+  if(a==="desconectar"){if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
+  if(a==="corrOn"&&NATIVO&&S.fonte==="tcp"){if(S.correcao!=="ntrip"){toast("Rádio e RTX do S6 entram depois do teste no escritório (comandos ComNav). Use o NTRIP.");return}
+    ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
+  if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
+  if(a==="corrOff"){if(NATIVO&&S.fonte==="tcp")NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
+  if(a==="aplicarBase"){toast("Receptor configurado como rover")}
+  if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
+    const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
+      if(S.baseMedindo<=0){clearInterval(iv);const m=i=>am.reduce((s,x)=>s+x[i],0)/am.length;
+        S.baseE=fmtBR(m(0));S.baseN=fmtBR(m(1));S.baseH=fmtBR(m(2));S.baseFonte="Posição autônoma (média de "+am.length+" s)";salvar();toast("Coordenada da base definida")}
+      render()},1000)}
+  if(a==="iniciarBase"){if(!(S.baseE&&S.baseN&&S.baseH)){toast("Defina a coordenada da base primeiro");return}S.baseLigada=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
+    const prov=/autônoma/.test(S.baseFonte||"");S.ajuste={status:"gravando",prov};salvar();render();
+    toast(prov?"Base iniciada em coordenada provisória. Gravando RINEX para o ajuste.":"Base iniciada")}
+  if(a==="pararBase"){S.baseLigada=false;render();toast("Base parada")}
+  if(a==="zoomIn"){S.zoom=Math.max(1,S.zoom/2);render()}
+  if(a==="zoomOut"){S.zoom=Math.min(2000,S.zoom*2);render()}
+  if(a==="seguir"){S.seguir=!S.seguir;render()}
+  if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
+    const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
+    const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
+  if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
+  if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
+  if(a==="coletar"){if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar()}
+  if(a==="estIniciar"){S.est.gravando=true;S.est.inicio=Date.now();salvar();render();toast("Gravação estática iniciada")}
+  if(a==="estParar")pararEstatico(false);
+  if(a==="ajEncerrar"){S.ajuste.fim=Date.now();if(S.semInternet){S.ajuste.status="fila";toast("Sem internet: arquivo na fila de envio")}else{S.ajuste.status="aguardando";S.ajuste.enviado=Date.now();toast("RINEX enviado ao IBGE-PPP")}render()}
+  if(a==="ajSimular"){const p=S.baseProv;S.ajuste.corr={E:p.E+(Math.random()-.5)*4,N:p.N+(Math.random()-.5)*4,h:p.h+(Math.random()-.5)*5,sig:[0.008,0.011,0.019]};S.ajuste.origem="IBGE-PPP";S.ajuste.status="processado";bip("ok");render();toast("Coordenada corrigida da base recebida")}
+  if(a==="ajManual"){const E=num(S.ajE),N=num(S.ajN),h=num(S.ajH);if([E,N,h].some(isNaN)){toast("Preencha E, N e h");return}
+    if(!S.baseProv){toast("Inicie a base antes de ajustar");return}
+    S.ajuste=Object.assign(S.ajuste||{},{corr:{E,N,h},origem:"Digitada",status:"processado"});render();toast("Coordenada informada. Confira a diferença e aplique.")}
+  if(a==="ajAplicar"){const c=S.ajuste.corr,p=S.baseProv,dE=c.E-p.E,dN=c.N-p.N,dh=c.h-p.h,z=zonaAtual(),hz=hemiAtual();let n=0;
+    for(const pt of pontosDesde(S.baseInicio)){const [E,N]=ptEN(pt);const [la,lo]=fromUTM(E+dE,N+dN,z,hz);pt.lat=la;pt.lon=lo;pt.E=E+dE;pt.N=N+dN;pt.h+=dh;pt.ajustado=true;n++}
+    const [la,lo]=fromUTM(G.E+dE,G.N+dN,z,hz);G.lat=la;G.lon=lo;G.h+=dh;atualizaEN();
+    S.baseE=fmtBR(c.E);S.baseN=fmtBR(c.N);S.baseH=fmtBR(c.h);S.baseFonte="Corrigida pelo "+S.ajuste.origem;
+    const pj=proj();if(pj)pj.ajustes=(pj.ajustes||[]).concat([{quando:Date.now(),dE,dN,dh,n,origem:S.ajuste.origem}]);
+    S.ajuste.status="aplicado";S.ajuste.aplicado=Date.now();S.ajuste.nAplic=n;salvar();bip("ok");render();toast(`Ajuste aplicado em ${n} pontos e na base`)}
+  if(a==="ajNovo"){S.ajuste=null;S.baseLigada=false;S.baseProv=null;S.sub="baserover";render()}
+  if(a==="testarSom"){bip("ok")}
+  if(a==="buscarMounts")buscarMounts();
+  if(a==="compartilhar")compartilharArquivo();
+  if(a==="ptFechar"){S.ptSel=null;S.ptEdit=false;S.ptDelConf=false;render()}
+  if(a==="ptLocar"){S.loc={tipo:"ponto",idx:S.ptSel};S.ptSel=null;chegouAviso=false;S.tela="locacao";render();toast("Locação iniciada")}
+  if(a==="ptEditar"){const p=proj().pontos[S.ptSel];S.peNome=p.nome;S.peDesc=p.cod||"";S.peH=fmtBR(p.h);S.ptEdit=true;render()}
+  if(a==="ptCancelar"){S.ptEdit=false;render()}
+  if(a==="ptSalvar"){const pts=proj().pontos,p=pts[S.ptSel],nome=(S.peNome||"").trim();if(!nome){toast("Informe o número");return}
+    if(pts.some((x,i)=>i!==S.ptSel&&x.nome===nome)){toast(`Já existe ${nome} no projeto`);return}
+    p.nome=nome;p.cod=(S.peDesc||"").trim();const h=num(S.peH);if(!isNaN(h))p.h=h;p.editado=true;S.ptEdit=false;salvar();render();toast("Ponto atualizado")}
+  if(a==="ptDel"){S.ptDelConf=true;render()}
+  if(a==="ptApagar"){const pts=proj().pontos,x=pts[S.ptSel];if(S.loc?.tipo==="ponto")S.loc=null;pts.splice(S.ptSel,1);S.ptSel=null;S.ptDelConf=false;salvar();render();toast(x.nome+" apagado")}
+  if(a==="calcVoltar"){S.ferr=null;S.aba="ferramentas";S.tela="home";render()}
+  if(a==="voltar"){S.tela="home";S.ferr=null;render()}
+  if(a==="importar"){const p=proj();if(!p){toast("Abra um projeto");return}let n=0,erro=0;
+    for(const l of (S.impTxt||"").split(/\n/)){if(!l.trim())continue;const c=(/[;\t]/.test(l)?l.split(/[;\t]/):l.split(",")).map(x=>x.trim());
+      const E=num(c[1]),N=num(c[2]),h=num(c[3]);if(!c[0]||isNaN(E)||isNaN(N)||p.pontos.some(x=>x.nome===c[0])){erro++;continue}
+      novoPonto(c[0],c[4]||"PROJETO",E,N,isNaN(h)?0:h);p.pontos[p.pontos.length-1].st="PROJ";n++}
+    salvar();S.impTxt="";render();toast(`${n} pontos importados${erro?` · ${erro} linhas ignoradas`:""}`)}
+  if(a==="locDigitado"){const E=num(S.lcE),N=num(S.lcN);if(isNaN(E)||isNaN(N)){toast("Preencha E e N");return}
+    const h=isNaN(num(S.lcH))?(G.h-(num(S.altura)||0)):num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
+    if(S.lcSalvar!==false&&proj()){if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome} no projeto`);return}novoPonto(nome,(S.lcDesc||"").trim()||"PROJETO",E,N,h);proj().pontos[proj().pontos.length-1].st="PROJ";S.loc={tipo:"ponto",idx:proj().pontos.length-1};salvar()}
+    else S.loc={tipo:"coord",E,N,h,nome};
+    S.lcNome=incNome(nome);S.lcE="";S.lcN="";chegouAviso=false;render();toast("Locação iniciada")}
+  if(a==="fazIrradiar"){const B=getPt(S.irB??"atual"),az=parseAng(S.irAz)*Math.PI/180,d=num(S.irD),nome=(S.irNome||"IR-01").trim();if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome}`);return}
+    novoPonto(nome,"IRR",B.E+Math.sin(az)*d,B.N+Math.cos(az)*d,B.h+(num(S.irDh)||0));S.irNome=incNome(nome);salvar();render();toast(`${nome} criado`)}
+  if(a==="fazIntersecao"){const A=getPt(S.ixA??"0"),B=getPt(S.ixB??"1"),C=getPt(S.ixC??"2"),D=getPt(S.ixD??"3");const x1=B.E-A.E,y1=B.N-A.N,x2=D.E-C.E,y2=D.N-C.N,t=((C.E-A.E)*y2-(C.N-A.N)*x2)/(x1*y2-y1*x2);
+    novoPonto(`INT-${A.nome}`,"INT",A.E+t*x1,A.N+t*y1,A.h+(B.h-A.h)*t);salvar();render();toast("Ponto de interseção criado")}
+  if(a==="apagarTudo"){$("apagarConfirma").hidden=false;toast("Toque em Confirmar para apagar")}
+  if(a==="apagarConfirma"){try{localStorage.removeItem(KEY)}catch(e){}location.reload()}
+  if(a==="ferramentas"){S.ferr=S.ferr?null:"medir";render()}
+  if(a==="medAdd"){const v=S.tMed??"atual";if(v!=="atual"&&!proj()?.pontos[+v]){toast("Escolha um ponto");return}(S.medList=S.medList||[]).push(v);render()}
+  if(a==="medLimpar"){S.medList=[];render()}
+  if(a==="linAdd"){const v=S.tLin??"0";if(!proj()?.pontos[+v]){toast("Escolha um ponto");return}(S.linhaPts=S.linhaPts||[]).push(v);const n=proj().pontos.length;S.tLin=String(Math.min(+v+1,n-1));render()}
+  if(a==="linSalvar"){const p=proj();p.linhas=(p.linhas||[]).concat([{nome:(S.linhaNome||"").trim()||"Linha "+((p.linhas||[]).length+1),pts:S.linhaPts.map(Number)}]);S.linhaPts=[];S.linhaNome="";salvar();render();toast("Linha salva no projeto")}
+  if(a==="llLocar"){const l=linhasProj()[+(S.tLL||0)];const ps=linhaPts(l);const est=num(S.llEst);if(isNaN(est)){toast("Informe a distância do início");return}
+    const L=polyLen(ps);if(est<0||est>L){toast(`A linha tem ${br(L)} m`);return}
+    const off=(num(S.llOff)||0)*(S.llLado==="E"?-1:1),q=pontoNaLinha(ps,est,off);
+    S.loc={tipo:"coord",E:q.E,N:q.N,h:q.h,nome:`${l.nome} ${estaca(est)}${off?` · ${br(Math.abs(off))} ${off>0?"D":"E"}`:""}`};S.tela="locacao";S.seguir=true;chegouAviso=false;render();toast("Locação iniciada")}
+  if(a==="fazOffset"){const A=getPt(S.tA??"0"),B=getPt(S.tB??"1");if(!A||!B||(S.tA??"0")===(S.tB??"1")){toast("Escolha dois pontos diferentes");return}
+    const d=(num(S.tD)||0)*(S.tLado==="E"?-1:1),dh=num(S.tDh)||0,passo=num(S.tPasso);const L=Math.hypot(B.E-A.E,B.N-A.N);
+    const ests=[0];if(passo>0)for(let s=passo;s<L-0.001;s+=passo)ests.push(s);ests.push(L);
+    ests.forEach((s,i)=>{const q=pontoNaLinha([A,B],s,d);novoPonto(`${A.nome}-OFF${i+1}`,"OFF",q.E,q.N,q.h+dh)});
+    salvar();render();toast(`${ests.length} pontos de offset criados (azul no mapa)`)}
+  if(a==="fazEstender"){const A=getPt(S.tA??"0"),B=getPt(S.tB??"1");if(!A||!B||(S.tA??"0")===(S.tB??"1")){toast("Escolha dois pontos diferentes");return}
+    const L=Math.hypot(B.E-A.E,B.N-A.N),ux=(B.E-A.E)/L,uy=(B.N-A.N)/L,gr=(B.h-A.h)/L,modo=S.tModo||"alem",v=num(S.tExt)||(modo==="dividir"?4:5);
+    if(modo==="dividir"){const n=Math.max(2,Math.round(v));for(let i=1;i<n;i++){const s=L*i/n;novoPonto(`${A.nome}-D${i}`,"DIV",A.E+ux*s,A.N+uy*s,A.h+gr*s)}toast(`${n-1} pontos criados dividindo A→B`)}
+    else if(modo==="alem"){novoPonto(`${B.nome}-EXT`,"EXT",B.E+ux*v,B.N+uy*v,B.h+gr*v);toast(`Ponto criado ${br(v)} m além de ${B.nome}`)}
+    else{novoPonto(`${A.nome}-EXT`,"EXT",A.E-ux*v,A.N-uy*v,A.h-gr*v);toast(`Ponto criado ${br(v)} m antes de ${A.nome}`)}
+    salvar();render()}
+  if(a==="abrirLoc"){S.tela="locacao";render()}
+  if(a==="fecharLoc"){S.locPick=false;render()}
+  if(a==="pararLoc"){S.loc=null;S.locPick=false;render();toast("Locação encerrada")}
+  if(a==="iniciarLoc"){const e=num($("locE").value),n=num($("locN").value);
+    if(!isNaN(e)&&!isNaN(n)){S.loc={tipo:"coord",E:e,N:n,h:num($("locH").value)||0,nome:$("locNome").value.trim()||"Ponto digitado"}}
+    else if($("locPto")){S.loc={tipo:"ponto",idx:+$("locPto").value}}
+    else{toast("Escolha um ponto ou digite E e N");return}
+    S.locPick=false;S.seguir=true;render();toast("Locação iniciada: siga a linha laranja")}
+  if(a==="marcarLocado"){const al=alvoEN();const p=proj();if(p){p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString()}]);salvar()}toast(al.nome+" marcado como locado");S.loc=null;render()}
+  if(a==="novoProj"){$("novoProjForm").hidden=false;$("npNome").focus()}
+  if(a==="criarProj"){const n=$("npNome").value.trim();if(!n){toast("Dê um nome ao projeto");return}const id=Date.now();S.projetos.unshift({id,nome:n,cliente:$("npCli").value.trim(),pontos:[]});S.projAtivo=id;salvar();render();toast("Projeto criado e aberto")}
+  if(a==="addRec"){const mo=$("nrModelo").value.trim();if(!mo){toast("Informe o modelo");return}const ma=$("nrMarca").value;const leitura=/Trimble|Spectra|Outra/.test(ma);
+    S.receptores.push({id:Date.now(),marca:ma.replace(" (genérico NMEA)",""),modelo:mo,serie:$("nrSerie").value.trim(),nivel:leitura?"leitura":"completo"});salvar();render();toast(leitura?"Salvo. Esta marca começa só com leitura NMEA.":"Receptor salvo")}
+  if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
+});
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
+  if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
+  if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
+document.addEventListener("change",e=>{const el=e.target;
+  if(el.id==="selRec"){S.ativo=+el.value;S.conectado=false;S.corrLigada=false;salvar();render()}
+  if(el.id==="soFix"){S.soFix=el.checked;salvar();render()}
+  if(el.id==="gga"){S.enviaGGA=el.checked;salvar()}
+  if(el.id==="anda"){S.anda=el.checked;render()}
+  if(el.id==="lcSalvar"){S.lcSalvar=el.checked}
+  if(el.id==="semNet"){S.semInternet=el.checked;
+    if(!S.semInternet){let n=0;if(S.ajuste?.status==="fila"){S.ajuste.status="aguardando";S.ajuste.enviado=Date.now();n++}S.arquivos.forEach(f=>{if(f.ppp==="fila"){f.ppp="aguardando";f.enviado=Date.now();n++}});if(n)toast("Internet de volta: arquivos da fila enviados ao IBGE-PPP");salvar()}
+    render()}
+  if(el.dataset.cfg){S.cfg[el.dataset.cfg]=el.type==="checkbox"?el.checked:el.value;salvar();if(el.tagName==="SELECT"||el.type==="checkbox")render()}
+  if(el.dataset.est&&el.tagName==="SELECT"){S.est[el.dataset.est]=el.value;salvar()}
+  if(el.dataset.sis){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{[el.dataset.sis]:el.value});atualizaEN();salvar();render();toast("Sistema do projeto: "+sisTxt())}
+  if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
+  if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
+  if(el.dataset.bind&&el.tagName==="SELECT"){S[el.dataset.bind]=el.value;salvar()}
+});
+function alvoEN(){
+  if(!S.loc)return null;
+  if(S.loc.tipo==="ponto"){const p=proj()?.pontos[S.loc.idx];if(!p)return null;const [E,N]=ptEN(p);return {E,N,h:p.h,nome:p.nome}}
+  return {E:S.loc.E,N:S.loc.N,h:S.loc.h,nome:S.loc.nome};
+}
+function azGMS(a){const g=Math.floor(a),m=Math.floor((a-g)*60),s=Math.round(((a-g)*60-m)*60);return `${g}°${String(m).padStart(2,"0")}'${String(s).padStart(2,"0")}"`}
+function locPainel(){
+  const al=alvoEN();if(!al)return "";
+  const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360;
+  const tol=num(S.locTol)||0.03, chegou=dist<=tol, alt=num(S.altura)||0;
+  const dh=(G.h-alt)-al.h; // terreno atual menos cota do alvo
+  let rel="";
+  if(G.vel>0.05){const ang=(az-G.course)*Math.PI/180;const fr=dist*Math.cos(ang),di=dist*Math.sin(ang);
+    rel=`<div class="grid2"><div class="kv"><span>${fr>=0?"Para frente":"Para trás"}</span><b>${br(Math.abs(fr))} m</b></div><div class="kv"><span>${di>=0?"Para a direita":"Para a esquerda"}</span><b>${br(Math.abs(di))} m</b></div></div>`}
+  return `<section class="card" style="border:2px solid ${chegou?"var(--fix)":"var(--accent)"};${chegou?"background:var(--fix-bg)":""}">
+    <div class="split"><h3>Locando ${esc(al.nome)}</h3><button style="min-height:34px;font-size:13px" data-act="pararLoc">Parar</button></div>
+    ${chegou?`<b style="font-size:24px;color:var(--fix)">NO PONTO ✓</b>`:`<div class="grid2"><div class="kv"><span>Distância</span><b style="font-size:26px">${br(dist)} m</b></div><div class="kv"><span>Azimute</span><b>${fmtAng(az)}</b></div></div>`}
+    <div class="grid2"><div class="kv"><span>${dn>=0?"Norte":"Sul"}</span><b>${br(Math.abs(dn))} m</b></div><div class="kv"><span>${de>=0?"Leste":"Oeste"}</span><b>${br(Math.abs(de))} m</b></div></div>
+    ${rel}
+    <div class="kv"><span>${dh>=0?"Corte":"Aterro"} (cota do projeto ${br(al.h)} m)</span><b>${br(Math.abs(dh))} m</b></div>
+    ${chegou?`<button class="pri" data-act="marcarLocado">Marcar como locado</button>`:""}
+  </section>`;
+}
+function locPicker(){
+  const pts=proj()?.pontos||[];
+  return `<section class="card hl">
+    <div class="split"><h3>Locação de ponto</h3><button style="min-height:34px;font-size:13px" data-act="fecharLoc">Fechar</button></div>
+    ${pts.length?`<label class="f">Ponto do projeto<select id="locPto">${pts.map((p,i)=>`<option value="${i}">${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}</select></label>`:`<span class="muted small">O projeto ainda não tem pontos. Digite a coordenada do ponto a locar.</span>`}
+    <span class="eyebrow">ou digite a coordenada (${sisTxt()})</span>
+    <div class="grid2">
+      <label class="f">Nome<input id="locNome" placeholder="Ex.: Estaca 12"></label>
+      <label class="f">Cota (m)<input class="m" id="locH" inputmode="decimal" placeholder="opcional"></label>
+      <label class="f">E (m)<input class="m" id="locE" inputmode="decimal" placeholder="${br(G.E)}"></label>
+      <label class="f">N (m)<input class="m" id="locN" inputmode="decimal" placeholder="${br(G.N)}"></label>
+    </div>
+    <label class="f">Tolerância para "no ponto" (m)<input class="m" inputmode="decimal" value="${esc(S.locTol)}" data-bind="locTol"></label>
+    <button class="pri" data-act="iniciarLoc">Iniciar locação</button>
+  </section>`;
+}
+function acoesBar(){
+  const ok=podeColetar();
+  const rec_=descRecentes();
+  return `<div style="position:sticky;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;flex-direction:column;gap:8px;padding:10px 0 8px;background:var(--bg);border-top:1px solid var(--line)">
+   <div style="display:grid;grid-template-columns:1fr 1.6fr .9fr;gap:8px">
+    <label class="f">Nº do ponto<input class="m" data-bind="pNum" value="${esc(proxNome())}" style="height:42px"></label>
+    <label class="f">Descrição<input data-bind="codigo" value="${esc(S.codigo)}" placeholder="MF, poste…" style="height:42px"></label>
+    <label class="f">Bastão (m)<input class="m" inputmode="decimal" data-bind="altura" value="${esc(S.altura)}" style="height:42px"></label>
+   </div>
+   ${rec_.length?`<div style="display:flex;gap:6px;overflow-x:auto">${rec_.map(d=>`<button style="min-height:32px;font-size:13px;padding:0 10px;flex:0 0 auto" data-desc="${esc(d)}" aria-pressed="${S.codigo===d}">${esc(d)}</button>`).join("")}</div>`:""}
+   <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:8px">
+    <button class="pri" style="min-height:52px;font-size:17px" data-act="coletar" ${ok?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:`Coletar ${proxNome()}`}</button>
+    <button style="min-height:52px" data-act="${S.loc?"pararLoc":"abrirLoc"}">${S.loc?"Parar loc.":"Locar"}</button>
+    <button style="min-height:52px" data-go="calc">Cálculos</button>
+  </div></div>`;
+}
+
+// ---------- Cálculos (COGO) ----------
+function fromUTM(E,N,zona,hemi){
+  const a=6378137,f=1/298.257222101,k0=0.9996,e2=f*(2-f),ep2=e2/(1-e2),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2)),d=Math.PI/180;
+  const x=E-500000,y=hemi==="S"?N-10000000:N,M=y/k0,mu=M/(a*(1-e2/4-3*e2**2/64-5*e2**3/256));
+  const p1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)+(21*e1**2/16-55*e1**4/32)*Math.sin(4*mu)+(151*e1**3/96)*Math.sin(6*mu)+(1097*e1**4/512)*Math.sin(8*mu);
+  const N1=a/Math.sqrt(1-e2*Math.sin(p1)**2),T1=Math.tan(p1)**2,C1=ep2*Math.cos(p1)**2,R1=a*(1-e2)/(1-e2*Math.sin(p1)**2)**1.5,D=x/(N1*k0);
+  const lat=p1-(N1*Math.tan(p1)/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*D**4/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*D**6/720);
+  const lon=((zona-1)*6-180+3)*d+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*D**5/120)/Math.cos(p1);
+  return [lat/d,lon/d];
+}
+function getPt(v){
+  if(v==="atual")return {E:G.E,N:G.N,h:G.h-(num(S.altura)||0),nome:"Posição atual"};
+  const p=proj()?.pontos[+v];if(!p)return null;const [E,N]=ptEN(p);return {E,N,h:p.h,nome:p.nome};
+}
+function ptOpts(sel,comAtual){const pts=proj()?.pontos||[];return (comAtual?`<option value="atual" ${sel==="atual"?"selected":""}>Posição atual</option>`:"")+pts.map((p,i)=>`<option value="${i}" ${String(sel)===String(i)?"selected":""}>${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}
+function novoPonto(nome,cod,E,N,h){const [lat,lon]=fromUTM(E,N,zonaAtual(),hemiAtual());proj().pontos.push({nome,cod,lat,lon,E,N,h,h_rms:0,st:"CALC",alt:0,quando:new Date().toISOString()})}
+function estaca(m){const I=num(S.cfg.estacaInt)||20,e=Math.floor(m/I+1e-9),r=m-e*I;return `Est. ${e} + ${br(r)}`}
+function polyLen(ps){let L=0;for(let i=1;i<ps.length;i++)L+=Math.hypot(ps[i].E-ps[i-1].E,ps[i].N-ps[i-1].N);return L}
+function polyArea(ps){let A=0;for(let i=0;i<ps.length;i++){const a=ps[i],b=ps[(i+1)%ps.length];A+=a.E*b.N-b.E*a.N}return Math.abs(A)/2}
+function projNaLinha(ps,E,N){ // estaca e afastamento de (E,N) em relação à polilinha
+  let best=null,acc=0;
+  for(let i=1;i<ps.length;i++){const a=ps[i-1],b=ps[i],dx=b.E-a.E,dy=b.N-a.N,L=Math.hypot(dx,dy);if(!L)continue;
+    let t=((E-a.E)*dx+(N-a.N)*dy)/(L*L);const tc=Math.max(0,Math.min(1,t));
+    const px=a.E+tc*dx,py=a.N+tc*dy,off=((E-a.E)*dy-(N-a.N)*dx)/L; // + = direita
+    const dist=Math.hypot(E-px,N-py);
+    if(!best||dist<best.dist)best={dist,est:acc+tc*L,off,h:a.h+(b.h-a.h)*tc,fora:t<0||t>1};acc+=L}
+  return best;
+}
+function pontoNaLinha(ps,est,off){
+  let acc=0;for(let i=1;i<ps.length;i++){const a=ps[i-1],b=ps[i],dx=b.E-a.E,dy=b.N-a.N,L=Math.hypot(dx,dy);
+    if(est<=acc+L||i===ps.length-1){const t=(est-acc)/L,ux=dx/L,uy=dy/L;return {E:a.E+t*dx+uy*off,N:a.N+t*dy-ux*off,h:a.h+(b.h-a.h)*t}}acc+=L}
+}
+function linhasProj(){return proj()?.linhas||[]}
+function linhaPts(l){return l.pts.map(getPt).filter(Boolean)}
+function ferrCorpo(){
+  const pts=proj()?.pontos||[];
+  const pouco=pts.length<2&&S.ferr!=="medir"?`<span class="muted small">Colete ou importe pelo menos 2 pontos no projeto para usar esta ferramenta.</span>`:"";
+  let body="";
+  if(S.ferr==="medir"){
+    const lista=(S.medList||[]).map(getPt).filter(Boolean);
+    let res="";
+    if(lista.length>=2){const a=lista[lista.length-2],b=lista[lista.length-1],dE=b.E-a.E,dN=b.N-a.N,dh=b.h-a.h,dH=Math.hypot(dE,dN),az=(Math.atan2(dE,dN)*180/Math.PI+360)%360;
+      res=`<div class="grid2"><div class="kv"><span>Distância horizontal</span><b style="font-size:22px">${br(dH)} m</b></div><div class="kv"><span>Azimute</span><b>${fmtAng(az)}</b></div>
+        <div class="kv"><span>Distância inclinada</span><b>${br(Math.hypot(dH,dh))} m</b></div><div class="kv"><span>Desnível Δh</span><b>${dh>=0?"+":"−"}${br(Math.abs(dh))} m</b></div>
+        <div class="kv"><span>ΔE · ΔN</span><b style="font-size:14px">${br(dE)} · ${br(dN)}</b></div><div class="kv"><span>Declividade</span><b>${dH?br(dh/dH*100,2):"—"} %</b></div></div>
+        ${lista.length>2?`<div class="grid2"><div class="kv"><span>Perímetro (${lista.length} pontos)</span><b>${br(polyLen(lista))} m</b></div><div class="kv"><span>Área (fechando)</span><b>${br(polyArea(lista),2)} m²</b></div></div><span class="muted small">${br(polyArea(lista)/10000,4)} ha</span>`:""}`}
+    body=`<span class="muted small">Escolha os pontos na ordem. Com 2 pontos: distância, azimute e desnível. Com 3 ou mais: perímetro e área.</span>
+      <div class="list">${lista.length?lista.map((p,i)=>`<div class="row" style="grid-template-columns:24px 1fr auto"><b>${i+1}</b><span>${esc(p.nome)}</span><button style="min-height:32px;font-size:12px" data-medrm="${i}">Tirar</button></div>`).join(""):`<div class="row" style="grid-template-columns:1fr"><span class="muted">Nenhum ponto escolhido</span></div>`}</div>
+      <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Ponto<select data-bind="tMed">${ptOpts(S.tMed??"atual",true)}</select></label><button class="pri" style="align-self:end" data-act="medAdd">Adicionar</button></div>
+      ${res}${lista.length?`<button data-act="medLimpar">Limpar medição</button>`:""}`;
+  }
+  if(S.ferr==="linha"){
+    const sel=S.linhaPts||[];const ps=sel.map(getPt).filter(Boolean);
+    body=`<span class="muted small">Ligue o ponto A ao B e continue com quantos pontos quiser. A linha fica salva no projeto e aparece no mapa.</span>
+      <label class="f">Nome da linha<input value="${esc(S.linhaNome||"")}" data-bind="linhaNome" placeholder="Ex.: Eixo rua 1"></label>
+      <div class="list">${ps.length?ps.map((p,i)=>`<div class="row" style="grid-template-columns:24px 1fr auto"><b>${String.fromCharCode(65+i)}</b><span>${esc(p.nome)}${i?` <span class="muted small">· ${br(Math.hypot(p.E-ps[i-1].E,p.N-ps[i-1].N))} m</span>`:""}</span><button style="min-height:32px;font-size:12px" data-linrm="${i}">Tirar</button></div>`).join(""):`<div class="row" style="grid-template-columns:1fr"><span class="muted">Escolha o ponto A</span></div>`}</div>
+      <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">${ps.length?"Próximo ponto":"Ponto A"}<select data-bind="tLin">${ptOpts(S.tLin??"0",false)}</select></label><button class="pri" style="align-self:end" data-act="linAdd" ${pts.length?"":"disabled"}>Adicionar</button></div>
+      ${ps.length>=2?`<div class="kv"><span>Comprimento total</span><b>${br(polyLen(ps))} m</b></div><button class="pri" data-act="linSalvar">Salvar linha</button>`:""}
+      ${linhasProj().length?`<span class="eyebrow">Linhas do projeto</span><div class="list">${linhasProj().map((l,i)=>`<div class="row" style="grid-template-columns:1fr auto auto"><span>${esc(l.nome)}</span><span class="muted small">${l.pts.length} pts · ${br(polyLen(linhaPts(l)),1)} m</span><button style="min-height:32px;font-size:12px" data-lindel="${i}">Apagar</button></div>`).join("")}</div>`:""}`;
+  }
+  if(S.ferr==="locLinha"){
+    const ls=linhasProj();
+    if(!ls.length) body=`<span class="muted small">Crie uma linha primeiro na ferramenta "Linha".</span><button data-ferr="linha">Criar linha</button>`;
+    else{const l=ls[+(S.tLL||0)]||ls[0],ps=linhaPts(l);const r=S.conectado&&ps.length>=2?projNaLinha(ps,G.E,G.N):null;const alt=num(S.altura)||0;
+      body=`<label class="f">Linha<select data-bind="tLL">${ls.map((x,i)=>`<option value="${i}" ${String(S.tLL||0)===String(i)?"selected":""}>${esc(x.nome)} · ${br(polyLen(linhaPts(x)),1)} m</option>`).join("")}</select></label>
+      ${r?`<section class="card" style="background:var(--bg)">
+        <div class="grid2"><div class="kv"><span>Estaca</span><b>${estaca(r.est)}</b></div><div class="kv"><span>Distância do início</span><b>${br(r.est)} m</b></div>
+        <div class="kv"><span>Afastamento ${r.off>=0?"à direita":"à esquerda"}</span><b style="font-size:22px">${br(Math.abs(r.off))} m</b></div><div class="kv"><span>${(G.h-alt)-r.h>=0?"Corte":"Aterro"} na linha</span><b>${br(Math.abs((G.h-alt)-r.h))} m</b></div></div>
+        ${r.fora?`<span class="small" style="color:var(--float)">Você está fora do trecho da linha (antes do início ou depois do fim).</span>`:""}</section>`:`<span class="muted small">Conecte o receptor para ver estaca e afastamento ao vivo.</span>`}
+      <span class="eyebrow">Locar um ponto da linha</span>
+      <div class="grid2"><label class="f">Distância do início (m)<input class="m" inputmode="decimal" value="${esc(S.llEst||"")}" data-bind="llEst" placeholder="Ex.: 40"></label>
+        <label class="f">Afastamento (m)<input class="m" inputmode="decimal" value="${esc(S.llOff||"0")}" data-bind="llOff"></label></div>
+      <label class="f">Lado<select data-bind="llLado"><option value="D" ${S.llLado!=="E"?"selected":""}>Direita</option><option value="E" ${S.llLado==="E"?"selected":""}>Esquerda</option></select></label>
+      <button class="pri" data-act="llLocar">Locar este ponto</button>`}
+  }
+  if(S.ferr==="offset"){
+    body=`<span class="muted small">Cria pontos paralelos à linha A→B, deslocados para o lado escolhido. Útil para offset de meio-fio, cerca ou eixo.</span>
+      <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label>
+      <label class="f">Distância do offset (m)<input class="m" inputmode="decimal" value="${esc(S.tD||"2,000")}" data-bind="tD"></label>
+      <label class="f">Lado (olhando de A para B)<select data-bind="tLado"><option value="D" ${S.tLado!=="E"?"selected":""}>Direita</option><option value="E" ${S.tLado==="E"?"selected":""}>Esquerda</option></select></label>
+      <label class="f">Diferença de cota (m)<input class="m" inputmode="decimal" value="${esc(S.tDh||"0,000")}" data-bind="tDh"></label>
+      <label class="f">Pontos intermediários a cada (m)<input class="m" inputmode="decimal" value="${esc(S.tPasso||"")}" data-bind="tPasso" placeholder="só A e B"></label></div>
+      ${pouco}<button class="pri" data-act="fazOffset" ${pts.length>=2?"":"disabled"}>Criar pontos de offset</button>`;
+  }
+  if(S.ferr==="estender"){
+    body=`<span class="muted small">Prolonga a direção A→B e cria um ponto novo na distância escolhida. Também divide o trecho em partes iguais.</span>
+      <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label></div>
+      <label class="f">O que fazer<select data-bind="tModo"><option value="alem" ${S.tModo!=="antes"&&S.tModo!=="dividir"?"selected":""}>Estender além de B</option><option value="antes" ${S.tModo==="antes"?"selected":""}>Estender antes de A</option><option value="dividir" ${S.tModo==="dividir"?"selected":""}>Dividir A→B em partes iguais</option></select></label>
+      <label class="f">${S.tModo==="dividir"?"Número de partes":"Distância (m)"}<input class="m" inputmode="decimal" value="${esc(S.tExt||(S.tModo==="dividir"?"4":"5,000"))}" data-bind="tExt"></label>
+      <span class="muted small">A cota segue a inclinação de A para B.</span>
+      ${pouco}<button class="pri" data-act="fazEstender" ${pts.length>=2?"":"disabled"}>Criar ponto(s)</button>`;
+  }
+  if(S.ferr==="area"){
+    const ps=(S.areaList||[]).map(getPt).filter(Boolean);
+    body=`<span class="muted small">Escolha os vértices na ordem do contorno. O polígono fecha sozinho do último ponto para o primeiro.</span>${selLista("areaList","Vértice")}
+      ${ps.length>=3?`<section class="card" style="background:var(--bg)"><div class="grid2">
+        <div class="kv"><span>Área</span><b style="font-size:22px">${br(polyArea(ps),2)} m²</b></div><div class="kv"><span>Hectares</span><b style="font-size:22px">${br(polyArea(ps)/10000,4)} ha</b></div>
+        <div class="kv"><span>Perímetro</span><b>${br(polyLen(ps.concat([ps[0]])),2)} m</b></div><div class="kv"><span>Vértices</span><b>${ps.length}</b></div></div></section>`:`<span class="muted small">Precisa de pelo menos 3 vértices.</span>`}`;
+  }
+  if(S.ferr==="volume"){
+    const ps=(S.volList||[]).map(getPt).filter(Boolean);
+    let res="";
+    if(ps.length>=3){const hs=ps.map(p=>p.h),modo=S.volRef||"media";
+      const ref=modo==="min"?Math.min(...hs):modo==="max"?Math.max(...hs):modo==="dig"?num(S.volCota):hs.reduce((a,b)=>a+b,0)/hs.length;
+      if(isNaN(ref))res=`<span class="muted small">Digite a cota de referência.</span>`;
+      else{const v=calcVolume(ps,ref);res=`<section class="card" style="background:var(--bg)"><span class="muted small">Cota de referência: <b class="m" style="color:var(--fg)">${br(ref)} m</b> · ${v.n} triângulos · área ${br(v.area,2)} m²</span>
+        <div class="grid2"><div class="kv"><span>Corte (acima da cota)</span><b style="font-size:22px;color:var(--bad)">${br(v.corte,2)} m³</b></div><div class="kv"><span>Aterro (abaixo da cota)</span><b style="font-size:22px;color:#5B9CFF">${br(v.aterro,2)} m³</b></div>
+        <div class="kv"><span>Saldo</span><b>${v.corte>=v.aterro?"sobra ":"falta "}${br(Math.abs(v.corte-v.aterro),2)} m³</b></div><div class="kv"><span>Altura média</span><b>${br((v.corte-v.aterro)/Math.max(v.area,1e-9),3)} m</b></div></div>
+        <span class="muted small">Método: malha triangular (TIN) dos pontos escolhidos contra um plano horizontal na cota de referência. Para pilha ou cava, colete a base e o topo.</span></section>`}}
+    body=`<span class="muted small">Calcula o volume entre o terreno (pontos coletados) e uma cota de referência. Serve para terraplenagem, pilha de material e cava.</span>
+      ${selLista("volList","Ponto")}
+      <div class="grid2"><label class="f">Cota de referência<select data-bind="volRef"><option value="media" ${(S.volRef||"media")==="media"?"selected":""}>Média dos pontos</option><option value="min" ${S.volRef==="min"?"selected":""}>Menor cota (pilha)</option><option value="max" ${S.volRef==="max"?"selected":""}>Maior cota (cava)</option><option value="dig" ${S.volRef==="dig"?"selected":""}>Digitar cota de projeto</option></select></label>
+      ${S.volRef==="dig"?`<label class="f">Cota (m)<input class="m" inputmode="decimal" data-bind="volCota" value="${esc(S.volCota||"")}"></label>`:""}</div>${res}`;
+  }
+  if(S.ferr==="irradiar"){
+    const B=getPt(S.irB??"atual"),az=parseAng(S.irAz),d=num(S.irD),dh=num(S.irDh)||0;
+    let res="";if(B&&!isNaN(az)&&d>0){const r=az*Math.PI/180;res=`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>E</span><b>${br(B.E+Math.sin(r)*d)}</b></div><div class="kv"><span>N</span><b>${br(B.N+Math.cos(r)*d)}</b></div><div class="kv"><span>Cota</span><b>${br(B.h+dh)}</b></div></div></section>`}
+    body=`<span class="muted small">Calcula um ponto novo a partir de um ponto conhecido, com azimute e distância horizontal.</span>
+      <div class="grid2"><label class="f">Ponto de partida<select data-bind="irB">${ptOpts(S.irB??"atual",true)}</select></label>
+      <label class="f">Azimute (ex.: 123 45 10 ou 123,7528)<input class="m" data-bind="irAz" value="${esc(S.irAz||"")}"></label>
+      <label class="f">Distância horizontal (m)<input class="m" inputmode="decimal" data-bind="irD" value="${esc(S.irD||"")}"></label>
+      <label class="f">Desnível Δh (m)<input class="m" inputmode="decimal" data-bind="irDh" value="${esc(S.irDh||"0")}"></label>
+      <label class="f">Número do novo ponto<input class="m" data-bind="irNome" value="${esc(S.irNome||"IR-01")}"></label></div>
+      ${res}<button class="pri" data-act="fazIrradiar" ${res?"":"disabled"}>Criar ponto</button>`;
+  }
+  if(S.ferr==="intersecao"){
+    const A=getPt(S.ixA??"0"),B=getPt(S.ixB??"1"),C=getPt(S.ixC??"2"),D=getPt(S.ixD??"3");let res="",Pt=null;
+    if(A&&B&&C&&D){const x1=B.E-A.E,y1=B.N-A.N,x2=D.E-C.E,y2=D.N-C.N,den=x1*y2-y1*x2;
+      if(Math.abs(den)<1e-9)res=`<span class="small" style="color:var(--float)">As linhas são paralelas.</span>`;
+      else{const t=((C.E-A.E)*y2-(C.N-A.N)*x2)/den;Pt={E:A.E+t*x1,N:A.N+t*y1,h:A.h+(B.h-A.h)*t};res=`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>E</span><b>${br(Pt.E)}</b></div><div class="kv"><span>N</span><b>${br(Pt.N)}</b></div></div><span class="muted small">${t<0||t>1?"A interseção fica no prolongamento da linha A→B.":"A interseção fica dentro do trecho A→B."}</span></section>`}}
+    body=`<span class="muted small">Encontra o ponto onde a linha A→B cruza a linha C→D (por exemplo, encontro de dois alinhamentos de cerca).</span>
+      <div class="grid2"><label class="f">Linha 1 · A<select data-bind="ixA">${ptOpts(S.ixA??"0",false)}</select></label><label class="f">Linha 1 · B<select data-bind="ixB">${ptOpts(S.ixB??"1",false)}</select></label>
+      <label class="f">Linha 2 · C<select data-bind="ixC">${ptOpts(S.ixC??"2",false)}</select></label><label class="f">Linha 2 · D<select data-bind="ixD">${ptOpts(S.ixD??"3",false)}</select></label></div>
+      ${(proj()?.pontos||[]).length<4?`<span class="muted small">Precisa de 4 pontos no projeto.</span>`:""}${res}<button class="pri" data-act="fazIntersecao" ${Pt?"":"disabled"}>Criar ponto de interseção</button>`;
+  }
+  if(S.ferr==="converter"){
+    const de=S.cvDe||"utm";let lat=NaN,lon=NaN;
+    if(de==="utm"){const E=num(S.cvE),N=num(S.cvN),z=+(S.cvZ||zonaAtual());if(!isNaN(E)&&!isNaN(N))[lat,lon]=fromUTM(E,N,z,S.cvH||"S")}
+    else{lat=parseAng(S.cvLat);lon=parseAng(S.cvLon);if(S.cvLatS!=="N")lat=-Math.abs(lat);if(S.cvLonW!=="E")lon=-Math.abs(lon)}
+    let res="";if(!isNaN(lat)&&!isNaN(lon)){const zs=[zonaDe(lon)-1,zonaDe(lon),zonaDe(lon)+1];
+      res=`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>Latitude</span><b style="font-size:15px">${gms(lat,"N","S")}</b></div><div class="kv"><span>Longitude</span><b style="font-size:15px">${gms(lon,"E","W")}</b></div>
+        <div class="kv"><span>Graus decimais</span><b style="font-size:14px">${br(lat,8)}° · ${br(lon,8)}°</b></div><div class="kv"><span>Fuso natural</span><b>${zonaDe(lon)}</b></div></div>
+        <div class="list">${zs.map(z=>{const [E,N]=toUTM(lat,lon,z,lat<0?"S":"N");return `<div class="row" style="grid-template-columns:70px 1fr"><b>Fuso ${z}</b><span class="m small">E ${br(E)} · N ${br(N)}</span></div>`}).join("")}</div>
+        <span class="muted small">Mesmo datum (${sis().datum}). Mudança de datum (ex.: SAD 69) entra no app instalado.</span></section>`}
+    body=`<div class="grid2">${[["utm","De UTM"],["geo","De geográficas"]].map(([v,n])=>`<button class="opt" data-cv="${v}" aria-pressed="${de===v}">${n}</button>`).join("")}</div>
+      ${de==="utm"?`<div class="grid2"><label class="f">E (m)<input class="m" inputmode="decimal" data-bind="cvE" value="${esc(S.cvE||"")}"></label><label class="f">N (m)<input class="m" inputmode="decimal" data-bind="cvN" value="${esc(S.cvN||"")}"></label>
+        <label class="f">Fuso<select data-bind="cvZ">${[18,19,20,21,22,23,24,25].map(z=>`<option ${String(S.cvZ||zonaAtual())===String(z)?"selected":""}>${z}</option>`).join("")}</select></label>
+        <label class="f">Hemisfério<select data-bind="cvH"><option value="S" ${(S.cvH||"S")==="S"?"selected":""}>Sul</option><option value="N" ${S.cvH==="N"?"selected":""}>Norte</option></select></label></div>`
+      :`<div class="grid2"><label class="f">Latitude (° ' ")<input class="m" data-bind="cvLat" value="${esc(S.cvLat||"")}" placeholder="3 06 07,45"></label><label class="f">Hemisfério<select data-bind="cvLatS"><option value="S" ${S.cvLatS!=="N"?"selected":""}>Sul</option><option value="N" ${S.cvLatS==="N"?"selected":""}>Norte</option></select></label>
+        <label class="f">Longitude (° ' ")<input class="m" data-bind="cvLon" value="${esc(S.cvLon||"")}" placeholder="60 01 31,9"></label><label class="f">Lado<select data-bind="cvLonW"><option value="W" ${S.cvLonW!=="E"?"selected":""}>Oeste</option><option value="E" ${S.cvLonW==="E"?"selected":""}>Leste</option></select></label></div>`}
+      ${res||`<span class="muted small">Preencha as coordenadas para ver o resultado.</span>`}`;
+  }
+  return body;
+}
+function coletar(){
+  const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=num(S.altura)||0, n=Math.max(1,parseInt(S.epocas)||5);
+  if(!nome){toast("Informe o número do ponto");return}
+  if((proj()?.pontos||[]).some(p=>p.nome===nome)){bip("erro");toast(`O ponto ${nome} já existe no projeto. Escolha outro número.`);return}
+  S.coletando=n;const amostras=[];render();
+  const iv=setInterval(()=>{
+    amostras.push({lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h,hr:G.hrms,fix:G.fix});S.coletando--;
+    if(S.coletando<=0){clearInterval(iv);
+      const m=k=>amostras.reduce((s,x)=>s+x[k],0)/amostras.length;
+      const hr=Math.max(...amostras.map(x=>x.hr)), tol=num(S.tolH)||0.02;
+      const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
+      if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
+      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt,h_rms:hr,st,alt,quando:new Date().toISOString()});
+      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);
+    }else render();
+  },1000);
+}
+function exportar(tipo){
+  const p=proj();if(!p.pontos.length){exportTxt="";toast("Projeto sem pontos para exportar");return}
+  const P=p.pontos.map(x=>{const [E,N]=ptEN(x);return Object.assign({},x,{E,N,lat:x.lat??(-3.10207+(x.N-9656218.907)/111320),lon:x.lon??(-60.02553+(x.E-165432.184)/111100)})});
+  const cab=S.cfg.cabecalho?`# ${p.nome} · ${sisTxt()}\n`:"";
+  if(tipo==="csv") exportTxt=cab+(sis().proj==="UTM"?"Nome,E,N,Cota,Codigo,PrecisaoH,Status\n"+P.map(x=>[x.nome,x.E.toFixed(3),x.N.toFixed(3),x.h.toFixed(3),x.cod,x.h_rms.toFixed(3),x.st].join(S.cfg.csvSep==="tab"?"\t":S.cfg.csvSep)).join("\n")
+    :"Nome,Latitude,Longitude,AltElipsoidal,Codigo,PrecisaoH,Status\n"+P.map(x=>[x.nome,x.lat.toFixed(9),x.lon.toFixed(9),x.h.toFixed(3),x.cod,x.h_rms.toFixed(3),x.st].join(S.cfg.csvSep==="tab"?"\t":S.cfg.csvSep)).join("\n"));
+  if(tipo==="dxf") exportTxt="999\n"+p.nome+" - "+sisTxt()+"\n0\nSECTION\n2\nENTITIES\n"+P.map(x=>`0\nPOINT\n8\n${x.cod||"PONTOS"}\n10\n${x.E.toFixed(3)}\n20\n${x.N.toFixed(3)}\n30\n${x.h.toFixed(3)}\n0\nTEXT\n8\nNOMES\n10\n${(x.E+0.3).toFixed(3)}\n20\n${(x.N+0.3).toFixed(3)}\n30\n0\n40\n0.5\n1\n${x.nome}`).join("\n")+"\n0\nENDSEC\n0\nEOF";
+  if(tipo==="kml") exportTxt=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${p.nome}</name>\n`+P.map(x=>{const lat=x.lat,lon=x.lon;return `<Placemark><name>${x.nome}</name><description>${x.cod}</description><Point><coordinates>${lon.toFixed(8)},${lat.toFixed(8)},${x.h.toFixed(3)}</coordinates></Point></Placemark>`}).join("\n")+"\n</Document></kml>";
+  toast(tipo.toUpperCase()+" gerado");
+}
+// ================= Camada nativa (app instalado) =================
+// No navegador continua tudo simulado; no app Android usa o receptor de verdade.
+const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const NP=NATIVO?window.Capacitor.Plugins:{};
+const R={buf:"",ultimo:0,ultGGA:"",ggaEnv:0,temGST:false,ntripBytes:0,ntripSt:"",ntripMsg:"",srvIps:[],clientes:[],geoId:null,mounts:[]};
+if(!NATIVO&&S.conexao==="celular")S.conexao="wifi";
+
+function vib(ms,forcar){
+  if(!S.cfg.vibrar&&!forcar)return;
+  try{
+    if(NATIVO&&NP.Haptics){const lista=Array.isArray(ms)?ms:[ms];let t=0;lista.forEach((d,i)=>{if(i%2===0)setTimeout(()=>NP.Haptics.vibrate({duration:d}),t);t+=d})}
+    else if(navigator.vibrate)navigator.vibrate(ms);
+  }catch(e){}
+}
+
+// ---------- NMEA ----------
+function dm2deg(v,h){if(!v)return NaN;const p=v.indexOf(".");const g=+v.slice(0,p-2),m=+v.slice(p-2);let r=g+m/60;if(h==="S"||h==="W")r=-r;return r}
+function onDados(txt){
+  R.buf+=txt;let i;
+  while((i=R.buf.indexOf("\n"))>=0){const l=R.buf.slice(0,i).trim();R.buf=R.buf.slice(i+1);const k=l.indexOf("$");if(k>=0)nmea(l.slice(k))}
+  if(R.buf.length>16000)R.buf="";
+}
+const TALKER={GP:"GPS",GL:"GLONASS",GA:"Galileo",GB:"BeiDou",BD:"BeiDou",GQ:"QZSS"};
+function nmea(l){
+  const star=l.indexOf("*"),body=l.slice(1,star>0?star:undefined);
+  if(star>0){let c=0;for(const ch of body)c^=ch.charCodeAt(0);if(c!==parseInt(l.slice(star+1,star+3),16))return}
+  const f=body.split(","),tal=f[0].slice(0,2),t=f[0].slice(2);
+  R.ultimo=Date.now();G.nmea.push(l);if(G.nmea.length>60)G.nmea.splice(0,G.nmea.length-40);
+  if(t==="GGA"){
+    const q=+f[6];G.fix=q===4?4:q===5?5:q>0?1:0;G.sats=+f[7]||0;const hdop=+f[8];
+    if(q>0&&f[2]){G.lat=dm2deg(f[2],f[3]);G.lon=dm2deg(f[4],f[5]);G.h=(+f[9]||0)+(+f[11]||0);atualizaEN()}
+    G.idade=f[13]?+f[13]:0;R.ultGGA=l;
+    if(!R.temGST&&!isNaN(hdop)){G.hrms=G.fix===4?0.01*Math.max(1,hdop):G.fix===5?0.25*hdop:1.5*hdop;G.vrms=G.hrms*1.7}
+    if(!R.temGSA&&!isNaN(hdop))G.pdop=+(hdop*1.4).toFixed(1);
+  }
+  if(t==="GST"){const sl=+f[6],so=+f[7],sa=+f[8];if(!isNaN(sl)&&!isNaN(so)&&f[6]!==""){G.hrms=Math.sqrt(sl*sl+so*so);G.vrms=isNaN(sa)?G.hrms*1.7:sa;R.temGST=true}}
+  if(t==="RMC"){const sp=(+f[7]||0)*0.514444,cr=+f[8];G.vel=sp;if(!isNaN(cr)&&f[8]!==""&&sp>0.2)G.course=cr}
+  if(t==="VTG"){const cr=+f[1],kmh=+f[7];if(!isNaN(kmh))G.vel=kmh/3.6;if(!isNaN(cr)&&f[1]!==""&&G.vel>0.2)G.course=cr}
+  if(t==="GSA"){const p=+f[15];if(!isNaN(p)&&p>0){G.pdop=p;R.temGSA=true}}
+  if(t==="GSV"&&TALKER[tal]){G.const[TALKER[tal]]=+f[3]||0}
+}
+
+// ---------- conexão ----------
+async function conectarReal(){
+  if(S.conexao==="celular")return ligarGpsCelular();
+  if(S.conexao==="ble"||S.conexao==="bt"){toast("Bluetooth entra na próxima versão. Use o Wi-Fi do receptor.");return}
+  S.conectando=true;render();
+  try{
+    R.buf="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
+    await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
+    S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();render();bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
+    setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
+  }catch(e){S.conectando=false;render();bip("erro");toast("Não conectou: "+(e.message||e)+". Confira o Wi-Fi do receptor, o IP e a porta.")}
+}
+async function ligarGpsCelular(){
+  try{
+    const p=await NP.Geolocation.requestPermissions();
+    if(p.location!=="granted"&&p.coarseLocation!=="granted"){toast("Permita a localização para usar o GPS do celular");return}
+    R.geoId=await NP.Geolocation.watchPosition({enableHighAccuracy:true,timeout:15000,maximumAge:0},(pos,err)=>{
+      if(!pos)return;const c=pos.coords;
+      G.lat=c.latitude;G.lon=c.longitude;G.h=c.altitude||0;G.hrms=c.accuracy||9;G.vrms=c.altitudeAccuracy||G.hrms*1.5;
+      G.fix=1;G.sats=0;G.vel=c.speed||0;if(c.heading!=null&&!isNaN(c.heading))G.course=c.heading;atualizaEN();R.ultimo=Date.now();
+    });
+    S.conectado=true;S.fonte="celular";S.desde=Date.now();render();toast("Usando o GPS do celular (precisão de metros)");
+  }catch(e){toast("GPS do celular indisponível: "+(e.message||e))}
+}
+async function desconectarReal(){
+  try{if(S.fonte==="tcp")await NP.GnssTcp.disconnect();if(S.fonte==="celular"&&R.geoId)await NP.Geolocation.clearWatch({id:R.geoId})}catch(e){}
+  try{if(S.corrLigada)await NP.GnssTcp.ntripDisconnect()}catch(e){}
+}
+
+// ---------- NTRIP ----------
+async function ntripLigar(){
+  if(S.fonte!=="tcp"){toast("O NTRIP precisa do receptor conectado");return false}
+  if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
+  await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
+  R.ggaEnv=0;return true;
+}
+async function buscarMounts(){
+  if(!NATIVO){toast("A busca de pontos de montagem funciona no app instalado");return}
+  toast("Buscando pontos de montagem…");
+  try{
+    const r=await NP.GnssTcp.ntripSourcetable({host:S.caster.trim(),port:parseInt(S.cport)||2101,user:S.user||"",pass:S.senha||""});
+    const ms=r.text.split(/\r?\n/).filter(l=>l.startsWith("STR;")).map(l=>{const c=l.split(";");const lat=+c[9],lon=+c[10];
+      const d=(S.conectado&&!isNaN(lat))?Math.hypot((lat-G.lat)*111.32,(lon-G.lon)*111.32*Math.cos(G.lat*Math.PI/180)):NaN;return {m:c[1],cid:c[2],fmt:c[3],d}});
+    ms.sort((a,b)=>(isNaN(a.d)?1e9:a.d)-(isNaN(b.d)?1e9:b.d));R.mounts=ms.slice(0,40);render();
+    toast(ms.length?`${ms.length} pontos de montagem encontrados`:"Nenhum ponto de montagem na lista");
+  }catch(e){toast("Não consegui ler a lista: "+(e.message||e))}
+}
+
+// ---------- servidor NMEA ----------
+async function servidorReal(ligar){
+  try{
+    if(ligar){const r=await NP.GnssTcp.startServer({port:parseInt(S.sport)||5017});R.srvIps=r.ips||[];S.servidor=true;toast("Servidor ligado na porta "+S.sport)}
+    else{await NP.GnssTcp.stopServer();S.servidor=false;R.clientes=[];toast("Servidor desligado")}
+  }catch(e){toast("Servidor: "+(e.message||e))}
+  render();
+}
+
+// ---------- exportar e compartilhar ----------
+async function compartilharArquivo(){
+  if(!exportTxt){toast("Gere o arquivo primeiro");return}
+  const ext=exportTxt.startsWith("<?xml")?"kml":exportTxt.includes("SECTION")?"dxf":"csv";
+  const nome=(proj()?.nome||"projeto").replace(/[^\w\-]+/g,"_")+"."+ext;
+  try{
+    const w=await NP.Filesystem.writeFile({path:nome,data:exportTxt,directory:"CACHE",encoding:"utf8"});
+    await NP.Share.share({title:nome,text:nome,files:[w.uri],dialogTitle:"Enviar "+nome});
+  }catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
+}
+
+// ---------- ouvintes ----------
+if(NATIVO&&NP.GnssTcp){
+  NP.GnssTcp.addListener("data",d=>onDados(d.text));
+  NP.GnssTcp.addListener("status",s=>{
+    if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;S.corrLigada=false;bip("erro");toast("Receptor desconectado: "+(s.msg||""));render()}
+  });
+  NP.GnssTcp.addListener("ntrip",n=>{
+    R.ntripBytes=n.bytes;const ant=R.ntripSt;R.ntripSt=n.status;R.ntripMsg=n.msg;
+    if(n.status==="erro"){S.corrLigada=false;bip("erro");toast("NTRIP: "+n.msg);render()}
+    else if(n.status==="recebendo"&&ant!=="recebendo")toast("NTRIP recebendo correção de "+n.msg);
+  });
+  NP.GnssTcp.addListener("clients",c=>{R.clientes=c.list||[];render(false)});
+}
+// envia a posição (GGA) ao caster a cada 10 s, exigido em redes VRS
+setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ultGGA&&Date.now()-R.ggaEnv>10000){R.ggaEnv=Date.now();NP.GnssTcp.ntripGGA({line:R.ultGGA}).catch(()=>{})}},2000);
+
+function podeColetar(){return S.conectado&&!S.coletando&&(S.fonte==="celular"||!S.soFix||G.fix===4)}
+function tickReal(now){
+  if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
+  if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}
+  if(G.prevFix!==4&&G.fix===4&&G.prevFix!==undefined&&S.cfg.somFix)bip("ok");
+  G.prevFix=G.fix;
+  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
+  render(false);
+}
+
+render();
+</script>
+
+</body>
+</html>

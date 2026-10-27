@@ -1,0 +1,20 @@
+{
+  "name": "coletora-gnss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Coletora GNSS: levantamento e locação RTK com receptores ComNav e outros (Android).",
+  "scripts": {
+    "android": "npx cap add android && bash scripts/patch-android.sh && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/geolocation": "^6.0.1",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/share": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

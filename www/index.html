@@ -841,13 +841,13 @@ function vMapa(){
 function sCorr(){
   const c=S.correcao;
   return `<div class="grid3">${opt("correcao","radio",c,"Rádio","base local")}${opt("correcao","ntrip",c,"NTRIP","CORS / RBMC")}${opt("correcao","rtx",c,"RTX / PPP","satélite")}</div>
-  ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
+  ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB${S.fonte!=="tcp"?" (teste)":""}`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Caster<input class="m" value="${esc(S.caster)}" data-bind="caster"></label><label class="f">Porta<input class="m" value="${esc(S.cport)}" data-bind="cport"></label></div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Ponto de montagem<input class="m" value="${esc(S.mount)}" data-bind="mount" placeholder="ex.: nome da estação"></label><button style="align-self:end" data-act="buscarMounts">Buscar lista</button></div>
     ${R.mounts.length?`<div class="list" style="max-height:220px;overflow:auto">${R.mounts.map(m=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-mount="${esc(m.m)}"><span><b class="m">${esc(m.m)}</b> <span class="muted small">${esc(m.cid)} · ${esc(m.fmt)}</span></span><span class="muted small">${isNaN(m.d)?"":br(m.d,1)+" km"}</span></button>`).join("")}</div>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
-    <span class="muted small">Internet do celular, repassada ao receptor.</span></section>`
+    <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
   :c==="radio"?`<section class="card hl"><h3>Rádio</h3><div class="grid2">
     <label class="f">Frequência (MHz)<input class="m" value="${esc(S.freq)}" data-bind="freq"></label>
     <label class="f">Canal<input class="m" value="${esc(S.canal)}" data-bind="canal"></label>
@@ -941,10 +941,10 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&S.fonte==="tcp"){if(S.correcao!=="ntrip"){toast("Rádio e RTX do S6 entram depois do teste no escritório (comandos ComNav). Use o NTRIP.");return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao!=="ntrip"){toast("Rádio e RTX do S6 entram depois do teste no escritório (comandos ComNav). Use o NTRIP.");return}
     ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
-  if(a==="corrOff"){if(NATIVO&&S.fonte==="tcp")NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
+  if(a==="corrOff"){if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="aplicarBase"){toast("Receptor configurado como rover")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
@@ -1372,7 +1372,7 @@ async function desconectarReal(){
 
 // ---------- NTRIP ----------
 async function ntripLigar(){
-  if(S.fonte!=="tcp"){toast("O NTRIP precisa do receptor conectado");return false}
+  if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
   await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
   R.ggaEnv=0;return true;

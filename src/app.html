@@ -113,7 +113,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -862,7 +862,10 @@ function sCorr(){
   ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB${S.fonte!=="tcp"?" (teste)":""}`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Caster<input class="m" value="${esc(S.caster)}" data-bind="caster"></label><label class="f">Porta<input class="m" value="${esc(S.cport)}" data-bind="cport"></label></div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Ponto de montagem<input class="m" value="${esc(S.mount)}" data-bind="mount" placeholder="ex.: nome da estação"></label><button style="align-self:end" data-act="buscarMounts">Buscar lista</button></div>
-    ${R.mounts.length?`<div class="list" style="max-height:220px;overflow:auto">${R.mounts.map(m=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-mount="${esc(m.m)}"><span><b class="m">${esc(m.m)}</b> <span class="muted small">${esc(m.cid)} · ${esc(m.fmt)}</span></span><span class="muted small">${isNaN(m.d)?"":br(m.d,1)+" km"}</span></button>`).join("")}</div>`:""}
+    ${R.mounts.length?`<div class="small muted">${R.mountsRef?`Distâncias a partir da ${esc(R.mountsRef.origem)}.`:"Sem posição para calcular distâncias: ligue o GPS do celular ou conecte o receptor e busque de novo."} <span style="color:var(--fix);font-weight:700">● até 20 km: ótima</span> · <span style="color:var(--float);font-weight:700">● 20–50 km: usável</span> · <span style="color:var(--bad);font-weight:700">● acima de 50 km: longe</span>${R.mountsIgn?` · ${R.mountsIgn} serviços que não são estações foram escondidos`:""}</div>
+    <div class="list">${R.mounts.map(m=>{const cor=isNaN(m.d)?"var(--muted)":m.d<=20?"var(--fix)":m.d<=50?"var(--float)":"var(--bad)";const sel=S.mount===m.m;
+      return `<button class="row" style="grid-template-columns:10px 1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line);${m.d<=20?"background:var(--fix-bg);":""}${sel?"outline:2px solid var(--accent);outline-offset:-2px;":""}" data-mount="${esc(m.m)}"><span style="width:10px;height:10px;border-radius:50%;background:${cor}"></span><span><b class="m">${esc(m.m)}</b> <span class="muted small">${esc(m.cid)}${m.rede?" · rede":""} · ${esc(m.fmt)}</span></span><span class="m" style="font-weight:700;color:${cor}">${isNaN(m.d)?"—":br(m.d,m.d<100?1:0)+" km"}</span></button>`}).join("")}</div>
+    <button data-act="fecharMounts">Fechar lista</button>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
     ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:"Desligado"}</div>`:""}
@@ -911,7 +914,7 @@ function render(full=true){
     const m=$("mon");if(m&&S.conectado){m.textContent=G.nmea.join("\n");m.scrollTop=m.scrollHeight}return}
   if(!full&&S.tela==="mapa"&&S.locPick&&!S.loc) return;
   if(!full&&S.tela==="calc"&&!["medir","locLinha"].includes(S.ferr))return;
-  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&["nmea","conexao","correcao","baserover","estatico","ajuste"].includes(S.sub))) return;
+  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&["nmea","conexao","baserover","estatico","ajuste"].includes(S.sub))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
   v.innerHTML=({home:vHome,info:vInfo,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
@@ -1001,6 +1004,7 @@ document.addEventListener("click",e=>{
   if(a==="ajNovo"){S.ajuste=null;S.baseLigada=false;S.baseProv=null;S.sub="baserover";render()}
   if(a==="testarSom"){bip("ok")}
   if(a==="buscarMounts")buscarMounts();
+  if(a==="fecharMounts"){R.mounts=[];render()}
   if(a==="btBuscar"){NP.GnssTcp.btPaired().then(r=>{R.btDevs=r.devices||[];render();if(!R.btDevs.length)toast("Nenhum aparelho pareado. Pareie o receptor nas configurações de Bluetooth.")}).catch(e=>toast(e.message||String(e)))}
   if(a==="compartilhar")compartilharArquivo();
   if(a==="ptFechar"){S.ptSel=null;S.ptEdit=false;S.ptDelConf=false;render()}
@@ -1402,15 +1406,26 @@ async function ntripLigar(){
   await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
   R.ggaEnv=0;return true;
 }
+async function posicaoReferencia(){
+  if(S.conectado&&G.fix>0)return {lat:G.lat,lon:G.lon,origem:S.fonte==="celular"?"GPS do celular":"receptor"};
+  try{const p=await NP.Geolocation.getCurrentPosition({enableHighAccuracy:false,timeout:8000,maximumAge:600000});
+    S.ultPos={lat:p.coords.latitude,lon:p.coords.longitude};salvar();return {...S.ultPos,origem:"GPS do celular"}}catch(e){}
+  if(S.ultPos)return {...S.ultPos,origem:"última posição conhecida"};
+  return null;
+}
 async function buscarMounts(){
   if(!NATIVO){toast("A busca de pontos de montagem funciona no app instalado");return}
   toast("Buscando pontos de montagem…");
   try{
-    const r=await NP.GnssTcp.ntripSourcetable({host:S.caster.trim(),port:parseInt(S.cport)||2101,user:S.user||"",pass:S.senha||""});
+    const [r,ref]=await Promise.all([NP.GnssTcp.ntripSourcetable({host:S.caster.trim(),port:parseInt(S.cport)||2101,user:S.user||"",pass:S.senha||""}),posicaoReferencia()]);
+    let ign=0;
     const ms=r.text.split(/\r?\n/).filter(l=>l.startsWith("STR;")).map(l=>{const c=l.split(";");const lat=+c[9],lon=+c[10];
-      const d=(S.conectado&&!isNaN(lat))?Math.hypot((lat-G.lat)*111.32,(lon-G.lon)*111.32*Math.cos(G.lat*Math.PI/180)):NaN;return {m:c[1],cid:c[2],fmt:c[3],d}});
-    ms.sort((a,b)=>(isNaN(a.d)?1e9:a.d)-(isNaN(b.d)?1e9:b.d));R.mounts=ms.slice(0,40);render();
-    toast(ms.length?`${ms.length} pontos de montagem encontrados`:"Nenhum ponto de montagem na lista");
+      const d=(ref&&!isNaN(lat)&&!(lat===0&&lon===0))?Math.hypot((lat-ref.lat)*111.32,(lon-ref.lon)*111.32*Math.cos(ref.lat*Math.PI/180)):NaN;
+      return {m:c[1],cid:c[2],fmt:c[3],det:c[4]||"",rede:c[12]==="1",d,lat,lon}})
+      .filter(x=>{const lixo=/SSR|EPH|Assisted/i.test(x.fmt+" "+x.cid+" "+x.det)||(x.lat===0&&x.lon===0)||isNaN(x.lat);if(lixo)ign++;return !lixo});
+    ms.sort((a,b)=>(isNaN(a.d)?1e9:a.d)-(isNaN(b.d)?1e9:b.d));
+    R.mounts=ms.slice(0,60);R.mountsRef=ref;R.mountsIgn=ign;render();
+    toast(ms.length?`${ms.length} estações encontradas${ref?" · ordenadas pela distância":""}`:"Nenhuma estação na lista");
   }catch(e){toast("Não consegui ler a lista: "+(e.message||e))}
 }
 
@@ -1467,6 +1482,7 @@ function nmeaCelular(){
   if(NATIVO&&S.servidor&&L.length)NP.GnssTcp.serverSend({data:L.join("\r\n")+"\r\n"}).catch(()=>{});
 }
 function tickReal(now){
+  if(G.fix>0&&!isNaN(G.lat)&&(!R.ultPosT||now-R.ultPosT>60000)){R.ultPosT=now;S.ultPos={lat:G.lat,lon:G.lon};salvar()}
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}

@@ -62,6 +62,8 @@ public class GnssTcpPlugin extends Plugin {
 
     private volatile Socket ntrip;
     private volatile OutputStream ntripOut;
+    private volatile long rxEnviados = 0;
+    private volatile String rxErroEnvio = "";
     private volatile boolean ntripRun = false;
     private volatile long ntripBytes = 0;
 
@@ -251,8 +253,8 @@ public class GnssTcpPlugin extends Plugin {
         try {
             String data = call.getString("data", "");
             if (rxOut == null) { call.reject("Receptor não conectado"); return; }
-            rxOut.write(data.getBytes(StandardCharsets.ISO_8859_1));
-            rxOut.flush();
+            OutputStream o = rxOut;
+            synchronized (o) { o.write(data.getBytes(StandardCharsets.ISO_8859_1)); o.flush(); }
             call.resolve();
         } catch (Exception e) {
             call.reject(e.toString());
@@ -383,6 +385,8 @@ public class GnssTcpPlugin extends Plugin {
         o.put("status", st);
         o.put("msg", msg == null ? "" : msg);
         o.put("bytes", ntripBytes);
+        o.put("enviados", rxEnviados);
+        o.put("erroEnvio", rxErroEnvio);
         notifyListeners("ntrip", o);
     }
 
@@ -399,6 +403,8 @@ public class GnssTcpPlugin extends Plugin {
             try {
                 ntripRun = true;
                 ntripBytes = 0;
+                rxEnviados = 0;
+                rxErroEnvio = "";
                 ntripStatus("conectando", host);
                 Socket s = novoSocket(redeInternet());
                 s.connect(new InetSocketAddress(host, port), 10000);
@@ -433,7 +439,11 @@ public class GnssTcpPlugin extends Plugin {
                 while (ntripRun && (n = in.read(buf)) > 0) {
                     ntripBytes += n;
                     OutputStream o = rxOut;
-                    if (o != null) { try { o.write(buf, 0, n); o.flush(); } catch (Exception ignored) { } }
+                    if (o == null) rxErroEnvio = "receptor não conectado";
+                    else {
+                        try { synchronized (o) { o.write(buf, 0, n); o.flush(); } rxEnviados += n; rxErroEnvio = ""; }
+                        catch (Exception ex) { rxErroEnvio = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
+                    }
                     long agora = System.currentTimeMillis();
                     if (agora - ultimoAviso > 1000) { ultimoAviso = agora; ntripStatus("recebendo", mount); }
                 }

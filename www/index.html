@@ -139,7 +139,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -868,6 +868,7 @@ function sConexao(){
     ${R.btDevs.length?`<div class="list">${R.btDevs.map(d=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-btaddr="${esc(d.address)}" data-btnome="${esc(d.name)}"><span><b>${esc(d.name)}</b> <span class="muted small m">${esc(d.address)}</span></span><span class="${S.btAddr===d.address?"st-fix":"muted"}">${S.btAddr===d.address?"✓":""}</span></button>`).join("")}</div>`:""}
     ${S.btAddr?`<span class="small">Selecionado: <b>${esc(S.btNome||S.btAddr)}</b></span>`:""}`):`<span class="muted small">Procurando aparelhos próximos… (simulado)</span><div class="list"><div class="row"><b class="m">S6_48731</b><span class="muted">sinal forte</span><span class="st-fix">●</span></div></div>`}</section>`}
   ${S.conectado?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Conectado há ${tempo(S.desde)}</b><span class="small" style="color:#CDEFD9">${S.fonte==="tcp"?(R.ultGGA?`Recebendo NMEA · última mensagem há ${Math.round((Date.now()-R.ultimo)/1000)} s`:"Conectado, aguardando NMEA…"):S.fonte==="celular"?"GPS do celular":"Simulador · bateria do receptor 76%"}</span></section>`:""}
+  ${NATIVO&&S.conexao!=="celular"&&S.conexao!=="demo"?`<label class="ck small"><input type="checkbox" id="simples" ${modoSimples()?"checked":""}> Modo simples para este receptor (não envia comandos, só repassa a correção)</label>`:""}
   ${!S.conectado&&S.reconectando?`<section class="card" style="border-color:var(--float)"><b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b><span class="muted small">A conexão caiu. O app tenta de novo a cada 3 s, sem desligar a correção.</span><button data-act="desconectar">Parar de tentar</button></section>`:""}
   <div class="grid2">${S.conectado?`<button data-act="desconectar">Desconectar</button>`:`<button class="pri" data-act="conectar" ${S.conectando?"disabled":""}>${S.conectando?"Conectando…":"Conectar"}</button>`}<button data-sub="baserover">Próximo: Base/Rover</button></div>`;
 }
@@ -943,7 +944,7 @@ async function iniciarRoverCN(){
   passos("Iniciar rover",pda?["Config parâmetros do receptor","Ligar NTRIP pelo celular"]:["Config rádio interno","Config parâmetros do receptor"]);
   const real=receptorReal();
   if(pda){
-    passo(0,"run");if(real)await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",80);else await espera(800);passo(0,"ok");
+    passo(0,"run");if(real&&!modoSimples())await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",80);else await espera(500);passo(0,"ok");
     passo(1,"run");S.correcao="ntrip";
     if(NATIVO){try{if(S.corrLigada)await NP.GnssTcp.ntripDisconnect();R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;const ok=await ntripLigar();if(ok){S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}else passo(1,"erro")}catch(e){passo(1,"erro")}}
     else{S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}
@@ -1388,6 +1389,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="selRec"){S.ativo=+el.value;S.conectado=false;S.corrLigada=false;salvar();render()}
   if(el.id==="soFix"){S.soFix=el.checked;salvar();render()}
   if(el.id==="gga"){S.enviaGGA=el.checked;salvar()}
+  if(el.id==="simples"){S.simples=S.simples||{};S.simples[chaveCon()]=el.checked;if(!el.checked&&S.canalTentado)delete S.canalTentado[S.btAddr];salvar();toast(el.checked?"Modo simples ligado para este receptor":"Modo simples desligado");render()}
   if(el.id==="cnEnv"){S.cnEnv=el.value;S.envRx=S.envRx||{};S.envRx[chaveRx()]=el.value;R.envUsado=el.value;salvar();if(NATIVO)NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});R.envTentado=true;S.corrDesde=Date.now();toast("Formato: "+(S.cnEnv==="vd"?"ComNav $$VD":"RTCM direto"))}
   if(el.id==="anda"){S.anda=el.checked;render()}
   if(el.id==="lcSalvar"){S.lcSalvar=el.checked}
@@ -1729,9 +1731,14 @@ function lerBinario(txt){
   }
   if(R.bbuf.length>4096)R.bbuf=R.bbuf.slice(-16);
 }
+function chaveCon(){return S.conexao==="bt"?(S.btAddr||""):(S.ip+":"+S.porta)}
+function modoSimples(){S.simples=S.simples||{};return !!S.simples[chaveCon()]}
 // o receptor manda posição mas não responde a comandos: em alguns modelos (T70) o canal de comandos é outro
+function ativarSimples(){S.simples=S.simples||{};S.simples[chaveCon()]=true;S.envRx=S.envRx||{};if(!S.envRx[chaveRx()])S.envRx[chaveRx()]="raw";salvar();render();
+  toast("Este receptor não responde a comandos pelo app. Ativei o modo simples (igual às primeiras versões): o app só repassa a correção.")}
 async function buscarCanal(){
-  if(R.emLoop||S.conexao!=="bt")return;R.emLoop=true;
+  if(R.emLoop||S.conexao!=="bt")return;R.emLoop=true;R.trocandoCanal=true;const corrAntes=S.corrLigada;
+  S.canalTentado=S.canalTentado||{};if(S.canalTentado[S.btAddr]){R.emLoop=false;R.trocandoCanal=false;ativarSimples();return}S.canalTentado[S.btAddr]=true;salvar();
   try{
     for(const ch of [3,2,1,4,5,6].filter(c=>c!==(R.canalAtual||0))){
       toast("O receptor não respondeu aos comandos. Tentando o canal Bluetooth "+ch+"…");
@@ -1739,14 +1746,14 @@ async function buscarCanal(){
       R.canalTeste=ch;const ok=await conectarReal(true);R.canalTeste=undefined;
       if(!ok)continue;
       await espera(6000);
-      if(R.respondeu){toast("Receptor respondendo no canal "+ch+".");falar("Dispositivo conectado");return}
+      if(R.respondeu){toast("Receptor respondendo no canal "+ch+".");falar("Dispositivo conectado");S.corrLigada=corrAntes;return}
     }
-    toast("O receptor não respondeu em nenhum canal. Voltando ao padrão.");
     R.manual=true;try{await NP.GnssTcp.disconnect()}catch(e){}S.conectado=false;S.btCanais&&delete S.btCanais[S.btAddr];R.canalTeste=0;await espera(1000);await conectarReal(true);R.canalTeste=undefined;
-  }finally{R.emLoop=false}
+    S.corrLigada=corrAntes;ativarSimples();
+  }finally{R.emLoop=false;R.trocandoCanal=false}
 }
 async function iniciarComNav(){
-  if(!receptorReal()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
+  if(!receptorReal()||modoSimples()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
   await espera(600);
   // abertura igual à do Survey Master: porta em modo ComNav + identificação da sessão ($$SI)
   try{R.cons.push("→ interfacemode compass compass on");await NP.GnssTcp.write({data:"interfacemode compass compass on\r\n"});await espera(150);
@@ -1816,13 +1823,26 @@ async function detectarWifi(manual){
     R.detectMsg=`Rede ${w.ssid||""}: este coletor ${w.ip||"?"}, receptor ${host}. Procurando a porta…`;render();
     const r=await NP.GnssTcp.scanPorts({host,ports:PORTAS_WIFI});
     S.ip=host;
-    if(r.open&&r.open.length){S.porta=String(r.open[0]);R.detectMsg=`Receptor em ${host}, portas abertas: ${r.open.join(", ")}. Usando ${r.open[0]}.`;salvar();return true}
-    R.detectMsg=`Receptor em ${host}. Nenhuma porta comum respondeu; varrendo todas as portas (até 1 minuto)…`;render();
-    const t=await NP.GnssTcp.scanRange({host,from:1,to:65535});
-    if(t.open&&t.open.length){const pref=t.open.find(p=>p>1024&&p!==8080&&p!==80)||t.open[0];S.porta=String(pref);R.detectMsg=`Receptor em ${host}, portas abertas: ${t.open.join(", ")}. Usando ${pref}; se não vier NMEA, tente outra da lista.`;salvar();return true}
-    R.detectMsg=`O receptor (${host}) não tem nenhuma porta aberta para o coletor. Nesse modelo o Wi-Fi pode ser só para a página de configuração; use o Bluetooth.`;salvar();return false;
+    let abertas=(r.open||[]);
+    if(!abertas.length){R.detectMsg=`Receptor em ${host}. Nenhuma porta comum respondeu; varrendo todas as portas (até 1 minuto)…`;render();const t=await NP.GnssTcp.scanRange({host,from:1,to:65535});abertas=t.open||[]}
+    if(!abertas.length){R.detectMsg=`O receptor (${host}) não tem nenhuma porta aberta para o coletor. Use o Bluetooth.`;salvar();return false}
+    // testa cada porta: a certa é a que manda NMEA ($G...) ou dados ComNav sozinha
+    const boas=[],quietas=[];
+    for(const pt of abertas.filter(p=>p!==80&&p!==443&&p!==53).slice(0,12)){
+      R.detectMsg=`Receptor em ${host}. Testando a porta ${pt}…`;render();
+      const pr=await NP.GnssTcp.probePort({host,port:pt});
+      if(pr.bytes>0&&/\$G[PNLABQ]|\$BD|\xaaD\x12/.test(pr.text||""))boas.push(pt);else if(pr.bytes>=0&&!pr.closed)quietas.push(pt);
+    }
+    R.portasWifi=[...boas,...quietas];
+    if(R.portasWifi.length){S.porta=String(R.portasWifi[0]);R.detectMsg=`Receptor em ${host}. ${boas.length?`A porta ${boas[0]} manda NMEA.`:`Nenhuma porta mandou NMEA sozinha; usando ${S.porta}.`} Portas abertas: ${abertas.join(", ")}.`;salvar();return true}
+    R.detectMsg=`Receptor em ${host} (portas ${abertas.join(", ")}), mas todas fecham a conexão. Use o Bluetooth.`;salvar();return false;
   }catch(e){R.detectMsg="Não consegui detectar: "+(e.message||e);return false}
   finally{R.detectando=false;render()}
+}
+async function wifiProximaPorta(){
+  R.portasWifi=(R.portasWifi||[]).filter(p=>String(p)!==String(S.porta));
+  if(!R.portasWifi.length){R.manual=true;S.corrLigada=false;render();toast("O receptor fecha a conexão Wi-Fi nesta porta. Toque em Detectar receptor no Wi-Fi ou use o Bluetooth.");return}
+  S.porta=String(R.portasWifi[0]);salvar();toast("A porta fechou. Tentando a porta "+S.porta+"…");await espera(1500);conectarReal(true);
 }
 async function reiniciarRtk(){
   if(!S.corrLigada){toast("Ligue a correção primeiro (Dispositivo › Correção)");return}
@@ -1933,11 +1953,13 @@ if(NATIVO&&NP.GnssTcp){
   NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
+      if(R.trocandoCanal){render();return}
       if(R.manual){S.corrLigada=false;toast("Receptor desconectado");render();return}
+      if(S.conexao==="wifi"&&(Date.now()-S.desde<15000||!R.ultGGA)){wifiProximaPorta();return}
       toast("Conexão com o receptor caiu. Reconectando…");R.reconRx=0;render();reconectarReceptor()}
   });
   NP.GnssTcp.addListener("ntrip",n=>{
-    const agora=Date.now();if(n.bytes>(R.ntripBytes||0)&&n.status==="recebendo"){if(R.ntripT0){const dt=(agora-R.ntripT0)/1000;if(dt>0)R.ntripTaxa=Math.round((n.bytes-R.ntripB0)/dt)}R.ntripT0=agora;R.ntripB0=n.bytes;R.ntripUlt=agora}
+    const agora=Date.now();if(n.bytes>(R.ntripBytes||0)&&n.status==="recebendo"){if(R.ntripT0){const dt=(agora-R.ntripT0)/1000;if(dt>0)R.ntripTaxa=Math.max(0,Math.round((n.bytes-R.ntripB0)/dt))}R.ntripT0=agora;R.ntripB0=n.bytes;R.ntripUlt=agora}
     if(n.descartados!=null)R.descartados=n.descartados;
     R.ntripBytes=n.bytes;if(n.enviados!=null)R.enviados=n.enviados;if(n.erroEnvio!=null)R.erroEnvio=n.erroEnvio;const ant=R.ntripSt;R.ntripSt=n.status;R.ntripMsg=n.msg;if(S.tela==="receptor"&&S.sub==="correcao")render();
     if(n.status==="erro"){

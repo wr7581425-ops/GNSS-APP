@@ -798,4 +798,35 @@ public class GnssTcpPlugin extends Plugin {
             }
         }).start();
     }
+
+    /** Conecta numa porta e lê o que chegar em até 2,5 s (para saber se é a porta de dados NMEA). */
+    @PluginMethod
+    public void probePort(final PluginCall call) {
+        final String host = call.getString("host", "");
+        final int port = call.getInt("port", 0);
+        new Thread(() -> {
+            JSObject r = new JSObject();
+            try {
+                Socket s = novoSocket(redeWifi());
+                s.connect(new InetSocketAddress(host, port), 1500);
+                s.setSoTimeout(400);
+                InputStream in = s.getInputStream();
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                long fim = System.currentTimeMillis() + 2500;
+                byte[] buf = new byte[1024];
+                boolean fechou = false;
+                while (System.currentTimeMillis() < fim && b.size() < 4096) {
+                    try { int n = in.read(buf); if (n < 0) { fechou = true; break; } b.write(buf, 0, n); } catch (SocketTimeoutException te) { }
+                }
+                s.close();
+                r.put("bytes", b.size());
+                r.put("closed", fechou);
+                r.put("text", new String(b.toByteArray(), 0, Math.min(b.size(), 600), StandardCharsets.ISO_8859_1));
+            } catch (Exception e) {
+                r.put("bytes", -1);
+                r.put("error", e.toString());
+            }
+            call.resolve(r);
+        }).start();
+    }
 }

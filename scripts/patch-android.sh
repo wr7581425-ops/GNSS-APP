@@ -36,4 +36,12 @@ if [ -n "${VERSION_CODE:-}" ]; then
   sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
   sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${VERSION_CODE}\"/" android/app/build.gradle
 fi
+# nome e ícone do app (WA Survey)
+RES="android/app/src/main/res"
+sed -i 's#<string name="app_name">[^<]*</string>#<string name="app_name">WA Survey</string>#; s#<string name="title_activity_main">[^<]*</string>#<string name="title_activity_main">WA Survey</string>#' "$RES/values/strings.xml"
+for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+  cp resources/android/mipmap-$d/ic_launcher.png "$RES/mipmap-$d/ic_launcher.png"
+  cp resources/android/mipmap-$d/ic_launcher_round.png "$RES/mipmap-$d/ic_launcher_round.png"
+done
+rm -rf "$RES/mipmap-anydpi-v26"
 echo "Projeto Android ajustado."

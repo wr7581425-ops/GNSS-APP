@@ -12,7 +12,7 @@ img{max-width:100%}
 </style>
 </head>
 <body>
-<title>Coletora GNSS</title>
+<title>WA Survey</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -266,7 +266,7 @@ function stCls(){return !S.conectado?"c-off":G.fix===4?"c-fix":G.fix===5?"c-floa
 // ---------- Cabeçalho ----------
 function header(){
   const r=rec();
-  $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"Coletora GNSS":"Receptor ativo";
+  $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
   $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(r?`${r.marca} ${r.modelo} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
   c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?"Autônomo (sem correção)":"Buscando satélites";
@@ -719,7 +719,7 @@ function vMock(){
   return `<span class="ttl">Localização simulada (Mock)</span>
   <section class="card ${S.mock?"hl":""}"><div class="split"><h3>Compartilhar posição do receptor</h3><span class="${S.mock?"st-fix":"muted"} small">${S.mock?"LIGADO":"DESLIGADO"}</span></div>
     <span class="muted small">Faz o Android e os outros apps (Google Maps, Avenza, WhatsApp…) usarem a posição do receptor em vez do GPS do celular.</span>
-    <span class="small"><b>Uma vez só:</b> Configurações do Android › Sobre o telefone › toque 7× em "Número da versão" › volte em Opções do desenvolvedor › <b>Selecionar app de local fictício</b> › Coletora GNSS.</span>
+    <span class="small"><b>Uma vez só:</b> Configurações do Android › Sobre o telefone › toque 7× em "Número da versão" › volte em Opções do desenvolvedor › <b>Selecionar app de local fictício</b> › WA Survey.</span>
     <button class="${S.mock?"":"pri"}" data-act="mockToggle" ${NATIVO?"":"disabled"}>${S.mock?"Desligar":"Ligar"}</button>
     ${R.mockErro?`<span class="small" style="color:var(--bad)">${esc(R.mockErro)}</span>`:""}</section>`;
 }
@@ -823,7 +823,7 @@ function vConfig(){
     ${ck("cabecalho","Incluir linha com projeto e sistema no topo do arquivo")}`)}
   ${sec("Tela",`<div class="grid2"><label class="f">Tamanho do texto${sel("fonte",[["normal","Normal"],["grande","Grande"],["maior","Maior (sol forte)"]])}</label></div>
     ${ck("telaLigada","Manter a tela ligada durante o uso")}`)}
-  ${sec("Sobre o app",`<div class="grid2"><div class="kv"><span>Versão instalada</span><b>${APP_VERSAO}</b></div><div class="kv"><span>Montada em</span><b style="font-size:15px">${APP_DATA}</b></div></div>
+  ${sec("Sobre o app",`<div style="display:flex;gap:12px;align-items:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="72" height="72">  <defs>    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1C2B3B"/><stop offset="1" stop-color="#0B121A"/></linearGradient>    <linearGradient id="or" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#FF7A1A"/></linearGradient>  </defs>  <rect width="72" height="72" rx="112" fill="url(#bg)"/>    <path d="M120 150 A215 70 -12 0 1 452 90" fill="none" stroke="#5BC8FF" stroke-width="10" stroke-linecap="round" opacity=".9"/>  <circle cx="452" cy="90" r="16" fill="#5BC8FF"/>    <path d="M78 178 L138 372 L198 236 L258 372 L333 152 L408 372" fill="none" stroke="url(#or)" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>  <path d="M290 286 L376 286" stroke="#FF8F2E" stroke-width="30" stroke-linecap="round"/>    <circle cx="333" cy="152" r="9" fill="#FFFFFF"/>  <text x="256" y="452" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-weight="800" font-size="50" letter-spacing="14" fill="#E8EEF4">SURVEY</text></svg><div><b style="font-size:20px">WA Survey</b><br><span class="muted small">Coletora GNSS · William &amp; Anthony</span></div></div><div class="grid2"><div class="kv"><span>Versão instalada</span><b>${APP_VERSAO}</b></div><div class="kv"><span>Montada em</span><b style="font-size:15px">${APP_DATA}</b></div></div>
     <span class="muted small">${NATIVO?"App instalado (Android)":"Versão de teste no navegador"} · Os dados de conexão (IP, porta, caster, ponto de montagem, usuário e senha) ficam guardados neste aparelho e voltam preenchidos ao abrir o app.</span>`)}
   ${sec("Dados",`<span class="muted small">Projetos, pontos, receptores e configurações ficam salvos neste aparelho.</span>
     <button data-act="apagarTudo">Apagar todos os dados de teste</button><button data-act="apagarConfirma" hidden id="apagarConfirma" class="pri">Confirmar: apagar tudo</button>`)}`;

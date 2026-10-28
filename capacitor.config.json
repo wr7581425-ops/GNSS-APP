@@ -1,6 +1,6 @@
 {
   "appId": "br.com.coletoragnss.app",
-  "appName": "Coletora GNSS",
+  "appName": "WA Survey",
   "webDir": "www",
   "android": {
     "allowMixedContent": true

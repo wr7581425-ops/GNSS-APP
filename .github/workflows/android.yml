@@ -43,19 +43,19 @@ jobs:
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Renomear APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk ColetoraGNSS-1.0.${{ github.run_number }}.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk WASurvey-1.0.${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ColetoraGNSS-APK
-          path: ColetoraGNSS-*.apk
+          name: WASurvey-APK
+          path: WASurvey-*.apk
 
       - name: Publicar versão para download
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Coletora GNSS 1.0.${{ github.run_number }}
+          name: WA Survey 1.0.${{ github.run_number }}
           body: |
             APK para instalar no Android.
-            Baixe o arquivo ColetoraGNSS-1.0.${{ github.run_number }}.apk abaixo e abra no celular.
-          files: ColetoraGNSS-*.apk
+            Baixe o arquivo WASurvey-1.0.${{ github.run_number }}.apk abaixo e abra no celular.
+          files: WASurvey-*.apk

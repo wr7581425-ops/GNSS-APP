@@ -1,6 +1,16 @@
 package br.com.coletoragnss.app;
 
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.os.Build;
+import com.getcapacitor.PermissionState;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+import java.lang.reflect.Method;
+import java.util.UUID;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -34,12 +44,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *  - servidor TCP que replica o NMEA do receptor para outros equipamentos (ecobatímetro, notebook).
  * Os dados binários (RTCM) nunca passam pelo JavaScript.
  */
-@CapacitorPlugin(name = "GnssTcp")
+@CapacitorPlugin(
+        name = "GnssTcp",
+        permissions = {
+                @Permission(alias = "bluetooth", strings = {"android.permission.BLUETOOTH_CONNECT", "android.permission.BLUETOOTH_SCAN"})
+        })
 public class GnssTcpPlugin extends Plugin {
 
     private volatile Socket rx;
     private volatile OutputStream rxOut;
     private volatile boolean rxRun = false;
+    private volatile BluetoothSocket bt;
+    private static final UUID SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private volatile ServerSocket srv;
     private final List<Socket> clientes = new CopyOnWriteArrayList<>();
@@ -110,19 +126,120 @@ public class GnssTcpPlugin extends Plugin {
                 call.resolve(r);
                 respondeu = true;
                 status("conectado", host + ":" + port);
-                InputStream in = s.getInputStream();
-                byte[] buf = new byte[4096];
-                int n;
-                while (rxRun && (n = in.read(buf)) > 0) {
-                    repassarClientes(buf, n);
-                    JSObject d = new JSObject();
-                    d.put("text", new String(buf, 0, n, StandardCharsets.ISO_8859_1));
-                    notifyListeners("data", d);
-                }
-                if (rxRun) status("desconectado", "O receptor encerrou a conexão");
+                lerReceptor(s.getInputStream());
             } catch (Exception e) {
                 if (!respondeu) call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
                 else if (rxRun) status("desconectado", e.getMessage());
+            } finally {
+                rxRun = false;
+            }
+        }).start();
+    }
+
+    private void lerReceptor(InputStream in) throws Exception {
+        byte[] buf = new byte[4096];
+        int n;
+        while (rxRun && (n = in.read(buf)) > 0) {
+            repassarClientes(buf, n);
+            JSObject d = new JSObject();
+            d.put("text", new String(buf, 0, n, StandardCharsets.ISO_8859_1));
+            notifyListeners("data", d);
+        }
+        if (rxRun) status("desconectado", "O receptor encerrou a conexão");
+    }
+
+    // ---------- Bluetooth clássico (SPP) ----------
+    private boolean precisaPermissaoBt() {
+        return Build.VERSION.SDK_INT >= 31 && getPermissionState("bluetooth") != PermissionState.GRANTED;
+    }
+
+    @PluginMethod
+    public void btPaired(PluginCall call) {
+        if (precisaPermissaoBt()) { requestPermissionForAlias("bluetooth", call, "btPermPareados"); return; }
+        listarPareados(call);
+    }
+
+    @PermissionCallback
+    private void btPermPareados(PluginCall call) {
+        if (precisaPermissaoBt()) { call.reject("Permissão de Bluetooth negada. Libere em Configurações › Apps › Coletora GNSS › Permissões."); return; }
+        listarPareados(call);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void listarPareados(PluginCall call) {
+        BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+        if (ad == null) { call.reject("Este celular não tem Bluetooth"); return; }
+        if (!ad.isEnabled()) { call.reject("Ligue o Bluetooth do celular"); return; }
+        JSArray lista = new JSArray();
+        for (BluetoothDevice d : ad.getBondedDevices()) {
+            JSObject o = new JSObject();
+            o.put("name", d.getName() == null ? d.getAddress() : d.getName());
+            o.put("address", d.getAddress());
+            lista.put(o);
+        }
+        JSObject r = new JSObject();
+        r.put("devices", lista);
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void btConnect(PluginCall call) {
+        if (precisaPermissaoBt()) { requestPermissionForAlias("bluetooth", call, "btPermConectar"); return; }
+        conectarBt(call);
+    }
+
+    @PermissionCallback
+    private void btPermConectar(PluginCall call) {
+        if (precisaPermissaoBt()) { call.reject("Permissão de Bluetooth negada"); return; }
+        conectarBt(call);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void conectarBt(final PluginCall call) {
+        final String addr = call.getString("address", "");
+        fecharReceptor();
+        new Thread(() -> {
+            boolean respondeu = false;
+            try {
+                BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+                if (ad == null) throw new Exception("Este celular não tem Bluetooth");
+                if (!ad.isEnabled()) throw new Exception("Ligue o Bluetooth do celular");
+                ad.cancelDiscovery();
+                BluetoothDevice dev = ad.getRemoteDevice(addr);
+                BluetoothSocket s = null;
+                Exception ultimo = null;
+                try { s = dev.createRfcommSocketToServiceRecord(SPP); s.connect(); }
+                catch (Exception e1) {
+                    ultimo = e1;
+                    try { if (s != null) s.close(); } catch (Exception ignored) { }
+                    s = null;
+                    try { s = dev.createInsecureRfcommSocketToServiceRecord(SPP); s.connect(); ultimo = null; }
+                    catch (Exception e2) {
+                        ultimo = e2;
+                        try { if (s != null) s.close(); } catch (Exception ignored) { }
+                        s = null;
+                        try {
+                            Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
+                            s = (BluetoothSocket) m.invoke(dev, 1);
+                            s.connect();
+                            ultimo = null;
+                        } catch (Exception e3) { ultimo = e3; s = null; }
+                    }
+                }
+                if (s == null) throw ultimo != null ? ultimo : new Exception("Falha ao conectar");
+                bt = s;
+                rxOut = s.getOutputStream();
+                rxRun = true;
+                JSObject r = new JSObject();
+                r.put("connected", true);
+                call.resolve(r);
+                respondeu = true;
+                status("conectado", addr);
+                lerReceptor(s.getInputStream());
+            } catch (Exception e) {
+                String msg = e.getMessage() == null ? e.toString() : e.getMessage();
+                if (!respondeu) call.reject(msg);
+                else if (rxRun) status("desconectado", msg);
             } finally {
                 rxRun = false;
             }
@@ -151,7 +268,9 @@ public class GnssTcpPlugin extends Plugin {
     private void fecharReceptor() {
         rxRun = false;
         try { if (rx != null) rx.close(); } catch (Exception ignored) { }
+        try { if (bt != null) bt.close(); } catch (Exception ignored) { }
         rx = null;
+        bt = null;
         rxOut = null;
     }
 

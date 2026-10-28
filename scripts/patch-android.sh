@@ -12,6 +12,18 @@ for perm in ACCESS_NETWORK_STATE ACCESS_WIFI_STATE CHANGE_NETWORK_STATE ACCESS_F
     sed -i "s#</manifest>#    <uses-permission android:name=\"android.permission.$perm\" />\n</manifest>#" "$MANIFEST"
   fi
 done
+# Bluetooth (Android 12+ usa CONNECT/SCAN; os antigos usam BLUETOOTH/ADMIN)
+for linha in \
+  '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />' \
+  '<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />' \
+  '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />' \
+  '<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />' \
+  '<uses-feature android:name="android.hardware.bluetooth" android:required="false" />'; do
+  nome=$(echo "$linha" | sed -E 's/.*android:name="([^"]+)".*/\1/')
+  if ! grep -q "\"$nome\"" "$MANIFEST"; then
+    sed -i "s#</manifest>#    $linha\n</manifest>#" "$MANIFEST"
+  fi
+done
 # GPS do celular é opcional (o app funciona sem)
 if ! grep -q "android.hardware.location.gps" "$MANIFEST"; then
   sed -i "s#</manifest>#    <uses-feature android:name=\"android.hardware.location.gps\" android:required=\"false\" />\n</manifest>#" "$MANIFEST"

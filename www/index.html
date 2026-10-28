@@ -127,7 +127,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -757,7 +757,10 @@ function sConexao(){
   ${S.conexao==="wifi"||S.conexao==="tcp"?`<section class="card"><h3>${S.conexao==="wifi"?"Wi-Fi do receptor":"TCP cliente"}</h3>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Endereço IP<input class="m" value="${esc(S.ip)}" data-bind="ip"></label><label class="f">Porta<input class="m" inputmode="numeric" value="${esc(S.porta)}" data-bind="porta"></label></div>
     <span class="muted small">Protocolo: ${r?.nivel==="leitura"?"genérico, só leitura NMEA":esc(r?.marca)+" (automático pela marca)"}</span></section>`
-  :`<section class="card"><h3>${S.conexao==="ble"?"Bluetooth LE":"Bluetooth clássico"}</h3>${NATIVO?`<span class="muted small">Bluetooth entra na próxima versão. Por enquanto use o Wi-Fi do receptor.</span>`:`<span class="muted small">Procurando aparelhos próximos… (simulado)</span><div class="list"><div class="row"><b class="m">S6_48731</b><span class="muted">sinal forte</span><span class="st-fix">●</span></div></div>`}</section>`}
+  :`<section class="card"><h3>${S.conexao==="ble"?"Bluetooth LE":"Bluetooth clássico"}</h3>${NATIVO?(S.conexao==="ble"?`<span class="muted small">O S6 e a maioria dos receptores GNSS usam Bluetooth clássico. Escolha a opção ao lado.</span>`:`<span class="muted small">1. Pareie o receptor nas configurações de Bluetooth do Android (a senha fica no manual do receptor).<br>2. Toque em Buscar e escolha o receptor.</span>
+    <button data-act="btBuscar">Buscar aparelhos pareados</button>
+    ${R.btDevs.length?`<div class="list">${R.btDevs.map(d=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-btaddr="${esc(d.address)}" data-btnome="${esc(d.name)}"><span><b>${esc(d.name)}</b> <span class="muted small m">${esc(d.address)}</span></span><span class="${S.btAddr===d.address?"st-fix":"muted"}">${S.btAddr===d.address?"✓":""}</span></button>`).join("")}</div>`:""}
+    ${S.btAddr?`<span class="small">Selecionado: <b>${esc(S.btNome||S.btAddr)}</b></span>`:""}`):`<span class="muted small">Procurando aparelhos próximos… (simulado)</span><div class="list"><div class="row"><b class="m">S6_48731</b><span class="muted">sinal forte</span><span class="st-fix">●</span></div></div>`}</section>`}
   ${S.conectado?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Conectado há ${tempo(S.desde)}</b><span class="small" style="color:#CDEFD9">${S.fonte==="tcp"?(R.ultGGA?`Recebendo NMEA · última mensagem há ${Math.round((Date.now()-R.ultimo)/1000)} s`:"Conectado, aguardando NMEA…"):S.fonte==="celular"?"GPS do celular":"Simulador · bateria do receptor 76%"}</span></section>`:""}
   <div class="grid2">${S.conectado?`<button data-act="desconectar">Desconectar</button>`:`<button class="pri" data-act="conectar" ${S.conectando?"disabled":""}>${S.conectando?"Conectando…":"Conectar"}</button>`}<button data-sub="baserover">Próximo: Base/Rover</button></div>`;
 }
@@ -952,6 +955,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.ferr){S.tela="calc";S.ferr=b.dataset.ferr;render();return}
   if(b.dataset.lcmodo){S.lcModo=b.dataset.lcmodo;render();return}
   if(b.dataset.locp!==undefined){S.loc={tipo:"ponto",idx:+b.dataset.locp};chegouAviso=false;S.seguir=true;render();toast("Locação iniciada");return}
+  if(b.dataset.btaddr){S.btAddr=b.dataset.btaddr;S.btNome=b.dataset.btnome;salvar();render();return}
   if(b.dataset.mount){S.mount=b.dataset.mount;R.mounts=[];salvar();render();toast("Ponto de montagem: "+S.mount);return}
   if(b.dataset.fundo){S.cfg.fundoMapa=b.dataset.fundo;salvar();render();return}
   if(b.dataset.desc){S.codigo=b.dataset.desc;render();return}
@@ -1007,6 +1011,7 @@ document.addEventListener("click",e=>{
   if(a==="ajNovo"){S.ajuste=null;S.baseLigada=false;S.baseProv=null;S.sub="baserover";render()}
   if(a==="testarSom"){bip("ok")}
   if(a==="buscarMounts")buscarMounts();
+  if(a==="btBuscar"){NP.GnssTcp.btPaired().then(r=>{R.btDevs=r.devices||[];render();if(!R.btDevs.length)toast("Nenhum aparelho pareado. Pareie o receptor nas configurações de Bluetooth.")}).catch(e=>toast(e.message||String(e)))}
   if(a==="compartilhar")compartilharArquivo();
   if(a==="ptFechar"){S.ptSel=null;S.ptEdit=false;S.ptDelConf=false;render()}
   if(a==="ptLocar"){S.loc={tipo:"ponto",idx:S.ptSel};S.ptSel=null;chegouAviso=false;S.tela="locacao";render();toast("Locação iniciada")}
@@ -1330,7 +1335,7 @@ function exportar(tipo){
 // No navegador continua tudo simulado; no app Android usa o receptor de verdade.
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 const NP=NATIVO?window.Capacitor.Plugins:{};
-const R={buf:"",ultimo:0,ultGGA:"",ggaEnv:0,temGST:false,ntripBytes:0,ntripSt:"",ntripMsg:"",srvIps:[],clientes:[],geoId:null,mounts:[]};
+const R={btDevs:[],buf:"",ultimo:0,ultGGA:"",ggaEnv:0,temGST:false,ntripBytes:0,ntripSt:"",ntripMsg:"",srvIps:[],clientes:[],geoId:null,mounts:[]};
 if(!NATIVO&&S.conexao==="celular")S.conexao="wifi";
 
 function vib(ms,forcar){
@@ -1371,14 +1376,16 @@ function nmea(l){
 // ---------- conexão ----------
 async function conectarReal(){
   if(S.conexao==="celular")return ligarGpsCelular();
-  if(S.conexao==="ble"||S.conexao==="bt"){toast("Bluetooth entra na próxima versão. Use o Wi-Fi do receptor.");return}
+  if(S.conexao==="ble"){toast("O S6 e a maioria dos receptores usam Bluetooth clássico. Escolha essa opção.");return}
+  if(S.conexao==="bt"&&!S.btAddr){toast("Toque em Buscar aparelhos pareados e escolha o receptor");return}
   S.conectando=true;render();
   try{
     R.buf="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
-    await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
+    if(S.conexao==="bt")await NP.GnssTcp.btConnect({address:S.btAddr});
+    else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();render();bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
-  }catch(e){S.conectando=false;render();bip("erro");toast("Não conectou: "+(e.message||e)+". Confira o Wi-Fi do receptor, o IP e a porta.")}
+  }catch(e){S.conectando=false;render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
 }
 async function ligarGpsCelular(){
   try{

@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix1"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -1087,7 +1087,7 @@ function sCorr(){
     <button data-act="fecharMounts">Fechar lista</button>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
-    <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (T70 e padrão)</option><option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6 e outros SinoGNSS)</option></select></label>
+    <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6, T70 e outros SinoGNSS)</option><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (outras marcas)</option></select></label>
     ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:R.ntripSt==="reconectando"?`<b style="color:var(--float)">Reconectando ao caster…</b> (tentativa ${R.reconN||1})`:"Desligado"}</div>`:""}
     ${NATIVO&&S.corrLigada&&R.ntripUlt?`<div class="grid3"><div class="kv"><span>Última correção</span><b class="m" style="font-size:15px;color:${Date.now()-R.ntripUlt>3000?"var(--float)":"var(--fix)"}">há ${Math.max(0,Math.round((Date.now()-R.ntripUlt)/1000))} s</b></div><div class="kv"><span>Chegando</span><b class="m" style="font-size:15px">${R.ntripTaxa||0} B/s</b></div><div class="kv"><span>Quedas</span><b class="m" style="font-size:15px">${R.ntripRecons||0}${R.reconTot?" + "+R.reconTot+" rx":""}</b></div></div>`:""}
     ${NATIVO&&R.ntripSt==="recebendo"&&S.fonte==="tcp"?`<span class="small muted">Repassado ao receptor: <b class="m" style="color:var(--fg)">${br(R.enviados/1024,1)} KB</b>${R.erroEnvio?` · <b style="color:var(--bad)">erro ao enviar: ${esc(R.erroEnvio)}</b>`:""}</span>`:""}
@@ -1716,7 +1716,10 @@ function lerBinario(txt){
 }
 async function iniciarComNav(){
   if(!receptorReal()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
-  await espera(800);
+  await espera(600);
+  // abertura igual à do Survey Master: porta em modo ComNav + identificação da sessão ($$SI)
+  try{R.cons.push("→ interfacemode compass compass on");await NP.GnssTcp.write({data:"interfacemode compass compass on\r\n"});await espera(150);
+    R.cons.push("→ $$SI (abertura de sessão)");await NP.GnssTcp.write({data:"$$SI\u0018\u0000\u0002\r\n"});await espera(300)}catch(e){}
   await enviarLista(["log versionb","set antheight 0","set anthigh 0",...nmeaLogs()],"Ao conectar",150);
 }
 const TALKER={GP:"GPS",GL:"GLONASS",GA:"Galileo",GB:"BeiDou",BD:"BeiDou",GQ:"QZSS"};
@@ -1839,7 +1842,7 @@ async function desconectarReal(){
 // ---------- NTRIP ----------
 // formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
 function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
-function envAtual(){S.envRx=S.envRx||{};if(!S.envFix1){S.envRx={};S.envFix1=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(/^S6/i.test(R.serie||S.btNome||""))return "vd";if(/^T7/i.test(R.serie||S.btNome||""))return "raw";return S.cnEnv||"raw"}
+function envAtual(){S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6)/i.test(R.serie||S.btNome||""))return "vd";return S.cnEnv||"raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}

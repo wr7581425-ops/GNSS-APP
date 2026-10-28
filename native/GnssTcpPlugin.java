@@ -6,6 +6,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Build;
+import android.os.PowerManager;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
@@ -66,6 +70,57 @@ public class GnssTcpPlugin extends Plugin {
     private volatile String rxErroEnvio = "";
     private volatile boolean ntripRun = false;
     private volatile long ntripBytes = 0;
+    private volatile int ntripGen = 0;
+    private volatile long rxDescartados = 0;
+    private PowerManager.WakeLock wl;
+
+    // fila da correção para o receptor: a leitura do caster nunca espera o Bluetooth;
+    // se acumular mais de 6 KB (~3 s), descarta o atraso, porque correção velha não serve.
+    private final LinkedBlockingQueue<byte[]> filaRtcm = new LinkedBlockingQueue<>();
+    private volatile int filaBytes = 0;
+    private Thread escritor;
+
+    private synchronized void iniciarEscritor() {
+        if (escritor != null && escritor.isAlive()) return;
+        escritor = new Thread(() -> {
+            while (true) {
+                try {
+                    byte[] b = filaRtcm.poll(1, TimeUnit.SECONDS);
+                    if (b == null) continue;
+                    filaBytes -= b.length;
+                    OutputStream o = rxOut;
+                    if (o == null) { rxErroEnvio = "receptor não conectado"; continue; }
+                    synchronized (o) { o.write(b); o.flush(); }
+                    rxEnviados += b.length;
+                    rxErroEnvio = "";
+                } catch (InterruptedException ie) { return; }
+                catch (Exception ex) { rxErroEnvio = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
+            }
+        });
+        escritor.setDaemon(true);
+        escritor.start();
+    }
+
+    private void enfileirar(byte[] buf, int n) {
+        if (filaBytes > 6144) { filaRtcm.clear(); rxDescartados += filaBytes; filaBytes = 0; }
+        byte[] c = new byte[n];
+        System.arraycopy(buf, 0, c, 0, n);
+        filaBytes += n;
+        filaRtcm.offer(c);
+    }
+
+    private void segurarCpu(boolean on) {
+        try {
+            if (on) {
+                if (wl == null) {
+                    PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+                    wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ColetoraGNSS:ntrip");
+                    wl.setReferenceCounted(false);
+                }
+                if (!wl.isHeld()) wl.acquire(12 * 60 * 60 * 1000L);
+            } else if (wl != null && wl.isHeld()) wl.release();
+        } catch (Exception ignored) { }
+    }
 
     // ---------- redes ----------
     private ConnectivityManager cm() {
@@ -387,6 +442,7 @@ public class GnssTcpPlugin extends Plugin {
         o.put("bytes", ntripBytes);
         o.put("enviados", rxEnviados);
         o.put("erroEnvio", rxErroEnvio);
+        o.put("descartados", rxDescartados);
         notifyListeners("ntrip", o);
     }
 
@@ -398,16 +454,24 @@ public class GnssTcpPlugin extends Plugin {
         final String user = call.getString("user", "");
         final String pass = call.getString("pass", "");
         fecharNtrip();
+        final int gen = ++ntripGen;
+        iniciarEscritor();
+        segurarCpu(true);
         call.resolve();
         new Thread(() -> {
             try {
                 ntripRun = true;
                 ntripBytes = 0;
                 rxEnviados = 0;
+                rxDescartados = 0;
                 rxErroEnvio = "";
                 ntripStatus("conectando", host);
                 Socket s = novoSocket(redeInternet());
                 s.connect(new InetSocketAddress(host, port), 10000);
+                s.setSoTimeout(15000);
+                s.setKeepAlive(true);
+                s.setTcpNoDelay(true);
+                if (gen != ntripGen) { s.close(); return; }
                 ntrip = s;
                 ntripOut = s.getOutputStream();
                 String req = "GET /" + mount + " HTTP/1.0\r\n"
@@ -424,8 +488,7 @@ public class GnssTcpPlugin extends Plugin {
                     String motivo = primeira == null ? "sem resposta" : primeira;
                     if (primeira != null && primeira.contains("SOURCETABLE")) motivo = "Ponto de montagem não encontrado";
                     if (primeira != null && primeira.contains("401")) motivo = "Usuário ou senha recusados";
-                    ntripStatus("erro", motivo);
-                    fecharNtrip();
+                    if (gen == ntripGen) { ntripStatus("erro", motivo); fecharNtrip(); }
                     return;
                 }
                 if (primeira.startsWith("HTTP")) {
@@ -436,22 +499,19 @@ public class GnssTcpPlugin extends Plugin {
                 byte[] buf = new byte[2048];
                 int n;
                 long ultimoAviso = 0;
-                while (ntripRun && (n = in.read(buf)) > 0) {
+                while (ntripRun && gen == ntripGen && (n = in.read(buf)) > 0) {
                     ntripBytes += n;
-                    OutputStream o = rxOut;
-                    if (o == null) rxErroEnvio = "receptor não conectado";
-                    else {
-                        try { synchronized (o) { o.write(buf, 0, n); o.flush(); } rxEnviados += n; rxErroEnvio = ""; }
-                        catch (Exception ex) { rxErroEnvio = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
-                    }
+                    enfileirar(buf, n);
                     long agora = System.currentTimeMillis();
                     if (agora - ultimoAviso > 1000) { ultimoAviso = agora; ntripStatus("recebendo", mount); }
                 }
-                if (ntripRun) ntripStatus("erro", "O caster encerrou a conexão");
+                if (ntripRun && gen == ntripGen) ntripStatus("erro", "O caster encerrou a conexão");
+            } catch (SocketTimeoutException te) {
+                if (ntripRun && gen == ntripGen) ntripStatus("erro", "Sem dados do caster há 15 s");
             } catch (Exception e) {
-                if (ntripRun) ntripStatus("erro", e.getMessage() == null ? e.toString() : e.getMessage());
+                if (ntripRun && gen == ntripGen) ntripStatus("erro", e.getMessage() == null ? e.toString() : e.getMessage());
             } finally {
-                ntripRun = false;
+                if (gen == ntripGen) ntripRun = false;
             }
         }).start();
     }
@@ -473,6 +533,10 @@ public class GnssTcpPlugin extends Plugin {
     @PluginMethod
     public void ntripDisconnect(PluginCall call) {
         fecharNtrip();
+        ntripGen++;
+        segurarCpu(false);
+        filaRtcm.clear();
+        filaBytes = 0;
         ntripStatus("desligado", "");
         call.resolve();
     }

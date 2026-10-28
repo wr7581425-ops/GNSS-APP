@@ -774,6 +774,7 @@ function sConexao(){
     ${R.btDevs.length?`<div class="list">${R.btDevs.map(d=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-btaddr="${esc(d.address)}" data-btnome="${esc(d.name)}"><span><b>${esc(d.name)}</b> <span class="muted small m">${esc(d.address)}</span></span><span class="${S.btAddr===d.address?"st-fix":"muted"}">${S.btAddr===d.address?"✓":""}</span></button>`).join("")}</div>`:""}
     ${S.btAddr?`<span class="small">Selecionado: <b>${esc(S.btNome||S.btAddr)}</b></span>`:""}`):`<span class="muted small">Procurando aparelhos próximos… (simulado)</span><div class="list"><div class="row"><b class="m">S6_48731</b><span class="muted">sinal forte</span><span class="st-fix">●</span></div></div>`}</section>`}
   ${S.conectado?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Conectado há ${tempo(S.desde)}</b><span class="small" style="color:#CDEFD9">${S.fonte==="tcp"?(R.ultGGA?`Recebendo NMEA · última mensagem há ${Math.round((Date.now()-R.ultimo)/1000)} s`:"Conectado, aguardando NMEA…"):S.fonte==="celular"?"GPS do celular":"Simulador · bateria do receptor 76%"}</span></section>`:""}
+  ${!S.conectado&&S.reconectando?`<section class="card" style="border-color:var(--float)"><b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b><span class="muted small">A conexão caiu. O app tenta de novo a cada 3 s, sem desligar a correção.</span><button data-act="desconectar">Parar de tentar</button></section>`:""}
   <div class="grid2">${S.conectado?`<button data-act="desconectar">Desconectar</button>`:`<button class="pri" data-act="conectar" ${S.conectando?"disabled":""}>${S.conectando?"Conectando…":"Conectar"}</button>`}<button data-sub="baserover">Próximo: Base/Rover</button></div>`;
 }
 function sBase(){
@@ -934,7 +935,8 @@ function sCorr(){
     <button data-act="fecharMounts">Fechar lista</button>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
-    ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:"Desligado"}</div>`:""}
+    ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:R.ntripSt==="reconectando"?`<b style="color:var(--float)">Reconectando ao caster…</b> (tentativa ${R.reconN||1})`:"Desligado"}</div>`:""}
+    ${NATIVO&&S.corrLigada&&R.ntripUlt?`<div class="grid3"><div class="kv"><span>Última correção</span><b class="m" style="font-size:15px;color:${Date.now()-R.ntripUlt>3000?"var(--float)":"var(--fix)"}">há ${Math.max(0,Math.round((Date.now()-R.ntripUlt)/1000))} s</b></div><div class="kv"><span>Chegando</span><b class="m" style="font-size:15px">${R.ntripTaxa||0} B/s</b></div><div class="kv"><span>Quedas</span><b class="m" style="font-size:15px">${R.ntripRecons||0}${R.reconTot?" + "+R.reconTot+" rx":""}</b></div></div>`:""}
     ${NATIVO&&R.ntripSt==="recebendo"&&S.fonte==="tcp"?`<span class="small muted">Repassado ao receptor: <b class="m" style="color:var(--fg)">${br(R.enviados/1024,1)} KB</b>${R.erroEnvio?` · <b style="color:var(--bad)">erro ao enviar: ${esc(R.erroEnvio)}</b>`:""}</span>`:""}
     ${semUsoCorrecao()?`<div class="small" style="padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--float)"><b style="color:var(--float)">A correção chega, mas o receptor não está usando.</b> Ele continua autônomo (idade ${br(G.idade,1)} s). Normalmente é a porta do receptor que não aceita RTCM. Abra os comandos do receptor para verificar e configurar.<button style="margin-top:8px;width:100%" data-sub="console">Abrir comandos do receptor</button></div>`:""}
     <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
@@ -945,7 +947,7 @@ function sCorr(){
     <label class="f">Potência<select><option>1 W</option><option>2 W</option></select></label></div></section>`
   :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">Correção via satélite (exige assinatura do serviço e receptor compatível). Convergência típica de alguns minutos.</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
   <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
-  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte o receptor primeiro.</p>`}`;
+  ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
 function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>15000&&S.corrDesde&&Date.now()-S.corrDesde>40000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
 const CMDS_COMNAV=[
@@ -1003,7 +1005,7 @@ function render(full=true){
     const m=$("mon");if(m&&S.conectado){m.textContent=G.nmea.join("\n");m.scrollTop=m.scrollHeight}const k=$("cons");if(k){k.textContent=R.cons.join("\n");k.scrollTop=k.scrollHeight}return}
   if(!full&&S.tela==="mapa"&&S.locPick&&!S.loc) return;
   if(!full&&S.tela==="calc"&&!["medir","locLinha"].includes(S.ferr))return;
-  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub))) return;
+  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
   v.innerHTML=({home:vHome,info:vInfo,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
@@ -1054,11 +1056,11 @@ document.addEventListener("click",e=>{
   if(a==="irConexao"){S.tela="receptor";S.sub="conexao";render()}
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
-  if(a==="desconectar"){if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
+  if(a==="desconectar"){R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao!=="ntrip"){toast("Rádio e RTX do S6 entram depois do teste no escritório (comandos ComNav). Use o NTRIP.");return}
-    ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
+    R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
-  if(a==="corrOff"){if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
+  if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="aplicarBase"){if(receptorReal())enviarLista(cmdsRover(),"Rover");else toast("Receptor configurado como rover (simulado)")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
@@ -1480,8 +1482,9 @@ function nmea(l){
 }
 
 // ---------- conexão ----------
-async function conectarReal(){
+async function conectarReal(silencioso){
   if(S.conexao==="celular")return ligarGpsCelular();
+  R.manual=false;
   if(S.conexao==="ble"){toast("O S6 e a maioria dos receptores usam Bluetooth clássico. Escolha essa opção.");return}
   if(S.conexao==="bt"&&!S.btAddr){toast("Toque em Buscar aparelhos pareados e escolha o receptor");return}
   S.conectando=true;render();
@@ -1489,9 +1492,20 @@ async function conectarReal(){
     R.buf="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
     if(S.conexao==="bt")await NP.GnssTcp.btConnect({address:S.btAddr});
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
-    S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();render();bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
+    S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
+    if(silencioso){toast("Receptor reconectado");return true}
+    bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
-  }catch(e){S.conectando=false;render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
+  }catch(e){S.conectando=false;if(silencioso){render();return false}render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
+}
+// tenta religar o receptor sozinho (a correção NTRIP continua ligada e volta a ser repassada)
+async function reconectarReceptor(){
+  if(R.manual||S.conectado||S.conectando)return;
+  R.reconRx=(R.reconRx||0)+1;S.reconectando=true;render();
+  const ok=await conectarReal(true);
+  if(ok){S.reconectando=false;R.reconTot=(R.reconTot||0)+1;render();return}
+  if(R.reconRx>=40){S.reconectando=false;S.corrLigada=false;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});bip("erro");toast("Não consegui reconectar o receptor. Confira se ele está ligado.");render();return}
+  setTimeout(reconectarReceptor,3000);
 }
 async function ligarGpsCelular(){
   try{
@@ -1564,11 +1578,21 @@ async function compartilharArquivo(){
 if(NATIVO&&NP.GnssTcp){
   NP.GnssTcp.addListener("data",d=>onDados(d.text));
   NP.GnssTcp.addListener("status",s=>{
-    if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;S.corrLigada=false;bip("erro");toast("Receptor desconectado: "+(s.msg||""));render()}
+    if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");
+      if(R.manual){S.corrLigada=false;toast("Receptor desconectado");render();return}
+      toast("Conexão com o receptor caiu. Reconectando…");R.reconRx=0;render();reconectarReceptor()}
   });
   NP.GnssTcp.addListener("ntrip",n=>{
+    const agora=Date.now();if(n.bytes>(R.ntripBytes||0)&&n.status==="recebendo"){if(R.ntripT0){const dt=(agora-R.ntripT0)/1000;if(dt>0)R.ntripTaxa=Math.round((n.bytes-R.ntripB0)/dt)}R.ntripT0=agora;R.ntripB0=n.bytes;R.ntripUlt=agora}
+    if(n.descartados!=null)R.descartados=n.descartados;
     R.ntripBytes=n.bytes;if(n.enviados!=null)R.enviados=n.enviados;if(n.erroEnvio!=null)R.erroEnvio=n.erroEnvio;const ant=R.ntripSt;R.ntripSt=n.status;R.ntripMsg=n.msg;if(S.tela==="receptor"&&S.sub==="correcao")render();
-    if(n.status==="erro"){S.corrLigada=false;bip("erro");toast("NTRIP: "+n.msg);render()}
+    if(n.status==="erro"){
+      const fatal=/recusad|não encontrado|401|404/i.test(n.msg||"");
+      if(S.corrLigada&&!fatal){R.ntripSt="reconectando";R.reconN=(R.reconN||0)+1;const espera=Math.min(15000,2000*R.reconN);
+        if(R.reconN===1){bip("fix");toast("NTRIP caiu ("+n.msg+"). Reconectando…")}
+        clearTimeout(R.ntripTimer);R.ntripTimer=setTimeout(()=>{if(S.corrLigada)ntripLigar().catch(()=>{})},espera);render();return}
+      S.corrLigada=false;bip("erro");toast("NTRIP: "+n.msg);render()}
+    if(n.status==="recebendo"&&R.reconN&&agora-(R.ntripUlt||0)<2000){R.ntripRecons=(R.ntripRecons||0)+1;R.reconN=0;toast("NTRIP reconectado")}
     else if(n.status==="recebendo"&&ant!=="recebendo")toast("NTRIP recebendo correção de "+n.msg);
   });
   NP.GnssTcp.addListener("clients",c=>{R.clientes=c.list||[];render(false)});

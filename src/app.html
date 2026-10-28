@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix1"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -1125,7 +1125,7 @@ function sNmea(){
   return `<section class="card"><h3>Sentenças NMEA</h3><div class="grid3">${Object.keys(S.sent).map(k=>`<label class="ck m"><input type="checkbox" data-sent="${k}" ${S.sent[k]?"checked":""}>${k}</label>`).join("")}</div>
     <label class="f">Frequência de saída<select data-bind="hz">${["1","5","10","20"].map(v=>`<option value="${v}" ${S.hz===v?"selected":""}>${v} Hz${v==="5"?" (recomendado p/ ecobatímetro)":""}</option>`).join("")}</select></label></section>
   <section class="card ${S.servidor?"hl":""}"><div class="split"><h3>Servidor TCP no celular</h3><span class="${S.servidor?"st-fix":"muted"} small">${S.servidor?"LIGADO":"DESLIGADO"}</span></div>
-    <div class="grid2" style="grid-template-columns:2fr 1fr"><div class="f">Endereço deste celular<span class="m" style="height:46px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">${NATIVO?(R.srvIps.map(x=>x.split(" ")[1]).join(" · ")||"—"):"192.168.43.1"}</span></div><label class="f">Porta<input class="m" value="${esc(S.sport)}" data-bind="sport"></label></div>
+    <div class="grid2" style="grid-template-columns:2fr 1fr"><div class="f">Endereço deste celular<span class="m" style="height:46px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">${NATIVO?(R.srvIps.map(x=>x.split(" ")[1]).filter(ip=>ip&&!/^192\.0\.0\./.test(ip)).join(" · ")||"—"):"192.168.43.1"}</span></div><label class="f">Porta<input class="m" value="${esc(S.sport)}" data-bind="sport"></label></div>
     ${S.servidor?(NATIVO?(R.clientes.length?`<div class="list">${R.clientes.map(ip=>`<div class="row" style="grid-template-columns:1fr auto"><span>Equipamento conectado</span><span class="m muted">${esc(ip)}</span></div>`).join("")}</div>`:`<span class="muted small">Nenhum equipamento conectado ainda. No computador, configure TCP cliente para o IP acima e a porta ${esc(S.sport)}.</span>`):`<div class="list"><div class="row" style="grid-template-columns:1fr auto"><span>Notebook · HYPACK</span><span class="m muted">192.168.43.12</span></div><div class="row" style="grid-template-columns:1fr auto"><span>Ecobatímetro</span><span class="m muted">192.168.43.20</span></div></div>`):""}
     <button class="${S.servidor?"":"pri"}" data-act="servidor">${S.servidor?"Desligar servidor":"Ligar servidor"}</button></section>
   <span class="eyebrow">Monitor de dados ao vivo</span>
@@ -1780,7 +1780,10 @@ async function detectarWifi(manual){
     const r=await NP.GnssTcp.scanPorts({host,ports:PORTAS_WIFI});
     S.ip=host;
     if(r.open&&r.open.length){S.porta=String(r.open[0]);R.detectMsg=`Receptor em ${host}, portas abertas: ${r.open.join(", ")}. Usando ${r.open[0]}.`;salvar();return true}
-    R.detectMsg=`Achei o receptor em ${host}, mas nenhuma porta de dados conhecida respondeu. Digite a porta do manual.`;salvar();return false;
+    R.detectMsg=`Receptor em ${host}. Nenhuma porta comum respondeu; varrendo todas as portas (até 1 minuto)…`;render();
+    const t=await NP.GnssTcp.scanRange({host,from:1,to:65535});
+    if(t.open&&t.open.length){const pref=t.open.find(p=>p>1024&&p!==8080&&p!==80)||t.open[0];S.porta=String(pref);R.detectMsg=`Receptor em ${host}, portas abertas: ${t.open.join(", ")}. Usando ${pref}; se não vier NMEA, tente outra da lista.`;salvar();return true}
+    R.detectMsg=`O receptor (${host}) não tem nenhuma porta aberta para o coletor. Nesse modelo o Wi-Fi pode ser só para a página de configuração; use o Bluetooth.`;salvar();return false;
   }catch(e){R.detectMsg="Não consegui detectar: "+(e.message||e);return false}
   finally{R.detectando=false;render()}
 }
@@ -1836,12 +1839,12 @@ async function desconectarReal(){
 // ---------- NTRIP ----------
 // formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
 function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
-function envAtual(){S.envRx=S.envRx||{};const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(/^S6/i.test(R.serie||S.btNome||""))return "vd";if(/^T7/i.test(R.serie||S.btNome||""))return "raw";return S.cnEnv||"raw"}
+function envAtual(){S.envRx=S.envRx||{};if(!S.envFix1){S.envRx={};S.envFix1=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(/^S6/i.test(R.serie||S.btNome||""))return "vd";if(/^T7/i.test(R.serie||S.btNome||""))return "raw";return S.cnEnv||"raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
   try{await NP.GnssTcp.setEnvelope({mode:envAtual()})}catch(e){}
-  R.envTentado=false;R.envUsado=envAtual();
+  R.envTentado=false;R.envTrocas=0;R.envUsado=envAtual();
   await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
   R.ggaEnv=0;return true;
 }
@@ -1934,8 +1937,8 @@ function tickReal(now){
   if(G.fix>0&&!isNaN(G.lat)&&(!R.ultPosT||now-R.ultPosT>60000)){R.ultPosT=now;S.ultPos={lat:G.lat,lon:G.lon};salvar()}
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   mockTick();
-  if(NATIVO&&S.corrLigada&&G.fix>=4&&S.fonte==="tcp"){S.envRx=S.envRx||{};const k=chaveRx(),e=R.envUsado||envAtual();if(S.envRx[k]!==e){S.envRx[k]=e;salvar()}}
-  if(semUsoCorrecao()&&!R.envTentado&&rec()?.marca==="ComNav"&&Date.now()-S.corrDesde>20000){R.envTentado=true;S.cnEnv=envAtual()==="raw"?"vd":"raw";S.envRx=S.envRx||{};S.envRx[chaveRx()]=S.cnEnv;R.envUsado=S.cnEnv;salvar();
+  if(NATIVO&&S.corrLigada&&(G.fix===4||G.fix===5)&&S.fonte==="tcp"){S.envRx=S.envRx||{};const k=chaveRx(),e=R.envUsado||envAtual();if(S.envRx[k]!==e){S.envRx[k]=e;salvar()}}
+  if(semUsoCorrecao()&&(R.envTrocas||0)<6&&Date.now()-S.corrDesde>20000){R.envTrocas=(R.envTrocas||0)+1;S.cnEnv=(R.envUsado||envAtual())==="raw"?"vd":"raw";R.envUsado=S.cnEnv;
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();

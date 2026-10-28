@@ -731,6 +731,37 @@ public class GnssTcpPlugin extends Plugin {
         }
     }
 
+    /** Varre uma faixa de portas em paralelo (rede local: portas fechadas respondem na hora). */
+    @PluginMethod
+    public void scanRange(final PluginCall call) {
+        final String host = call.getString("host", "");
+        final int de = call.getInt("from", 1), ate = call.getInt("to", 65535);
+        new Thread(() -> {
+            final List<Integer> abertas = Collections.synchronizedList(new java.util.ArrayList<>());
+            try {
+                final Network n = redeWifi();
+                java.util.concurrent.ExecutorService ex = java.util.concurrent.Executors.newFixedThreadPool(96);
+                for (int p = de; p <= ate; p++) {
+                    final int port = p;
+                    ex.submit(() -> {
+                        try { Socket s = novoSocket(n); s.connect(new InetSocketAddress(host, port), 400); s.close(); abertas.add(port); } catch (Exception ignored) { }
+                    });
+                }
+                ex.shutdown();
+                ex.awaitTermination(240, java.util.concurrent.TimeUnit.SECONDS);
+                JSArray a = new JSArray();
+                List<Integer> ord = new java.util.ArrayList<>(abertas);
+                Collections.sort(ord);
+                for (int v : ord) a.put(v);
+                JSObject r = new JSObject();
+                r.put("open", a);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(e.toString());
+            }
+        }).start();
+    }
+
     @PluginMethod
     public void scanPorts(final PluginCall call) {
         final String host = call.getString("host", "");

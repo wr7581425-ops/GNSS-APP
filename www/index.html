@@ -167,9 +167,7 @@ function tick(){
   G.sats=t<3?Math.min(24,Math.floor(t*8)):22+Math.round(Math.random()*3);
   if(!S.corrLigada) G.fix=G.sats>4?1:0;
   else{const c=(now-S.corrDesde)/1000;G.fix=c<3?1:c<9?5:4}
-  if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}
-  if(G.prevFix!==4&&G.fix===4&&G.prevFix!==undefined&&S.cfg.somFix)bip("ok");
-  G.prevFix=G.fix;
+  avisoSolucao();
   if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
   const base={0:9,1:1.8,5:0.25,4:0.008}[G.fix]||1;
   G.hrms=+(base*(0.8+Math.random()*0.4)).toFixed(3);G.vrms=+(G.hrms*1.7).toFixed(3);
@@ -212,12 +210,29 @@ function destravarAudio(){try{actx=actx||new (window.AudioContext||window.webkit
 ["touchstart","touchend","mousedown","click"].forEach(ev=>document.addEventListener(ev,destravarAudio,{passive:true}));
 function bip(tipo){
   const c=S.cfg;
-  if(c.vibrar)vib(tipo==="ok"?[60,60,60]:tipo==="erro"?[300]:[150,80,150]);
-  if(tipo==="ok"&&!c.somColeta)return; if(tipo==="fix"&&!c.somFix)return;
+  const sol=["fix","ganhouFix","float"].includes(tipo);
+  if(tipo==="ok"&&!c.somColeta)return; if(sol&&!c.somFix)return;
+  if(c.vibrar)vib(tipo==="ok"?[60,60,60]:tipo==="erro"?[300]:tipo==="ganhouFix"?[80,60,80,60,200]:tipo==="float"?[120,100,120]:[150,80,150]);
   try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();
-    const notas=tipo==="ok"?[[1320,0,.09],[1760,.13,.12]]:tipo==="erro"?[[330,0,.35]]:[[880,0,.15],[660,.2,.15],[880,.4,.15]];
+    const notas=tipo==="ok"?[[1320,0,.09],[1760,.13,.12]]:tipo==="erro"?[[330,0,.35]]
+      :tipo==="ganhouFix"?[[1047,0,.1],[1319,.12,.1],[1568,.24,.22]]   // sobe: ganhou FIX
+      :tipo==="float"?[[880,0,.14],[880,.22,.14]]                     // dois toques iguais: flutuante
+      :[[880,0,.15],[660,.2,.15],[440,.4,.3]];                        // desce: perdeu
     for(const [f,t,d] of notas){const o=actx.createOscillator(),g=actx.createGain();o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.08,actx.currentTime+t);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+t+d);o.connect(g).connect(actx.destination);o.start(actx.currentTime+t);o.stop(actx.currentTime+t+d+.02)}
   }catch(e){}
+}
+// som ao mudar a solução: FIX, flutuante ou autônomo (só avisa depois de 2 s no novo estado, para não apitar à toa)
+function nivelSol(f){return f===4?"fix":f===5?"float":f>0?"auto":"sem"}
+function avisoSolucao(){
+  const n=nivelSol(G.fix);
+  if(G.solAtual===undefined){G.solAtual=n;G.solCand=n;G.solN=0;return}
+  if(n===G.solAtual){G.solCand=n;G.solN=0;return}
+  if(n!==G.solCand){G.solCand=n;G.solN=1;return}
+  if(++G.solN<2)return;
+  const ant=G.solAtual;G.solAtual=n;G.solN=0;
+  if(n==="fix"){bip("ganhouFix");toast("FIX!")}
+  else if(n==="float"){bip("float");toast(ant==="fix"?"Atenção: perdeu o FIX (flutuante)":"Flutuante")}
+  else if(ant==="fix"||ant==="float"){bip("fix");toast(ant==="fix"?"Atenção: perdeu o FIX":"Perdeu a correção (autônomo)")}
 }
 let wake=null;
 async function manterTela(){if(!S.cfg.telaLigada||wake)return;try{wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null)}catch(e){}}
@@ -711,8 +726,8 @@ function vConfig(){
     <label class="f">Alerta de PDOP acima de${inp("pdopAlerta")}</label>
     <label class="f">Alerta de idade da correção (s)${inp("idadeMax")}</label></div>
     <label class="ck"><input type="checkbox" id="soFix" ${S.soFix?"checked":""}> Aceitar somente FIX</label>`)}
-  ${sec("Sons e vibração",`${ck("somColeta","Toque ao coletar ponto")}${ck("somFix","Alerta sonoro ao perder ou recuperar o FIX")}${ck("vibrar","Vibrar junto com os alertas (Android)")}
-    <button data-act="testarSom">Testar toque</button>`)}
+  ${sec("Sons e vibração",`${ck("somColeta","Toque ao coletar ponto")}${ck("somFix","Som ao mudar a solução: FIX (sobe), flutuante (2 toques), perdeu (desce)")}${ck("vibrar","Vibrar junto com os alertas (Android)")}
+    <div class="grid2"><button data-act="testarSom" data-som="ok">Testar coleta</button><button data-act="testarSom" data-som="ganhouFix">Som do FIX</button><button data-act="testarSom" data-som="float">Som flutuante</button><button data-act="testarSom" data-som="fix">Som perdeu</button></div>`)}
   ${sec("Mapa",`<div class="grid2">
     <label class="f">Fundo do mapa${sel("fundoMapa",[["grade","Grade (teste)"],["sat","Satélite (app instalado)"],["ruas","Ruas (app instalado)"]])}</label>
     <label class="f">Tamanho dos pontos${sel("tamPonto",[["4","Pequeno"],["5","Médio"],["7","Grande"]])}</label></div>
@@ -1048,7 +1063,7 @@ document.addEventListener("click",e=>{
     const pj=proj();if(pj)pj.ajustes=(pj.ajustes||[]).concat([{quando:Date.now(),dE,dN,dh,n,origem:S.ajuste.origem}]);
     S.ajuste.status="aplicado";S.ajuste.aplicado=Date.now();S.ajuste.nAplic=n;salvar();bip("ok");render();toast(`Ajuste aplicado em ${n} pontos e na base`)}
   if(a==="ajNovo"){S.ajuste=null;S.baseLigada=false;S.baseProv=null;S.sub="baserover";render()}
-  if(a==="testarSom"){bip("ok")}
+  if(a==="testarSom"){const t=b.dataset.som||"ok";const sv=S.cfg.somColeta,sf=S.cfg.somFix;S.cfg.somColeta=true;S.cfg.somFix=true;bip(t);S.cfg.somColeta=sv;S.cfg.somFix=sf}
   if(a==="buscarMounts")buscarMounts();
   if(a==="fecharMounts"){R.mounts=[];render()}
   if(a==="cmdEnviar"){const el=$("cmdTxt");enviarComando(el?.value);if(el)el.value=""}
@@ -1551,9 +1566,7 @@ function tickReal(now){
   if(G.fix>0&&!isNaN(G.lat)&&(!R.ultPosT||now-R.ultPosT>60000)){R.ultPosT=now;S.ultPos={lat:G.lat,lon:G.lon};salvar()}
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
-  if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}
-  if(G.prevFix!==4&&G.fix===4&&G.prevFix!==undefined&&S.cfg.somFix)bip("ok");
-  G.prevFix=G.fix;
+  avisoSolucao();
   if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
   render(false);
 }

@@ -124,11 +124,11 @@ const S={
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
-  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"P-",digitos:"4",somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
-       nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"grade",unidadeArea:"m2"},
+  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+       nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
 try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos"])if(s[k]!==undefined)S[k]=s[k];
-  if(s.cfg)S.cfg=Object.assign(S.cfg,s.cfg);if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
+  if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 // ---------- Simulador do receptor ----------
@@ -271,7 +271,13 @@ function vPainel(){
   ${!S.corrLigada?`<div class="banner">Sem correção: a precisão está em metros. Ligue o NTRIP ou o rádio em Receptor › Correção para chegar ao FIX.</div>`:""}
   <button class="pri big" data-go="coleta">Coletar ponto</button>`;
 }
-function proxNome(){if(S.pNum)return S.pNum;const p=proj();const n=(p?.pontos.length||0)+1;return (S.cfg.prefixo??"P-")+String(n).padStart(+S.cfg.digitos||4,"0")}
+function proxNome(){
+  if(S.pNum)return S.pNum;
+  const pre=S.cfg.prefixo||"",pts=(proj()?.pontos||[]).filter(p=>p.st!=="CALC"&&p.st!=="PROJ");
+  let max=0,larg=+S.cfg.digitos||2;
+  for(const p of pts){const m=String(p.nome).match(/^(.*?)(\d+)$/);if(m&&m[1]===pre){if(+m[2]>max)max=+m[2];larg=Math.max(larg,m[2].length)}}
+  return pre+String(max+1).padStart(larg,"0");
+}
 function incNome(n){const m=String(n).match(/^(.*?)(\d+)([^\d]*)$/);if(!m)return n+"-1";return m[1]+String(+m[2]+1).padStart(m[2].length,"0")+m[3]}
 function rotulo(p){const r=S.cfg.rotuloMapa;return r==="nenhum"?"":r==="desc"?(p.cod||p.nome):r==="ambos"?(p.nome+(p.cod?" · "+p.cod:"")):p.nome}
 function descRecentes(){const v=[];for(const p of [...(proj()?.pontos||[])].reverse()){if(p.cod&&!v.includes(p.cod)&&p.st!=="CALC")v.push(p.cod);if(v.length>=6)break}return v}
@@ -641,6 +647,23 @@ function vImportar(){
     <span class="muted small">No app instalado também abre arquivos CSV, TXT, DXF e KML direto do WhatsApp, e-mail ou Drive.</span></section>`;
 }
 
+function tileLayer(fundo,X,Y,W,H,mpp){
+  const z0=zonaAtual(),h0=hemiAtual();
+  const [la1,lo1]=fromUTM(S.mapCE-W/2*mpp,S.mapCN+H/2*mpp,z0,h0),[la2,lo2]=fromUTM(S.mapCE+W/2*mpp,S.mapCN-H/2*mpp,z0,h0);
+  const latC=(la1+la2)/2;let z=Math.round(Math.log2(156543.03*Math.cos(latC*Math.PI/180)/mpp));z=Math.max(3,Math.min(fundo==="sat"?18:19,z));
+  const n=2**z,tx=lo=>Math.floor((lo+180)/360*n),ty=la=>{const r=la*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n)};
+  const lon=x=>x/n*360-180,lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI;
+  const x1=tx(Math.min(lo1,lo2)),x2=tx(Math.max(lo1,lo2)),y1=ty(Math.max(la1,la2)),y2=ty(Math.min(la1,la2));
+  if((x2-x1+1)*(y2-y1+1)>64)return "";
+  let out="";
+  for(let x=x1;x<=x2;x++)for(let y=y1;y<=y2;y++){
+    const [eA,nA]=toUTM(lat(y),lon(x),z0,h0),[eB,nB]=toUTM(lat(y+1),lon(x+1),z0,h0);
+    const px=X(eA),py=Y(nA),w=X(eB)-px,h=Y(nB)-py;
+    const url=fundo==="sat"?`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    out+=`<image href="${url}" x="${px.toFixed(1)}" y="${py.toFixed(1)}" width="${(w+0.6).toFixed(1)}" height="${(h+0.6).toFixed(1)}" preserveAspectRatio="none"/>`;
+  }
+  return out;
+}
 function ptSelCard(){
   const p=proj()?.pontos[S.ptSel];if(S.ptSel==null||!p)return "";
   const [E,N]=ptEN(p);const d=S.conectado?Math.hypot(E-G.E,N-G.N):null;
@@ -670,8 +693,8 @@ function vConfig(){
     </div>
     <span class="muted small">Sistema de coordenadas e fuso ficam em cada projeto (aba Projetos).</span>`)}
   ${sec("Coleta",`<div class="grid2">
-    <label class="f">Prefixo do nome${inp("prefixo","P-")}</label>
-    <label class="f">Dígitos da numeração${sel("digitos",[["3","001"],["4","0001"],["5","00001"]])}</label>
+    <label class="f">Prefixo (opcional)${inp("prefixo","sem prefixo")}</label>
+    <label class="f">Dígitos da numeração${sel("digitos",[["1","1"],["2","01"],["3","001"],["4","0001"]])}</label>
     <label class="f">Épocas por ponto (s)<input class="m" data-bind="epocas" value="${esc(S.epocas)}"></label>
     <label class="f">Altura padrão do bastão (m)<input class="m" data-bind="altura" value="${esc(S.altura)}"></label>
     <label class="f">Tolerância horizontal (m)<input class="m" data-bind="tolH" value="${esc(S.tolH)}"></label>
@@ -799,8 +822,10 @@ function vMapa(){
   const X=e=>W/2+(e-S.mapCE)/mpp, Y=n=>H/2-(n-S.mapCN)/mpp;
   const passos=[1,2,5,10,20,50,100,200,500,1000];const gstep=passos.find(s=>s/mpp>=60)||1000;
   let grid="";const e0=Math.floor((S.mapCE-W/2*mpp)/gstep)*gstep,n0=Math.floor((S.mapCN-H/2*mpp)/gstep)*gstep;
-  for(let e=e0;e<=S.mapCE+W/2*mpp;e+=gstep)grid+=`<line x1="${X(e)}" y1="0" x2="${X(e)}" y2="${H}" stroke="#263241" stroke-width="1"/>`;
-  for(let n=n0;n<=S.mapCN+H/2*mpp;n+=gstep)grid+=`<line x1="0" y1="${Y(n)}" x2="${W}" y2="${Y(n)}" stroke="#263241" stroke-width="1"/>`;
+  const fundo=S.cfg.fundoMapa||"sat",gcor=fundo==="grade"?"#263241":"rgba(255,255,255,0.18)";
+  for(let e=e0;e<=S.mapCE+W/2*mpp;e+=gstep)grid+=`<line x1="${X(e)}" y1="0" x2="${X(e)}" y2="${H}" stroke="${gcor}" stroke-width="1"/>`;
+  for(let n=n0;n<=S.mapCN+H/2*mpp;n+=gstep)grid+=`<line x1="0" y1="${Y(n)}" x2="${W}" y2="${Y(n)}" stroke="${gcor}" stroke-width="1"/>`;
+  const tiles=fundo==="grade"?"":tileLayer(fundo,X,Y,W,H,mpp);
   const pSvg=pts.map((p,i)=>{const [pe,pn]=ptEN(p);const x=X(pe),y=Y(pn);if(x<-20||x>W+20||y<-20||y>H+20)return"";return `<g data-ptsel="${i}" style="cursor:pointer">${S.ptSel===i?`<circle cx="${x}" cy="${y}" r="12" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>`:""}<circle cx="${x}" cy="${y}" r="18" fill="transparent"/><circle cx="${x}" cy="${y}" r="${+S.cfg.tamPonto||5}" fill="${p.st==="FIX"?"#3DDC84":p.st==="CALC"?"#5B9CFF":p.st==="PROJ"?"#FF8A1F":"#FFC24B"}" stroke="#0F1720" stroke-width="2"/><text x="${x+8}" y="${y-8}" fill="#E8EEF4" font-size="11" font-family="JetBrains Mono, monospace">${esc(rotulo(p))}</text></g>`}).join("");
   let base="";if(S.baseE&&S.baseN){const bx=X(num(S.baseE)),by=Y(num(S.baseN));base=`<g><rect x="${bx-7}" y="${by-7}" width="14" height="14" fill="none" stroke="#FF8A1F" stroke-width="2.5" transform="rotate(45 ${bx} ${by})"/><text x="${bx+10}" y="${by+4}" fill="#FFB066" font-size="11" font-family="Barlow, sans-serif" font-weight="700">BASE</text></g>`}
   const cx=X(G.E),cy=Y(G.N), acc=Math.min(Math.max(G.hrms/mpp,0),400);
@@ -820,12 +845,13 @@ function vMapa(){
   return `${S.loc?locPainel():""}${ptSelCard()}
   <section style="position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B131B">
     <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Mapa com a posição atual e os pontos coletados" style="display:block;touch-action:none">
-      <rect width="${W}" height="${H}" fill="#0B131B"/>${grid}${pSvg}${base}${alvo}${seta}
+      <rect width="${W}" height="${H}" fill="#0B131B"/>${tiles}${grid}${pSvg}${base}${alvo}${seta}
       <g transform="translate(14 ${H-18})"><rect width="${barra}" height="5" fill="#E8EEF4"/><text x="0" y="-6" fill="#E8EEF4" font-size="11" font-family="Barlow, sans-serif">${gstep} m</text></g>
       <g transform="translate(${W-26} 30)"><polygon points="0,-14 7,6 0,2 -7,6" fill="#E8EEF4"/><text x="0" y="20" fill="#E8EEF4" font-size="11" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700">N</text></g>
     </svg>
     ${S.conectado?"":`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center" class="muted">Conecte o receptor para ver a sua posição no mapa.</div>`}
   </section>
+  <div style="display:flex;gap:6px;align-items:center"><span class="muted small">Fundo:</span>${[["sat","Satélite"],["ruas","Ruas"],["grade","Grade"]].map(([v,n])=>`<button style="min-height:34px;font-size:13px;padding:0 12px" data-fundo="${v}" aria-pressed="${(S.cfg.fundoMapa||"sat")===v}" class="${(S.cfg.fundoMapa||"sat")===v?"pri":""}">${n}</button>`).join("")}</div>
   <div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">
     <button data-act="zoomIn" aria-label="Aproximar">＋</button><button data-act="zoomOut" aria-label="Afastar">－</button>
     <button data-act="seguir" aria-pressed="${S.seguir}" class="${S.seguir?"pri":""}">${S.seguir?"Seguindo":"Seguir"}</button>
@@ -835,7 +861,7 @@ function vMapa(){
     <div class="grid3"><div class="kv"><span>Rumo</span><b>${S.anda?Math.round(G.course)+"°":"—"}</b></div><div class="kv"><span>Velocidade</span><b>${br(G.vel*3.6,1)} km/h</b></div><div class="kv"><span>Pontos</span><b>${pts.length}</b></div></div>
     <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada (teste da seta)</label>
   </section>
-  <p class="muted small" style="margin:0">Nesta versão de teste o fundo é uma grade em metros. No app instalado entra imagem de satélite e mapa de ruas por baixo.</p>
+  <p class="muted small" style="margin:0">${(S.cfg.fundoMapa||"sat")==="grade"?"Fundo em grade de metros.":NATIVO?"O mapa de fundo precisa de internet (dados móveis). Sem sinal, fica a grade.":"Na página de teste o mapa de fundo não carrega; no app instalado aparece."} ${(S.cfg.fundoMapa||"sat")==="sat"?"Imagens © Esri, Maxar, Earthstar Geographics.":(S.cfg.fundoMapa==="ruas"?"© colaboradores do OpenStreetMap.":"")}</p>
   ${acoesBar()}`;
 }
 function sCorr(){
@@ -927,6 +953,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.lcmodo){S.lcModo=b.dataset.lcmodo;render();return}
   if(b.dataset.locp!==undefined){S.loc={tipo:"ponto",idx:+b.dataset.locp};chegouAviso=false;S.seguir=true;render();toast("Locação iniciada");return}
   if(b.dataset.mount){S.mount=b.dataset.mount;R.mounts=[];salvar();render();toast("Ponto de montagem: "+S.mount);return}
+  if(b.dataset.fundo){S.cfg.fundoMapa=b.dataset.fundo;salvar();render();return}
   if(b.dataset.desc){S.codigo=b.dataset.desc;render();return}
   if(b.dataset.cv){S.cvDe=b.dataset.cv;render();return}
   if(b.dataset.ladd){const k=b.dataset.ladd,v=S["sel_"+k]??"0";if(!proj()?.pontos[+v]){toast("Escolha um ponto");return}(S[k]=S[k]||[]).push(v);const n=proj().pontos.length;S["sel_"+k]=String(Math.min(+v+1,n-1));render();return}

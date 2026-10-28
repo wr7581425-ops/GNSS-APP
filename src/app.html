@@ -112,7 +112,7 @@ const S={
   receptores:[{id:1,marca:"ComNav",modelo:"S6",serie:"S6-2210-48731",nivel:"completo"},{id:2,marca:"CHC",modelo:"i73",serie:"I73-0091-22410",nivel:"completo"},{id:3,marca:"Trimble",modelo:"R10",serie:"",nivel:"leitura"}],
   ativo:1, conexao:"wifi", ip:"192.168.1.1", porta:"9902", conectado:false, conectando:false, desde:0,
   modo:"rover", mascara:"10", taxa:"1", pdopMax:"4,0",
-  correcao:"ntrip", caster:"rbmc-ip.ibge.gov.br", cport:"2101", mount:"MAN10", user:"", senha:"", enviaGGA:true, freq:"463.125", canal:"3", proto:"TRIMTALK",
+  correcao:"ntrip", caster:"201.75.52.115", cport:"2101", mount:"AMAZT", user:"deny", senha:"", enviaGGA:true, freq:"463.125", canal:"3", proto:"TRIMTALK",
   corrLigada:false, corrDesde:0,
   sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
   projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
@@ -122,10 +122,10 @@ const S={
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
-  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -228,9 +228,14 @@ function avisoSolucao(){
   if(n!==G.solCand){G.solCand=n;G.solN=1;return}
   if(++G.solN<2)return;
   const ant=G.solAtual;G.solAtual=n;G.solN=0;
-  if(n==="fix"){bip("ganhouFix");toast("FIX!")}
-  else if(n==="float"){bip("float");toast(ant==="fix"?"Atenção: perdeu o FIX (flutuante)":"Flutuante")}
-  else if(ant==="fix"||ant==="float"){bip("fix");toast(ant==="fix"?"Atenção: perdeu o FIX":"Perdeu a correção (autônomo)")}
+  if(n==="fix"){bip("ganhouFix");toast("FIX!");falar("Fixo")}
+  else if(n==="float"){bip("float");toast(ant==="fix"?"Atenção: perdeu o FIX (flutuante)":"Flutuante");falar("Flutuante")}
+  else if(ant==="fix"||ant==="float"){bip("fix");toast(ant==="fix"?"Atenção: perdeu o FIX":"Perdeu a correção (autônomo)");falar("Sem correção")}
+}
+function falar(t){
+  if(!S.cfg.voz)return;
+  try{if(NATIVO&&NP.GnssTcp&&NP.GnssTcp.speak){NP.GnssTcp.speak({text:t}).catch(()=>{});return}
+    if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(t);u.lang="pt-BR";speechSynthesis.cancel();speechSynthesis.speak(u)}}catch(e){}
 }
 let wake=null;
 async function manterTela(){if(!S.cfg.telaLigada||wake)return;try{wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null)}catch(e){}}
@@ -787,7 +792,7 @@ function vConfig(){
     <label class="f">Alerta de PDOP acima de${inp("pdopAlerta")}</label>
     <label class="f">Alerta de idade da correção (s)${inp("idadeMax")}</label></div>
     <label class="ck"><input type="checkbox" id="soFix" ${S.soFix?"checked":""}> Aceitar somente FIX</label>`)}
-  ${sec("Sons e vibração",`${ck("somColeta","Toque ao coletar ponto")}${ck("somFix","Som ao mudar a solução: FIX (sobe), flutuante (2 toques), perdeu (desce)")}${ck("vibrar","Vibrar junto com os alertas (Android)")}
+  ${sec("Sons e vibração",`${ck("somColeta","Toque ao coletar ponto")}${ck("somFix","Som ao mudar a solução: FIX (sobe), flutuante (2 toques), perdeu (desce)")}${ck("voz","Avisos falados (conectado, desconectado, fixo, flutuante, ponto armazenado)")}${ck("vibrar","Vibrar junto com os alertas (Android)")}
     <div class="grid2"><button data-act="testarSom" data-som="ok">Testar coleta</button><button data-act="testarSom" data-som="ganhouFix">Som do FIX</button><button data-act="testarSom" data-som="float">Som flutuante</button><button data-act="testarSom" data-som="fix">Som perdeu</button></div>`)}
   ${sec("Mapa",`<div class="grid2">
     <label class="f">Fundo do mapa${sel("fundoMapa",[["grade","Grade (teste)"],["sat","Satélite (app instalado)"],["ruas","Ruas (app instalado)"]])}</label>
@@ -1064,10 +1069,16 @@ function mapaRapida(){
   return `<div class="mrapida"><div class="split" style="margin-bottom:8px"><b>Ferramenta rápida</b><button class="mtb" data-act="mapRapida" aria-label="Fechar">✕</button></div>
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${it.map(([n,a])=>{const [k,v]=a.split(":");return `<button style="min-height:52px;font-size:12.5px;padding:4px;line-height:1.15" data-${k==="act"?"act":k==="go"?"go":k==="ferr"?"ferr":"sub"}="${v}">${n}</button>`}).join("")}</div></div>`;
 }
+const CASTERS=[{id:"amazt",nome:"AMAZT",ip:"201.75.52.115",port:"2101",mount:"AMAZT",user:"deny"},{id:"ibge",nome:"IBGE (RBMC)",ip:"170.84.40.52",port:"2101",mount:"AMUA0",user:"graxaim"}];
+function usarCaster(id){const c=CASTERS.find(x=>x.id===id);if(!c)return;
+  S.senhas=S.senhas||{};if(S.caster&&S.senha)S.senhas[S.caster]=S.senha;
+  S.caster=c.ip;S.cport=c.port;S.mount=c.mount||(S.mounts1&&S.mounts1[c.id])||S.mount;S.user=c.user;S.senha=S.senhas[c.ip]||"";R.mounts=[];salvar();render();
+  toast(S.senha?c.nome+" pronto":c.nome+": digite a senha uma vez, o app guarda")}
 function sCorr(){
   const c=S.correcao;
   return `<div class="grid3">${opt("correcao","radio",c,"Rádio","base local")}${opt("correcao","ntrip",c,"NTRIP","CORS / RBMC")}${opt("correcao","rtx",c,"RTX / PPP","satélite")}</div>
   ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB${S.fonte!=="tcp"?" (teste)":""}`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${CASTERS.map(c=>`<button style="min-height:36px;font-size:13px;padding:0 12px" data-caster="${c.id}" aria-pressed="${S.caster===c.ip&&S.mount===c.mount}" class="${S.caster===c.ip?"pri":""}">${c.nome}</button>`).join("")}</div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Caster<input class="m" value="${esc(S.caster)}" data-bind="caster"></label><label class="f">Porta<input class="m" value="${esc(S.cport)}" data-bind="cport"></label></div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Ponto de montagem<input class="m" value="${esc(S.mount)}" data-bind="mount" placeholder="ex.: nome da estação"></label><button style="align-self:end" data-act="buscarMounts">Buscar lista</button></div>
     ${R.mounts.length?`<div class="small muted">${R.mountsRef?`Distâncias a partir da ${esc(R.mountsRef.origem)}.`:"Sem posição para calcular distâncias: ligue o GPS do celular ou conecte o receptor e busque de novo."} <span style="color:var(--fix);font-weight:700">● até 20 km: ótima</span> · <span style="color:var(--float);font-weight:700">● 20–50 km: usável</span> · <span style="color:var(--bad);font-weight:700">● acima de 50 km: longe</span>${R.mountsIgn?` · ${R.mountsIgn} serviços que não são estações foram escondidos`:""}</div>
@@ -1221,6 +1232,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.locp!==undefined){S.loc={tipo:"ponto",idx:+b.dataset.locp};chegouAviso=false;S.seguir=true;render();toast("Locação iniciada");return}
   if(b.dataset.btaddr){S.btAddr=b.dataset.btaddr;S.btNome=b.dataset.btnome;salvar();render();return}
   if(b.dataset.mount){S.mount=b.dataset.mount;R.mounts=[];salvar();render();toast("Ponto de montagem: "+S.mount);return}
+  if(b.dataset.caster){usarCaster(b.dataset.caster);return}
   if(b.dataset.fundo){S.cfg.fundoMapa=b.dataset.fundo;salvar();render();return}
   if(b.dataset.desc){S.codigo=b.dataset.desc;salvar();render();return}
   if(b.dataset.coddel!=null){S.codigos.splice(+b.dataset.coddel,1);salvar();render();return}
@@ -1237,7 +1249,7 @@ document.addEventListener("click",e=>{
   if(a==="irConexao"){S.tela="receptor";S.sub="conexao";render()}
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
-  if(a==="desconectar"){R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
+  if(a==="desconectar"){falar("Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
@@ -1354,7 +1366,7 @@ document.addEventListener("click",e=>{
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
@@ -1627,7 +1639,7 @@ function coletar(){
       const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
       proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt,h_rms:hr,st,alt,quando:new Date().toISOString()});
-      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);
+      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`);
     }else render();
   },1000);
 }
@@ -1739,8 +1751,8 @@ async function conectarReal(silencioso){
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
     iniciarComNav();
-    if(silencioso){toast("Receptor reconectado");return true}
-    bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
+    if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
+    bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
   }catch(e){S.conectando=false;if(silencioso){render();return false}render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
 }
@@ -1858,7 +1870,7 @@ async function compartilharArquivo(){
 if(NATIVO&&NP.GnssTcp){
   NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text)});
   NP.GnssTcp.addListener("status",s=>{
-    if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");
+    if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
       if(R.manual){S.corrLigada=false;toast("Receptor desconectado");render();return}
       toast("Conexão com o receptor caiu. Reconectando…");R.reconRx=0;render();reconectarReceptor()}
   });

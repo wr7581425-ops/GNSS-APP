@@ -8,6 +8,8 @@ import android.content.Context;
 import android.os.Build;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 import android.location.Location;
 import android.location.LocationManager;
 import java.net.SocketTimeoutException;
@@ -660,5 +662,31 @@ public class GnssTcpPlugin extends Plugin {
     public void mockStop(PluginCall call) {
         try { lm().removeTestProvider(LocationManager.GPS_PROVIDER); } catch (Exception ignored) { }
         call.resolve();
+    }
+
+    // ---------- voz (avisos falados em português) ----------
+    private TextToSpeech tts;
+    private volatile boolean ttsOk = false;
+
+    @PluginMethod
+    public void speak(PluginCall call) {
+        final String txt = call.getString("text", "");
+        try {
+            if (tts == null) {
+                tts = new TextToSpeech(getContext(), st -> {
+                    if (st == TextToSpeech.SUCCESS) {
+                        int r = tts.setLanguage(new Locale("pt", "BR"));
+                        ttsOk = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
+                        if (!ttsOk) { tts.setLanguage(Locale.getDefault()); ttsOk = true; }
+                        if (txt.length() > 0) tts.speak(txt, TextToSpeech.QUEUE_FLUSH, null, "c");
+                    }
+                });
+            } else if (ttsOk && txt.length() > 0) {
+                tts.speak(txt, TextToSpeech.QUEUE_FLUSH, null, "c");
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.toString());
+        }
     }
 }

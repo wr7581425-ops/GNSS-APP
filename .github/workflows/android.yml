@@ -26,6 +26,10 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
+      - name: Marcar versão no app
+        run: |
+          sed -i "s/__VERSAO__/1.0.${{ github.run_number }}/g; s|__DATA__|$(TZ=America/Manaus date '+%d/%m/%Y %H:%M')|g" www/index.html
+
       - name: Gerar projeto Android
         run: |
           npx cap add android

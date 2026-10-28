@@ -127,7 +127,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -720,6 +720,8 @@ function vConfig(){
     ${ck("cabecalho","Incluir linha com projeto e sistema no topo do arquivo")}`)}
   ${sec("Tela",`<div class="grid2"><label class="f">Tamanho do texto${sel("fonte",[["normal","Normal"],["grande","Grande"],["maior","Maior (sol forte)"]])}</label></div>
     ${ck("telaLigada","Manter a tela ligada durante o uso")}`)}
+  ${sec("Sobre o app",`<div class="grid2"><div class="kv"><span>Versão instalada</span><b>${APP_VERSAO}</b></div><div class="kv"><span>Montada em</span><b style="font-size:15px">${APP_DATA}</b></div></div>
+    <span class="muted small">${NATIVO?"App instalado (Android)":"Versão de teste no navegador"} · Os dados de conexão (IP, porta, caster, ponto de montagem, usuário e senha) ficam guardados neste aparelho e voltam preenchidos ao abrir o app.</span>`)}
   ${sec("Dados",`<span class="muted small">Projetos, pontos, receptores e configurações ficam salvos neste aparelho.</span>
     <button data-act="apagarTudo">Apagar todos os dados de teste</button><button data-act="apagarConfirma" hidden id="apagarConfirma" class="pri">Confirmar: apagar tudo</button>`)}`;
 }
@@ -1335,6 +1337,7 @@ function exportar(tipo){
 }
 // ================= Camada nativa (app instalado) =================
 // No navegador continua tudo simulado; no app Android usa o receptor de verdade.
+const APP_VERSAO="__VERSAO__".startsWith("__")?"teste":"__VERSAO__",APP_DATA="__DATA__".startsWith("__")?"—":"__DATA__";
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 const NP=NATIVO?window.Capacitor.Plugins:{};
 const R={btDevs:[],buf:"",ultimo:0,ultGGA:"",ggaEnv:0,temGST:false,ntripBytes:0,ntripSt:"",ntripMsg:"",srvIps:[],clientes:[],geoId:null,mounts:[]};

@@ -117,7 +117,7 @@ const S={
   sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
   projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
   codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"5", coletando:0,
-  baseModo:"atual", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
+  baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -646,13 +646,13 @@ function vHome(){
 function vInfo(){
   const r=rec();
   if(NATIVO&&S.conectado&&S.fonte!=="sim")return `<section class="card"><h3>${esc(r?.marca||"")} ${esc(r?.modelo||"")}</h3>
-    <div class="grid2"><div class="kv"><span>Número de série</span><b style="font-size:15px">${esc(r?.serie||"—")}</b></div>
+    <div class="grid2"><div class="kv"><span>Número de série</span><b style="font-size:15px">${esc(R.serie||r?.serie||"—")}</b></div>
       <div class="kv"><span>Conexão</span><b style="font-size:15px">${S.fonte==="celular"?"GPS do celular":S.conexao==="bt"?"Bluetooth":"Wi-Fi / TCP"}</b></div>
       <div class="kv"><span>Bateria</span><b style="font-size:15px">${R.bateria!=null?R.bateria+"%":"não informada"}</b></div>
       <div class="kv"><span>Satélites</span><b style="font-size:15px">${G.sats||"—"}</b></div></div>
     <div class="kv"><span>Versão da placa</span><b class="m" style="font-size:13px;word-break:break-all">${esc(R.versao||"— (toque em Ler versão)")}</b></div>
     ${S.fonte==="tcp"?`<button data-cmd="0">Ler versão</button>`:""}
-    <span class="muted small">A bateria só aparece se o receptor enviar essa informação. O S6 manda a bateria num formato próprio da ComNav, que ainda estamos mapeando pela tela de Comandos.</span></section>`;
+    <span class="muted small">Nos receptores ComNav a bateria e o número de série são lidos automaticamente ao conectar.</span></section>`;
   return `<section class="card"><h3>${esc(r?.marca||"")} ${esc(r?.modelo||"")}</h3>
     ${S.conectado?`<div class="grid2">
       <div class="kv"><span>Número de série</span><b style="font-size:15px">${esc(r?.serie||"—")}</b></div><div class="kv"><span>Firmware</span><b style="font-size:15px">2.4.1</b></div>
@@ -852,101 +852,145 @@ function sConexao(){
   ${!S.conectado&&S.reconectando?`<section class="card" style="border-color:var(--float)"><b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b><span class="muted small">A conexão caiu. O app tenta de novo a cada 3 s, sem desligar a correção.</span><button data-act="desconectar">Parar de tentar</button></section>`:""}
   <div class="grid2">${S.conectado?`<button data-act="desconectar">Desconectar</button>`:`<button class="pri" data-act="conectar" ${S.conectando?"disabled":""}>${S.conectando?"Conectando…":"Conectar"}</button>`}<button data-sub="baserover">Próximo: Base/Rover</button></div>`;
 }
-function sBase(){
-  return `<div class="grid2">${opt("modo","base",S.modo,"Base","transmite correção")}${opt("modo","rover",S.modo,"Rover","recebe correção")}</div>
-  ${S.modo==="rover"?`<section class="card"><h3>Rover</h3><div class="grid2">
-    <label class="f">Máscara de elevação (°)<input class="m" value="${esc(S.mascara)}" data-bind="mascara"></label>
-    <label class="f">Taxa de posição<select data-bind="taxa">${["1","5","10","20"].map(v=>`<option ${S.taxa===v?"selected":""} value="${v}">${v} Hz</option>`).join("")}</select></label>
-    <label class="f">Limite de PDOP<input class="m" value="${esc(S.pdopMax)}" data-bind="pdopMax"></label>
-    <label class="f">Inclinação (IMU)<select><option>Ligada</option><option>Desligada</option></select></label></div>
-    <span class="muted small">Constelações: GPS · GLONASS · Galileo · BeiDou · QZSS</span>
-    <label class="f">Porta desta conexão no receptor (aceitar correção)<select data-bind="cnPortaApp">${PORTAS_CN.map(([v,n])=>`<option value="${v}" ${S.cnPortaApp===v?"selected":""}>${n}</option>`).join("")}</select></label>
-    <span class="muted small">Se o receptor não aceitar a correção do NTRIP, escolha aqui a porta do Bluetooth ou do Wi-Fi (veja em Comandos › Ver configuração das portas).</span></section>
-    ${previaCmds(cmdsRover(),"Comandos para receptores ComNav. As respostas aparecem em Comandos do receptor.")}`
-  :sBaseCfg()}
-  ${S.modo==="rover"?`<button class="pri" data-act="aplicarBase">Aplicar no receptor</button>`:""}`;
+// ===================== Base e Rover (fluxo igual ao Survey Master, comandos ComNav reais) =====================
+const RADIO_PROTO={SNLonglink:{bt:"11000",mod:"LORA"},Transparente:{bt:"9600",mod:"FSK"}};
+const DIFF_MSG={"RTCM3.2":["rtcm1074b ontime 3.00","rtcm1084b ontime 3.00 2","rtcm1124b ontime 3.00 1","rtcm1094b ontime 3.00 1","rtcm1005b ontime 3.00 2","rtcm1033b ontime 3.00 2","rtcm1114b ontime 3.00","rtcm1230b ontime 10.00","rtcm4078sm257b ontime 1.00"],
+  "RTCM3.2 (MSM5)":["rtcm1075b ontime 3.00","rtcm1085b ontime 3.00 2","rtcm1125b ontime 3.00 1","rtcm1095b ontime 3.00 1","rtcm1005b ontime 3.00 2","rtcm1033b ontime 3.00 2","rtcm1115b ontime 3.00","rtcm1230b ontime 10.00"],
+  "RTCM3.0":["rtcm1004b ontime 1.00","rtcm1012b ontime 1.00","rtcm1005b ontime 5.00","rtcm1033b ontime 10.00"]};
+function rd(){S.radio=S.radio||{proto:"SNLonglink",canal:"1",freq:"455,0500",pot:"2.0"};return S.radio}
+function freqCanal(c){return (454.05+(+c||1)).toFixed(4).replace(".",",")}
+function cs$$(t){let x=0;for(const ch of t)x^=ch.charCodeAt(0);return "$$"+t+"*"+x.toString(16).toUpperCase().padStart(2,"0")}
+function cmdsRadio(modo){
+  const r=rd(),f=Math.round(num(r.freq)*10000),pr=RADIO_PROTO[r.proto]||RADIO_PROTO.SNLonglink;
+  const pot=modo==="base"?(num(r.pot)>=1.5?"2":"1"):"1";
+  return ["findcm disconn","set datalink radio on","saveconfig",cs$$(`0000A${String(f).padStart(7,"0")}${modo==="base"?0:1}3${pot}`),`$$01set airbt ${pr.bt}`,`$$01SET ${pr.mod}`];
 }
-// ---------- comandos ComNav para rover e base ----------
-const MSG_BASE={"RTCM 3.2 MSM4":["rtcm1074b","rtcm1084b","rtcm1094b","rtcm1124b"],"RTCM 3.2 MSM5":["rtcm1075b","rtcm1085b","rtcm1095b","rtcm1125b"],"RTCM 3.0":["rtcm1004b","rtcm1012b"],"CMR+":["cmrobs"]};
-function cmdsRover(){
-  const hz=Math.max(1,parseInt(S.taxa)||1),per=hz>1?(1/hz).toFixed(2):"1";
-  const c=["fix none",`ecutoff ${num(S.mascara)||10}`,"rtkquality normal"];
-  if(S.cnPortaApp)c.push(`interfacemode ${S.cnPortaApp} auto auto on`);
-  c.push(`log gpgga ontime ${per}`,"log gpgst ontime 1","log gprmc ontime 1");
-  return c;
+function nmeaLogs(){return ["log gpgga ontime 1.00","log gpgst ontime 1.00","log gprmc ontime 1.00","log gpgsa ontime 1.00","log gpgsv ontime 5.00","log eventb onchanged"]}
+function cmdsBaseCN(){
+  const m=num(S.mascara)||10;let fix="fix auto";
+  if(S.baseModo!=="auto"){const g=coordBaseGeo();if(g)fix=`fix position ${g.la.toFixed(9)} ${g.lo.toFixed(9)} ${g.hOrt.toFixed(4)}`}
+  return ["interfacemode com1 compass compass on","interfacemode radio compass compass on","interfacemode gprs compass compass on","fix none","set maxrefoffset 300","set pvtobsmode single","rtkobsmode 0","set ppp off","set hotspodrtcmmode caster1 off",
+    "unlogall com1","unlogall radio","unlogall gprs",fix,...(DIFF_MSG[S.diff||"RTCM3.2"]||DIFF_MSG["RTCM3.2"]).map(x=>"log radio "+x),"set smoothedpvt on","saveconfig",`ecutoff ${m}`,`gloecutoff ${m}`];
+}
+function cmdsRoverRadio(){
+  const m=num(S.mascara)||10;
+  return ["ecutoff "+m,"gloecutoff "+m,"interfacemode radio compass compass on","unlogall","fix none","set pvtobsmode single","rtkobsmode 0","interfacemode radio auto auto on","tst setcors disconn","interfacemode gprs compass compass on","set hotspodrtcmmode caster1 off","saveconfig",...nmeaLogs()];
+}
+function cmdsRoverPDA(){
+  const m=num(S.mascara)||10;
+  return ["set rtcmforward off","findcm disconn","ecutoff "+m,"gloecutoff "+m,...(S.conexao==="bt"?["interfacemode bluetooth compass compass on"]:[]),"unlogall","fix none","set pvtobsmode single","rtkobsmode 0",
+    "interfacemode gprs compass compass on","interfacemode radio compass compass on","tst setcors disconn","set datalink radio off","set pdacors sinoluowang off","set hotspodrtcmmode caster1 off","saveconfig",...nmeaLogs()];
 }
 function coordBaseGeo(){
   const E=num(S.baseE),N=num(S.baseN),h=num(S.baseH);if(isNaN(E)||isNaN(N)||isNaN(h))return null;
   const [la,lo]=fromUTM(E,N,zonaAtual(),hemiAtual());
-  const ant=S.baseModo==="conhecida"?(num(S.baseAnt)||0):0; // posição atual já é a da antena
+  const ant=S.baseModo==="conhecida"?(num(S.baseAnt)||0):0;
   return {la,lo,hElip:h+ant,hOrt:h+ant-(R.sep||0)};
 }
-function cmdsBase(){
-  const g=coordBaseGeo();if(!g)return [];
-  const P=S.baseSaida==="radio"?S.cnPortaRadio:"",pp=P?P+" ":"";
-  const msgs=MSG_BASE[S.baseFmt]||MSG_BASE["RTCM 3.2 MSM4"];
-  return [`fix position ${g.la.toFixed(9)} ${g.lo.toFixed(9)} ${g.hOrt.toFixed(4)}`,
-    ...(P?[`interfacemode ${P} auto auto on`]:[]),
-    ...msgs.map(m=>`log ${pp}${m} ontime 1`),
-    `log ${pp}rtcm1005b ontime 10`,`log ${pp}rtcm1033b ontime 10`];
-}
-function cmdsPararBase(){const P=S.baseSaida==="radio"?S.cnPortaRadio:"";return [...(P?[`unlogall ${P}`]:[]),"fix none"]}
 function receptorReal(){return NATIVO&&S.conectado&&S.fonte==="tcp"}
-async function enviarLista(lista,titulo){
-  if(!receptorReal()){toast("Conecte o receptor (Wi-Fi ou Bluetooth) para aplicar");return false}
+async function enviarLista(lista,titulo,gap=120){
+  if(!receptorReal())return false;
   R.cons.push("— "+titulo+" —");
-  for(const c of lista){await enviarComando(c);await new Promise(r=>setTimeout(r,350))}
-  toast(titulo+": comandos enviados. Confira as respostas em Comandos do receptor.");return true;
+  for(const c of lista){await enviarComando(c,true);await new Promise(r=>setTimeout(r,gap))}
+  return true;
+}
+const espera=ms=>new Promise(r=>setTimeout(r,ms));
+// passos com ✓ (como o Survey Master)
+function passos(tit,itens){S.passos={tit,itens:itens.map(t=>({t,st:"wait"})),fim:"",botoes:[]};render()}
+function passo(i,st){if(S.passos){S.passos.itens[i].st=st;render()}}
+function vPassos(){const P=S.passos;if(!P)return "";
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px"><section class="card" style="width:100%;max-width:420px;gap:10px">
+    <h3>${esc(P.tit)}</h3>
+    ${P.itens.map((x,i)=>`<div class="split" style="border-bottom:1px solid var(--line);padding:8px 0"><span>${i+1}. ${esc(x.t)}</span><b style="color:${x.st==="ok"?"var(--fix)":x.st==="erro"?"var(--bad)":"var(--muted)"}">${x.st==="ok"?"✓":x.st==="erro"?"✕":x.st==="run"?"…":""}</b></div>`).join("")}
+    ${P.fim?`<span>${P.fim}</span>`:""}
+    <div class="grid2">${(P.botoes.length?P.botoes:[["passosFechar","Fechar"]]).map(([a,t],i)=>`<button class="${i===P.botoes.length-1&&P.botoes.length?"pri":""}" data-act="${a}" ${!P.fim&&!P.botoes.length?"disabled":""}>${t}</button>`).join("")}</div>
+  </section></div>`;
+}
+async function iniciarBaseCN(){
+  if(S.baseModo!=="auto"&&!(S.baseE&&S.baseN&&S.baseH)){toast("Defina a coordenada da base primeiro");return}
+  passos("Iniciar base",["Config rádio interno","Config parâmetros do receptor","Gerar base"]);
+  const real=receptorReal();
+  passo(0,"run");if(real){await enviarLista(cmdsRadio("base"),"Rádio da base");await espera(2000)}else await espera(800);passo(0,"ok");
+  passo(1,"run");if(real)await enviarLista(cmdsBaseCN(),"Parâmetros da base",80);else await espera(800);passo(1,"ok");
+  passo(2,"run");await espera(1500);passo(2,"ok");
+  if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
+  S.baseLigada=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
+  const prov=S.baseModo!=="conhecida";S.ajuste={status:"gravando",prov};salvar();bip("ok");
+  S.passos.fim=`Frequência ${esc(rd().freq)} MHz · ${esc(rd().proto)}. <b>Base iniciada!</b> Desconectar este receptor e conectar o rover?`;
+  S.passos.botoes=[["passosFechar","Não"],["baseIrRover","Sim"]];render();
+}
+async function iniciarRoverCN(){
+  const pda=S.roverLink==="pda";
+  passos("Iniciar rover",pda?["Config parâmetros do receptor","Ligar NTRIP pelo celular"]:["Config rádio interno","Config parâmetros do receptor"]);
+  const real=receptorReal();
+  if(pda){
+    passo(0,"run");if(real)await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",80);else await espera(800);passo(0,"ok");
+    passo(1,"run");S.correcao="ntrip";
+    if(NATIVO){try{if(S.corrLigada)await NP.GnssTcp.ntripDisconnect();R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;const ok=await ntripLigar();if(ok){S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}else passo(1,"erro")}catch(e){passo(1,"erro")}}
+    else{S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}
+  }else{
+    passo(0,"run");if(real){await enviarLista(["set rtcmforward off",...cmdsRadio("rover")],"Rádio do rover");await espera(2500)}else await espera(800);passo(0,"ok");
+    passo(1,"run");if(real)await enviarLista(cmdsRoverRadio(),"Parâmetros do rover",80);else await espera(800);passo(1,"ok");
+    S.corrLigada=true;S.correcao="radio";S.corrDesde=Date.now();
+  }
+  S.modo="rover";salvar();bip("ok");
+  S.passos.fim=pda?"Rover configurado. A correção vem pela internet do celular. Aguarde o FIX a céu aberto.":`Rover configurado no rádio ${esc(rd().freq)} MHz (${esc(rd().proto)}). Aguarde o FIX a céu aberto.`;
+  S.passos.botoes=[["passosFechar","Fechar"],["roverIrMapa","Ir para o mapa"]];render();
 }
 function previaCmds(lista,obs){
   return `<details class="card" style="padding:10px 14px"><summary class="small" style="cursor:pointer;font-weight:700">Comandos que serão enviados ao receptor (${lista.length})</summary>
-    <div class="monitor" style="min-height:0;max-height:none;margin-top:8px">${esc(lista.join("\n"))||"Defina a coordenada da base."}</div>
-    ${obs?`<span class="muted small">${obs}</span>`:""}</details>`;
+    <div class="monitor" style="height:auto;max-height:260px;margin-top:8px">${esc(lista.join("\n"))}</div>${obs?`<span class="muted small">${obs}</span>`:""}</details>`;
 }
-const PORTAS_CN=[["","Não alterar"],["com1","COM1"],["com2","COM2"],["com3","COM3"],["com4","COM4"]];
+function radioCampos(base){
+  const r=rd();
+  return `<div class="grid2">
+    <label class="f">Protocolo<select data-radio="proto">${Object.keys(RADIO_PROTO).map(v=>`<option ${r.proto===v?"selected":""}>${v}</option>`).join("")}</select></label>
+    ${base?`<label class="f">Potência (W)<select data-radio="pot">${["1.0","2.0"].map(v=>`<option ${r.pot===v?"selected":""}>${v}</option>`).join("")}</select></label>`:"<span></span>"}
+    <label class="f">Canal<select data-radio="canal">${Array.from({length:15},(_,i)=>String(i+1)).map(v=>`<option ${r.canal===v?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="f">Frequência (MHz)<input class="m" inputmode="decimal" data-radio="freq" value="${esc(r.freq)}"></label></div>
+  <span class="muted small">A base e o rover precisam do mesmo protocolo e da mesma frequência. Canal 1 = 455,0500 MHz; cada canal soma 1 MHz.</span>`;
+}
+function sBase(){
+  const conhecido=rec()?.marca==="ComNav"||!rec();
+  return `<div class="grid2">${opt("modo","base",S.modo,"Base","transmite correção")}${opt("modo","rover",S.modo,"Rover","recebe correção")}</div>
+  ${conhecido?"":`<p class="small" style="color:var(--float);margin:0">A configuração automática de base e rover funciona com receptores ComNav/SinoGNSS. Para outras marcas, configure pelo app do fabricante e use o nosso para coletar.</p>`}
+  ${S.modo==="rover"?sRoverCfg():sBaseCfg()}`;
+}
+function sRoverCfg(){
+  const L=S.roverLink||"radio";
+  return `<span class="eyebrow">Tipo de comunicação</span>
+  <div class="grid2">${opt("roverLink","radio",L,"Rádio interno","base própria no rádio")}${opt("roverLink","pda",L,"NTRIP pelo celular","PDA Rede · internet do celular")}</div>
+  ${L==="radio"?`<section class="card"><h3>Rádio interno</h3>${radioCampos(false)}</section>`
+  :`<section class="card"><h3>NTRIP pelo celular</h3><div class="kv"><span>Caster · ponto</span><b class="m" style="font-size:15px">${esc(S.caster)}:${esc(S.cport)} · ${esc(S.mount||"—")}</b></div>
+    <span class="muted small">Usuário ${esc(S.user||"—")}. Para trocar o caster ou o ponto de montagem, use a tela de Correção.</span><button data-sub="correcao">Editar NTRIP</button></section>`}
+  <section class="card"><div class="grid2"><label class="f">Máscara de elevação (°)<input class="m" inputmode="numeric" value="${esc(S.mascara)}" data-bind="mascara"></label>
+    <div class="kv"><span>Receptor</span><b style="font-size:15px">${S.conectado?esc(R.serie||S.btNome||"conectado"):"desconectado"}</b></div></div></section>
+  ${previaCmds(L==="pda"?cmdsRoverPDA():["set rtcmforward off",...cmdsRadio("rover"),...cmdsRoverRadio()],"")}
+  <button class="pri big" data-act="iniciarRover" ${S.conectado?"":"disabled"}>Iniciar rover</button>
+  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte o rover primeiro (Dispositivo › Conexão).</p>`}`;
+}
 function sBaseCfg(){
   const pts=proj()?.pontos||[];
-  const temCoord=S.baseE&&S.baseN&&S.baseH;
-  return `
-  <span class="eyebrow">Coordenada da base</span>
-  <div class="grid2">${opt("baseModo","atual",S.baseModo,"Posição atual","autônoma, sem correção")}${opt("baseModo","conhecida",S.baseModo,"Coordenada conhecida","marco ou ponto do projeto")}</div>
-  ${S.baseModo==="atual"?`<section class="card">
-      <h3>Pegar a posição onde a base está</h3>
-      <span class="muted small">O receptor calcula sozinho, sem correção. A precisão absoluta fica em torno de 1 a 3 m, mas as medidas do rover em relação à base ficam centimétricas. Bom para levantamento local; para amarrar ao SIRGAS, ajuste depois com um marco ou PPP do IBGE.</span>
+  const md=S.baseModo||"auto";
+  return `<span class="eyebrow">Iniciar modo</span>
+  <div class="grid3">${opt("baseModo","auto",md,"Auto base","o receptor usa a própria posição")}${opt("baseModo","atual",md,"Média","média da posição atual")}${opt("baseModo","conhecida",md,"Coordenada conhecida","marco ou ponto")}</div>
+  ${md==="atual"?`<section class="card"><h3>Média da posição atual</h3>
       <div class="grid2"><label class="f">Tempo de média<select data-bind="baseMedia"><option value="10">10 s (teste)</option><option value="60">1 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select></label>
         <div class="kv"><span>Agora (autônomo)</span><b style="font-size:14px">${S.conectado?`E ${br(G.E,2)}<br>N ${br(G.N,2)}`:"—"}</b></div></div>
-      <button class="pri" data-act="pegarBase" ${S.conectado&&!S.baseMedindo?"":"disabled"}>${S.baseMedindo?`Calculando média… ${S.baseMedindo}s`:"Pegar posição atual"}</button>
-      ${S.conectado?"":`<span class="muted small">Conecte o receptor primeiro.</span>`}
-    </section>`
-  :`<section class="card">
-      <h3>Digitar coordenada conhecida</h3>
-      ${pts.length?`<label class="f">Usar um ponto do projeto<select id="basePto"><option value="">Escolher…</option>${pts.map((p,i)=>`<option value="${i}">${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}</select></label>`:""}
-      <label class="f">Nome do marco<input value="${esc(S.baseFonte)}" data-bind="baseFonte" placeholder="Ex.: M-01 ou SAT 93542"></label>
-    </section>`}
-  <section class="card ${temCoord?"hl":""}">
-    <div class="split"><h3>Coordenada da base</h3><span class="muted small">${sisTxt()}</span></div>
-    <div class="grid2">
-      <label class="f">Este E (m)<input class="m" inputmode="decimal" value="${esc(S.baseE)}" data-bind="baseE" placeholder="165432,184"></label>
-      <label class="f">Norte N (m)<input class="m" inputmode="decimal" value="${esc(S.baseN)}" data-bind="baseN" placeholder="9656218,907"></label>
-      <label class="f">Altitude h (m)<input class="m" inputmode="decimal" value="${esc(S.baseH)}" data-bind="baseH" placeholder="42,316"></label>
-      <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(S.baseAnt)}" data-bind="baseAnt"></label>
-    </div>
-    ${S.baseFonte?`<span class="muted small">Origem: ${esc(S.baseFonte)}</span>`:""}
-  </section>
-  <section class="card">
-    <h3>Transmissão da correção</h3>
-    <div class="grid2">
-      <label class="f">Sai por<select data-bind="baseSaida"><option value="radio" ${S.baseSaida==="radio"?"selected":""}>Rádio interno</option><option value="rede" ${S.baseSaida==="rede"?"selected":""}>Rede (NTRIP caster)</option></select></label>
-      <label class="f">Formato<select data-bind="baseFmt">${["RTCM 3.2 MSM4","RTCM 3.2 MSM5","RTCM 3.0","CMR+"].map(v=>`<option ${S.baseFmt===v?"selected":""}>${v}</option>`).join("")}</select></label>
-      <label class="f">ID da base<input class="m" value="${esc(S.baseId)}" data-bind="baseId"></label>
-      <div class="kv"><span>Rádio</span><b style="font-size:14px">${esc(S.freq)} MHz · canal ${esc(S.canal)}</b></div>
-    </div>
-    ${S.baseSaida==="radio"?`<label class="f">Porta do rádio interno no receptor (ComNav)<select data-bind="cnPortaRadio">${PORTAS_CN.slice(1).map(([v,n])=>`<option value="${v}" ${S.cnPortaRadio===v?"selected":""}>${n}</option>`).join("")}</select></label>`:""}
-    <span class="muted small">Frequência e canal do rádio ficam em Correção › Rádio. O rover precisa usar os mesmos. Nesta versão o canal do rádio interno ainda se ajusta pelo app da ComNav.</span>
-  </section>
-  ${previaCmds(cmdsBase(),S.baseSaida==="rede"?"Envio para caster NTRIP pelo celular ainda não disponível: a correção sai pela conexão do app.":"Altitude enviada como ortométrica (geoide do receptor). Com coordenada conhecida, a altura da antena é somada.")}
-  ${S.baseLigada?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Base transmitindo ${esc(S.baseFmt)}</b><span class="small" style="color:#CDEFD9">${S.baseSaida==="radio"?`Rádio ${esc(S.freq)} MHz, canal ${esc(S.canal)}`:"Para o caster NTRIP"} · ID ${esc(S.baseId)}</span></section>`:""}
-  <button class="${S.baseLigada?"":"pri"}" data-act="${S.baseLigada?"pararBase":"iniciarBase"}" ${S.conectado?"":"disabled"}>${S.baseLigada?"Parar base":"Iniciar base"}</button>`;
+      <button data-act="pegarBase" ${S.conectado&&!S.baseMedindo?"":"disabled"}>${S.baseMedindo?`Calculando média… ${S.baseMedindo}s`:"Pegar posição atual"}</button></section>`:""}
+  ${md==="conhecida"&&pts.length?`<label class="f">Usar um ponto do projeto<select id="basePto"><option value="">Escolher…</option>${pts.map((p,i)=>`<option value="${i}">${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}</select></label>`:""}
+  ${md!=="auto"?`<section class="card ${S.baseE&&S.baseN&&S.baseH?"hl":""}"><div class="split"><h3>Coordenada da base</h3><span class="muted small">${sisTxt()}</span></div>
+    <div class="grid2"><label class="f">Este E (m)<input class="m" inputmode="decimal" value="${esc(S.baseE)}" data-bind="baseE"></label><label class="f">Norte N (m)<input class="m" inputmode="decimal" value="${esc(S.baseN)}" data-bind="baseN"></label>
+      <label class="f">Altitude h (m)<input class="m" inputmode="decimal" value="${esc(S.baseH)}" data-bind="baseH"></label>${md==="conhecida"?`<label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(S.baseAnt)}" data-bind="baseAnt"></label>`:"<span></span>"}</div>
+    ${md==="conhecida"?`<label class="f">Nome do marco<input value="${esc(S.baseFonte)}" data-bind="baseFonte" placeholder="Ex.: M-01"></label>`:""}</section>`
+  :`<p class="muted small" style="margin:0">Auto base: o receptor fixa a própria posição autônoma (1 a 3 m). As medidas do rover ficam centimétricas em relação à base; para amarrar ao SIRGAS use Ajustar base (PPP do IBGE) depois.</p>`}
+  <section class="card"><h3>Rádio interno</h3>${radioCampos(true)}
+    <div class="grid2"><label class="f">Modo diferencial<select data-bind="diff">${Object.keys(DIFF_MSG).map(v=>`<option ${(S.diff||"RTCM3.2")===v?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="f">Elevação (°)<input class="m" inputmode="numeric" value="${esc(S.mascara)}" data-bind="mascara"></label></div></section>
+  ${previaCmds([...cmdsRadio("base"),...cmdsBaseCN()],"")}
+  ${S.baseLigada?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Base iniciada</b><span class="small" style="color:#CDEFD9">Rádio ${esc(rd().freq)} MHz · ${esc(rd().proto)} · ${esc(S.diff||"RTCM3.2")}</span></section>`:""}
+  <button class="pri big" data-act="iniciarBase" ${S.conectado?"":"disabled"}>${S.baseLigada?"Reiniciar base":"Iniciar base"}</button>
+  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte a base primeiro (Dispositivo › Conexão).</p>`}`;
 }
 function fmtBR(v){return v.toFixed(3).replace(".",",")}
 function vMapa(){
@@ -1037,11 +1081,7 @@ function sCorr(){
     ${NATIVO&&R.ntripSt==="recebendo"&&S.fonte==="tcp"?`<span class="small muted">Repassado ao receptor: <b class="m" style="color:var(--fg)">${br(R.enviados/1024,1)} KB</b>${R.erroEnvio?` · <b style="color:var(--bad)">erro ao enviar: ${esc(R.erroEnvio)}</b>`:""}</span>`:""}
     ${semUsoCorrecao()?`<div class="small" style="padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--float)"><b style="color:var(--float)">A correção chega, mas o receptor não está usando.</b> Ele continua autônomo (idade ${br(G.idade,1)} s). Normalmente é a porta do receptor que não aceita RTCM. Abra os comandos do receptor para verificar e configurar.<button style="margin-top:8px;width:100%" data-sub="console">Abrir comandos do receptor</button></div>`:""}
     <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
-  :c==="radio"?`<section class="card hl"><h3>Rádio</h3><div class="grid2">
-    <label class="f">Frequência (MHz)<input class="m" value="${esc(S.freq)}" data-bind="freq"></label>
-    <label class="f">Canal<input class="m" value="${esc(S.canal)}" data-bind="canal"></label>
-    <label class="f">Protocolo<select data-bind="proto">${["TRIMTALK","TRANSEOT","SATEL","SOUTH","CHC"].map(p=>`<option ${S.proto===p?"selected":""}>${p}</option>`).join("")}</select></label>
-    <label class="f">Potência<select><option>1 W</option><option>2 W</option></select></label></div></section>`
+  :c==="radio"?`<section class="card hl"><h3>Rádio interno</h3>${radioCampos(false)}<span class="muted small">Ligar a correção configura o rover para ouvir a base neste rádio.</span></section>`
   :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">Correção via satélite (exige assinatura do serviço e receptor compatível). Convergência típica de alguns minutos.</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
   <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
@@ -1147,7 +1187,7 @@ function render(full=true){
   if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
-  v.innerHTML=({home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
+  v.innerHTML=({home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
@@ -1197,21 +1237,20 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao!=="ntrip"){toast("Rádio e RTX do S6 entram depois do teste no escritório (comandos ComNav). Use o NTRIP.");return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
   if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
-  if(a==="aplicarBase"){if(receptorReal())enviarLista(cmdsRover(),"Rover");else toast("Receptor configurado como rover (simulado)")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
       if(S.baseMedindo<=0){clearInterval(iv);const m=i=>am.reduce((s,x)=>s+x[i],0)/am.length;
         S.baseE=fmtBR(m(0));S.baseN=fmtBR(m(1));S.baseH=fmtBR(m(2));S.baseFonte="Posição autônoma (média de "+am.length+" s)";salvar();toast("Coordenada da base definida")}
       render()},1000)}
-  if(a==="iniciarBase"){if(!(S.baseE&&S.baseN&&S.baseH)){toast("Defina a coordenada da base primeiro");return}S.baseLigada=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
-    const prov=/autônoma/.test(S.baseFonte||"");S.ajuste={status:"gravando",prov};salvar();render();
-    if(receptorReal())enviarLista(cmdsBase(),"Base");
-    toast(prov?"Base iniciada em coordenada provisória. Gravando RINEX para o ajuste.":"Base iniciada")}
-  if(a==="pararBase"){if(receptorReal())enviarLista(cmdsPararBase(),"Parar base");S.baseLigada=false;render();toast("Base parada")}
+  if(a==="iniciarBase"){iniciarBaseCN();return}
+  if(a==="iniciarRover"){iniciarRoverCN();return}
+  if(a==="passosFechar"){S.passos=null;render();return}
+  if(a==="baseIrRover"){S.passos=null;R.manual=true;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.modo="rover";S.tela="receptor";S.sub="conexao";render();toast("Base desconectada. Escolha o rover e conecte.");return}
+  if(a==="roverIrMapa"){S.passos=null;go("mapa");return}
   if(a==="zoomIn"){S.zoom=Math.max(1,S.zoom/2);S.seguir=S.seguir;render()}
   if(a==="zoomOut"){S.zoom=Math.min(2000,S.zoom*2);render()}
   if(a==="seguir"){S.seguir=!S.seguir;render()}
@@ -1314,7 +1353,7 @@ document.addEventListener("click",e=>{
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
@@ -1633,12 +1672,37 @@ function capturaResposta(l){
   const b=l.match(/bat\w*\W{0,3}(\d{1,3}(?:\.\d+)?)\s*%/i);if(b&&+b[1]<=100)R.bateria=Math.round(+b[1]);
   if(/version|firmware/i.test(l)&&!R.versao)R.versao=l.slice(0,120);
 }
-async function enviarComando(txt){
+async function enviarComando(txt,silencioso){
   txt=(txt||"").trim();if(!txt)return;
   if(!NATIVO||S.fonte!=="tcp"){toast("Conecte o receptor (Wi-Fi ou Bluetooth) para enviar comandos");return}
-  R.cons.push("→ "+txt);
+  R.cons.push("→ "+txt);if(R.cons.length>400)R.cons.splice(0,150);
   try{await NP.GnssTcp.write({data:txt+"\r\n"})}catch(e){R.cons.push("✕ não enviou: "+(e.message||e))}
-  render();
+  if(!silencioso)render();
+}
+// ---------- mensagens binárias ComNav (bateria, número de série) ----------
+function lerBinario(txt){
+  R.bbuf=(R.bbuf||"")+txt;if(R.bbuf.length>65536)R.bbuf=R.bbuf.slice(-8192);
+  let i;
+  while((i=R.bbuf.indexOf("\xaa\x44\x12"))>=0){
+    if(R.bbuf.length<i+10){R.bbuf=R.bbuf.slice(i);return}
+    const b=k=>R.bbuf.charCodeAt(i+k)&255;
+    const hl=b(3),id=b(4)|(b(5)<<8),ml=b(8)|(b(9)<<8);
+    if(hl<20||hl>40||ml>4000){R.bbuf=R.bbuf.slice(i+3);continue}
+    if(R.bbuf.length<i+hl+ml+4){R.bbuf=R.bbuf.slice(i);return}
+    const pl=R.bbuf.slice(i+hl,i+hl+ml);R.bbuf=R.bbuf.slice(i+hl+ml+4);
+    const u=k=>pl.charCodeAt(k)&255;
+    if(id===1320&&ml>=4){ // evento de estado: [n] + n x (chave, valor u16)
+      const n=u(0);for(let k=0;k<n&&1+k*3+2<ml;k++){const key=u(1+k*3),v=u(2+k*3)|(u(3+k*3)<<8);
+        if(key===0x2f&&v<=100){const ant=R.bateria;R.bateria=v;if(ant!==v&&S.tela==="home")render(false)}}
+    }
+    if(id===37&&ml>=40){const str=(a,n)=>pl.slice(a,a+n).replace(/[\x00 ]+$/,"").trim();R.serie=str(24,16);R.versao=str(40,16)||R.versao;R.placa=str(8,16);if(!S.antFaseManual&&R.serie){const f=/^S6/i.test(R.serie)?"0,078":/^T7/i.test(R.serie)?"0,057":null;if(f&&S.antFase!==f){S.antFase=f;salvar()}}}
+  }
+  if(R.bbuf.length>4096)R.bbuf=R.bbuf.slice(-16);
+}
+async function iniciarComNav(){
+  if(!receptorReal()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
+  await espera(800);
+  await enviarLista(["log versionb","set antheight 0","set anthigh 0",...nmeaLogs()],"Ao conectar",150);
 }
 const TALKER={GP:"GPS",GL:"GLONASS",GA:"Galileo",GB:"BeiDou",BD:"BeiDou",GQ:"QZSS"};
 function nmea(l){
@@ -1672,6 +1736,7 @@ async function conectarReal(silencioso){
     if(S.conexao==="bt")await NP.GnssTcp.btConnect({address:S.btAddr});
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
+    iniciarComNav();
     if(silencioso){toast("Receptor reconectado");return true}
     bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
@@ -1787,7 +1852,7 @@ async function compartilharArquivo(){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text)});
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");
       if(R.manual){S.corrLigada=false;toast("Receptor desconectado");render();return}

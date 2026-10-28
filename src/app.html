@@ -1448,7 +1448,23 @@ if(NATIVO&&NP.GnssTcp){
 setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ultGGA&&Date.now()-R.ggaEnv>10000){R.ggaEnv=Date.now();NP.GnssTcp.ntripGGA({line:R.ultGGA}).catch(()=>{})}},2000);
 
 function podeColetar(){return S.conectado&&!S.coletando&&(S.fonte==="celular"||!S.soFix||G.fix===4)}
+// NMEA gerado a partir do GPS do celular (para o monitor e para o servidor TCP)
+function nmeaCelular(){
+  const hh=new Date().toISOString().slice(11,19).replace(/:/g,"")+".00",dt=new Date().toISOString();
+  const dm=(v,d)=>{const a=Math.abs(v),g=Math.floor(a),m=(a-g)*60;return String(g).padStart(d,"0")+m.toFixed(5).padStart(8,"0")};
+  const cs=b=>{let c=0;for(const ch of b)c^=ch.charCodeAt(0);return `$${b}*${c.toString(16).toUpperCase().padStart(2,"0")}`};
+  const NS=G.lat<0?"S":"N",EW=G.lon<0?"W":"E",la=dm(G.lat,2),lo=dm(G.lon,3),kn=(G.vel||0)/0.514444;
+  const L=[];
+  if(S.sent.GGA)L.push(cs(`GPGGA,${hh},${la},${NS},${lo},${EW},1,${G.sats||8},${br(Math.max(G.hrms/5,0.8),1).replace(",",".")},${(G.h||0).toFixed(3)},M,0.0,M,,`));
+  if(S.sent.RMC)L.push(cs(`GPRMC,${hh},A,${la},${NS},${lo},${EW},${kn.toFixed(2)},${(G.course||0).toFixed(1)},${dt.slice(8,10)}${dt.slice(5,7)}${dt.slice(2,4)},,,A`));
+  if(S.sent.VTG)L.push(cs(`GPVTG,${(G.course||0).toFixed(1)},T,,M,${kn.toFixed(2)},N,${(kn*1.852).toFixed(2)},K,A`));
+  if(S.sent.GST)L.push(cs(`GPGST,${hh},${G.hrms.toFixed(3)},${(G.hrms/1.41).toFixed(3)},${(G.hrms/1.41).toFixed(3)},0.0,${(G.hrms/1.41).toFixed(3)},${(G.hrms/1.41).toFixed(3)},${(G.vrms||G.hrms*1.5).toFixed(3)}`));
+  if(S.sent.ZDA)L.push(cs(`GPZDA,${hh},${dt.slice(8,10)},${dt.slice(5,7)},${dt.slice(0,4)},00,00`));
+  G.nmea=G.nmea.concat(L).slice(-40);
+  if(NATIVO&&S.servidor&&L.length)NP.GnssTcp.serverSend({data:L.join("\r\n")+"\r\n"}).catch(()=>{});
+}
 function tickReal(now){
+  if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   if(G.prevFix===4&&G.fix!==4){bip("fix");toast("Atenção: perdeu o FIX")}
   if(G.prevFix!==4&&G.fix===4&&G.prevFix!==undefined&&S.cfg.somFix)bip("ok");

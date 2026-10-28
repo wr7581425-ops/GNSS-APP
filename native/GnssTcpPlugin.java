@@ -338,6 +338,14 @@ public class GnssTcpPlugin extends Plugin {
         }
     }
 
+    /** Envia texto (NMEA gerado no app, ex.: GPS do celular) para os equipamentos conectados. */
+    @PluginMethod
+    public void serverSend(PluginCall call) {
+        byte[] b = call.getString("data", "").getBytes(StandardCharsets.ISO_8859_1);
+        if (b.length > 0) repassarClientes(b, b.length);
+        call.resolve();
+    }
+
     @PluginMethod
     public void stopServer(PluginCall call) {
         pararServidor();

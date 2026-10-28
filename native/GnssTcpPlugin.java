@@ -7,6 +7,9 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.SystemClock;
+import android.location.Location;
+import android.location.LocationManager;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -585,5 +588,56 @@ public class GnssTcpPlugin extends Plugin {
         fecharReceptor();
         fecharNtrip();
         pararServidor();
+    }
+
+    // ---------- localização simulada (outros apps usam a posição do receptor) ----------
+    private LocationManager lm() { return (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE); }
+
+    @SuppressWarnings("deprecation")
+    @PluginMethod
+    public void mockStart(PluginCall call) {
+        try {
+            LocationManager m = lm();
+            try { m.removeTestProvider(LocationManager.GPS_PROVIDER); } catch (Exception ignored) { }
+            m.addTestProvider(LocationManager.GPS_PROVIDER, false, false, false, false, true, true, true, 1, 1);
+            m.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true);
+            call.resolve();
+        } catch (SecurityException se) {
+            call.reject("Escolha a Coletora GNSS como app de local fictício nas Opções do desenvolvedor do Android");
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void mockSet(PluginCall call) {
+        try {
+            Location l = new Location(LocationManager.GPS_PROVIDER);
+            l.setLatitude(call.getDouble("lat", 0.0));
+            l.setLongitude(call.getDouble("lon", 0.0));
+            l.setAltitude(call.getDouble("alt", 0.0));
+            l.setAccuracy(call.getDouble("acc", 1.0).floatValue());
+            l.setSpeed(call.getDouble("speed", 0.0).floatValue());
+            l.setBearing(call.getDouble("bearing", 0.0).floatValue());
+            l.setTime(System.currentTimeMillis());
+            l.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+            if (Build.VERSION.SDK_INT >= 26) {
+                l.setVerticalAccuracyMeters(call.getDouble("acc", 1.0).floatValue() * 1.7f);
+                l.setSpeedAccuracyMetersPerSecond(0.1f);
+                l.setBearingAccuracyDegrees(5f);
+            }
+            lm().setTestProviderLocation(LocationManager.GPS_PROVIDER, l);
+            call.resolve();
+        } catch (SecurityException se) {
+            call.reject("Permissão de local fictício retirada nas Opções do desenvolvedor");
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void mockStop(PluginCall call) {
+        try { lm().removeTestProvider(LocationManager.GPS_PROVIDER); } catch (Exception ignored) { }
+        call.resolve();
     }
 }

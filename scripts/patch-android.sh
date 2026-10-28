@@ -7,7 +7,7 @@ cp native/GnssTcpPlugin.java "$PKG_DIR/"
 cp native/MainActivity.java "$PKG_DIR/"
 
 MANIFEST="android/app/src/main/AndroidManifest.xml"
-for perm in ACCESS_NETWORK_STATE ACCESS_WIFI_STATE CHANGE_NETWORK_STATE ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION VIBRATE WAKE_LOCK; do
+for perm in ACCESS_NETWORK_STATE ACCESS_WIFI_STATE CHANGE_NETWORK_STATE ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION VIBRATE WAKE_LOCK ACCESS_MOCK_LOCATION; do
   if ! grep -q "android.permission.$perm" "$MANIFEST"; then
     sed -i "s#</manifest>#    <uses-permission android:name=\"android.permission.$perm\" />\n</manifest>#" "$MANIFEST"
   fi

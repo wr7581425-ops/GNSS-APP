@@ -21,6 +21,18 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .ttl{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip{font-size:12px;font-weight:700;padding:6px 10px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
 .c-fix{color:var(--fix);background:var(--fix-bg)}.c-float{color:var(--float);background:var(--float-bg)}.c-off{color:var(--muted);background:var(--panel)}.c-bad{color:var(--bad);background:var(--bad-bg)}
+#mapBox .minfo{position:absolute;left:8px;top:8px;right:44px;display:flex;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;align-items:center;padding:6px 10px;border-radius:10px;background:rgba(10,17,24,.82);font-size:12px;pointer-events:none}
+#mapBox .mtools{position:absolute;left:8px;top:52px;display:flex;flex-direction:column;gap:6px}
+.mtb{width:42px;height:42px;min-height:42px;padding:0;border-radius:10px;background:rgba(15,23,32,.88);border:1px solid var(--line);color:var(--fg);display:flex;align-items:center;justify-content:center}
+.mtb.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#mapBox .mfab{position:absolute;right:12px;bottom:34px;width:72px;height:72px;min-height:72px;border-radius:50%;padding:0;background:var(--accent);color:var(--accent-ink);border:3px solid #fff3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font-weight:800;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+#mapBox .mfab:disabled{background:#3a4654;color:#9FB0C2}
+#mapBox .mrapida{position:absolute;left:8px;right:8px;bottom:8px;padding:12px;border-radius:12px;background:rgba(19,28,38,.97);border:1px solid var(--line)}
+.mbar{display:grid;grid-template-columns:auto 1fr 1.4fr;gap:8px;align-items:end;margin-top:-4px}
+.mbar .mchip{display:flex;align-items:center;gap:4px;height:46px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.mbar .mchip input{width:58px;height:40px;border:0;background:transparent;padding:0;font-size:15px}
+.mbar .mfld{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)}
+.mbar .mfld input{height:46px}
 main{flex:1;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .card.hl{border:2px solid var(--accent)}
@@ -105,7 +117,7 @@ const S={
   sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
   projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
   codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"5", coletando:0,
-  baseModo:"atual", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", baseLigada:false, baseMedindo:0, baseFonte:"",
+  baseModo:"atual", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
@@ -113,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -282,6 +294,12 @@ function proxNome(){
 function incNome(n){const m=String(n).match(/^(.*?)(\d+)([^\d]*)$/);if(!m)return n+"-1";return m[1]+String(+m[2]+1).padStart(m[2].length,"0")+m[3]}
 function rotulo(p){const r=S.cfg.rotuloMapa;return r==="nenhum"?"":r==="desc"?(p.cod||p.nome):r==="ambos"?(p.nome+(p.cod?" · "+p.cod:"")):p.nome}
 function descRecentes(){const v=[];for(const p of [...(proj()?.pontos||[])].reverse()){if(p.cod&&!v.includes(p.cod)&&p.st!=="CALC")v.push(p.cod);if(v.length>=6)break}return v}
+function alturaVertical(){
+  const a=num(S.altura)||0,r=num(S.antRaio)||0,f=num(S.antFase)||0,t=S.altTipo||"vertical";
+  if(t==="inclinada")return Math.sqrt(Math.max(0,a*a-r*r))+f;
+  if(t==="fase")return a;
+  return a+f;
+}
 function vColeta(){
   const p=proj();
   if(!p) return `<div class="card"><h3>Nenhum projeto aberto</h3><button class="pri" data-go="projetos">Abrir ou criar projeto</button></div>`;
@@ -505,7 +523,7 @@ setInterval(()=>{
 function tom(f,d){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(.12,actx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+d);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d+.02)}catch(e){}}
 
 // ---------- Página de Cálculos ----------
-const FERR=[["medir","Distância e azimute","entre pontos (inverso)"],["area","Área e perímetro","polígono por pontos"],["volume","Volume","corte e aterro"],["linha","Linha","ligar A→B→C…"],["locLinha","Locar linha","estaca e afastamento"],["offset","Offset","paralela a A→B"],["estender","Estender / dividir","prolongar A→B"],["irradiar","Irradiação","azimute + distância"],["intersecao","Interseção","de duas linhas"],["converter","Converter coordenadas","UTM ⇄ geográficas, fusos"]];
+const FERR=[["pontoLinha","Ponto para linha","estaca e afastamento de um ponto"],["deflexao","Ângulo entre pontos","ângulo e deflexão em B"],["media","Média de pontos","cria ponto médio"],["medir","Distância e azimute","entre pontos (inverso)"],["area","Área e perímetro","polígono por pontos"],["volume","Volume","corte e aterro"],["linha","Linha","ligar A→B→C…"],["locLinha","Locar linha","estaca e afastamento"],["offset","Offset","paralela a A→B"],["estender","Estender / dividir","prolongar A→B"],["irradiar","Irradiação","azimute + distância"],["intersecao","Interseção","de duas linhas"],["converter","Converter coordenadas","UTM ⇄ geográficas, fusos"]];
 function vCalc(){
   const grade=`<div class="grid2">${FERR.map(([k,n,d])=>`<button class="opt" data-ferr="${k}" aria-pressed="${S.ferr===k}" style="min-height:66px">${n}<small>${d}</small></button>`).join("")}</div>`;
   if(!S.ferr)return `<span class="ttl">Cálculos</span><span class="muted small">Escolha uma ferramenta. Os resultados que geram pontos entram no projeto em azul.</span>${grade}`;
@@ -541,6 +559,14 @@ function selLista(chave,rotulo){
 
 // ---------- Telas iniciais com ícones ----------
 const IC={
+  infopos:'<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/>',
+  antena:'<path d="M12 21V9"/><path d="M5 9h14l-2-4H7z"/><path d="M9 21h6"/>',
+  mock:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M12 8a2 2 0 1 1 0 4"/><path d="M11 17h2"/>',
+  reiniciar:'<path d="M4 4v6h6"/><path d="M20 12a8 8 0 0 0-14.9-4L4 10"/><path d="M20 20v-6h-6"/><path d="M4 12a8 8 0 0 0 14.9 4l1.1-2"/>',
+  codigos:'<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  pontoLinha:'<path d="M3 18L21 6"/><circle cx="15" cy="17" r="2"/><path d="M15 15l-3-4.5"/>',
+  deflexao:'<path d="M3 19h18M3 19L16 6"/><path d="M10 19a7 7 0 0 0-2-5"/>',
+  media:'<circle cx="7" cy="8" r="1.5"/><circle cx="17" cy="7" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="16" cy="16" r="1.5"/><circle cx="12" cy="12" r="3"/>',
   conexao:'<rect x="4" y="2" width="9" height="16" rx="2"/><path d="M8 15h1"/><path d="M16 7l4 4-4 4M13 11h7"/>',
   rover:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v2c0 1.7 3.1 3 7 3s7-1.3 7-3V6M12 11v11"/>',
   base:'<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v2c0 1.7 3.1 3 7 3s7-1.3 7-3V5M12 10l-6 12M12 10l6 12M12 10v12"/>',
@@ -574,19 +600,20 @@ const IC={
 const COR={verde:"#2E9E5B",roxo:"#9B4DCA",violeta:"#6E5BD9",laranja:"#E0702A",teal:"#138A7E",azul:"#2F7FD1",vermelho:"#C9453D",ambar:"#B8860B",rosa:"#C2477A",ciano:"#1D8FAE",cinza:"#55657A"};
 const TILES={
   projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos","pontos","verde",()=>go("pontos")],
-           ["importar","Importar pontos","importar","violeta",()=>go("importar")],["exportar","Exportar","exportar","laranja",()=>go("projetos")],["config","Configurações","config","cinza",()=>go("config")]],
+           ["importar","Importar pontos","importar","violeta",()=>go("importar")],["codigos","Códigos","codigos","rosa",()=>go("codigos")],["exportar","Exportar","exportar","laranja",()=>go("projetos")],["config","Configurações","config","cinza",()=>go("config")]],
   dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],
            ["correcao","Correção (NTRIP, rádio)","correcao","azul",()=>sub("correcao")],["estatico","Gravar estático","estatico","laranja",()=>sub("estatico")],["ajuste","Ajustar base","ajuste","vermelho",()=>sub("ajuste")],
-           ["nmea","Saída NMEA","nmea","teal",()=>sub("nmea")],["info","Info do dispositivo","info","ambar",()=>go("info")],["receptores","Meus receptores","receptores","cinza",()=>sub("aparelhos")],["comandos","Comandos do receptor","nmea","laranja",()=>sub("console")]],
+           ["nmea","Saída NMEA","nmea","teal",()=>sub("nmea")],["info","Info do dispositivo","info","ambar",()=>go("info")],["receptores","Meus receptores","receptores","cinza",()=>sub("aparelhos")],["comandos","Comandos do receptor","nmea","laranja",()=>sub("console")],
+           ["infopos","Info posição","infopos","verde",()=>go("infopos")],["antena","Antena","antena","violeta",()=>go("antena")],["mock","Localização simulada","mock","ciano",()=>go("mock")],["reiniciar","Reiniciar RTK","reiniciar","vermelho",()=>{reiniciarRtk()}]],
   levantamento:[["painel","Painel RTK","painel","verde",()=>go("painel")],["coletar","Coletar pontos","coletar","laranja",()=>go("coleta")],["mapa","Mapa","mapa","azul",()=>go("mapa")],
            ["locarPonto","Locar ponto","locarPonto","vermelho",()=>{S.lcModo="lista";go("locacao")}],["locarLinha","Locar linha","locarLinha","rosa",()=>calc("locLinha")],["linha","Criar linha","linha","teal",()=>calc("linha")],
            ["pontos2","Pontos","pontos","ciano",()=>go("pontos")]],
   ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
            ["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
-           ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
+           ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
 };
 const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};
-const ABA_DE={painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
+const ABA_DE={infopos:"dispositivo",antena:"dispositivo",mock:"dispositivo",codigos:"projeto",painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
 function go(t){S.tela=t;exportTxt="";render()}
 function sub(k){S.sub=k;go("receptor")}
 function calc(k){S.ferr=k;go("calc")}
@@ -601,7 +628,7 @@ function statusStrip(){
   return `<section class="card" style="gap:8px;padding:12px 14px">
     <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr auto;gap:8px;align-items:center">
       <div style="display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px"><span style="width:14px;height:14px;border-radius:50%;background:${cor};box-shadow:0 0 0 3px rgba(255,255,255,.08)"></span>${txt}</span><span class="muted small">${c&&S.corrLigada?`Idade: ${br(G.idade,1)} s`:"Sem correção"}</span></div>
-      <div style="display:flex;align-items:center;gap:6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 7l4 4-6 6-4-4z"/><path d="M4 10l3-3 3 3-3 3zM14 20l3-3 3 3-3 3z"/><path d="M17 4a4 4 0 0 1 3 3"/></svg><span class="m" style="font-size:15px;line-height:1.2">${c?G.sats:0}<br><span class="muted">31</span></span></div>
+      <div style="display:flex;align-items:center;gap:6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 7l4 4-6 6-4-4z"/><path d="M4 10l3-3 3 3-3 3zM14 20l3-3 3 3-3 3z"/><path d="M17 4a4 4 0 0 1 3 3"/></svg><span class="m" style="font-size:15px;line-height:1.2">${c?G.sats:0}<br><span class="muted" title="visíveis">${(()=>{const v=Object.values(G.const||{}).reduce((x,y)=>x+(+y||0),0);return c&&v?v:"—"})()}</span></span></div>
       <div class="m" style="font-size:14px;line-height:1.4">H:${c?br(G.hrms):"—"}<br>V:${c?br(G.vrms):"—"}</div>
       <div title="Bateria do receptor" ${S.fonte==="sim"||!c||R.bateria!=null?"":"hidden"} style="display:flex;flex-direction:column;align-items:center;font-size:11px" class="muted"><svg width="16" height="26" viewBox="0 0 16 26" aria-hidden="true"><rect x="5" y="0" width="6" height="3" fill="currentColor"/><rect x="1" y="3" width="14" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="${c?9:22}" width="8" height="${c?13:0}" fill="var(--fix)"/></svg>${c?(S.fonte==="sim"?"76%":R.bateria!=null?R.bateria+"%":""):""}</div>
     </div>
@@ -635,6 +662,54 @@ function vInfo(){
       <span class="muted small">Dados ilustrativos nesta versão de teste. No app instalado, lidos direto do receptor.</span>`
     :`<span class="muted small">Conecte o receptor para ver as informações.</span><button class="pri" data-tile="conexao">Conectar</button>`}
   </section>`;
+}
+function vInfoPos(){
+  const c=S.conectado,s=sis();
+  const kv=(k,v)=>`<div class="kv"><span>${k}</span><b class="m" style="font-size:15px">${v}</b></div>`;
+  const cons=Object.entries(G.const||{});
+  return `<span class="ttl">Info de posição</span>
+  ${statusStrip()}
+  ${c?`<section class="card"><h3>Solução</h3><div class="grid2">
+    ${kv("Tipo",S.fonte==="celular"?"GPS do celular":G.fix===4?"FIX (RTK)":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Sem solução")}
+    ${kv("Idade da correção",S.corrLigada?br(G.idade,1)+" s":"—")}
+    ${kv("Precisão H",br(G.hrms)+" m")}${kv("Precisão V",br(G.vrms)+" m")}
+    ${kv("PDOP",G.pdop?br(G.pdop,1):"—")}${kv("Satélites em uso",G.sats||0)}
+    ${kv("Velocidade",br((G.vel||0)*3.6,1)+" km/h")}${kv("Rumo",G.vel>0.2?Math.round(G.course)+"°":"—")}</div></section>
+  <section class="card"><h3>Satélites visíveis por sistema</h3>${cons.length?`<div class="grid2">${cons.map(([n,v])=>kv(n,v)).join("")}</div>`:`<span class="muted small">O receptor ainda não enviou GSV.</span>`}</section>
+  <section class="card"><h3>Coordenadas · ${esc(sisTxt())}</h3><div class="grid2">
+    ${kv("Latitude",gms(G.lat,"N","S"))}${kv("Longitude",gms(G.lon,"E","W"))}
+    ${kv("E",br(G.E,dc()))}${kv("N",br(G.N,dc()))}
+    ${kv("h elipsoidal",br(G.h,dc())+" m")}${kv("Ondulação (receptor)",R.sep!=null?br(R.sep,dc())+" m":"—")}</div></section>
+  <section class="card"><h3>Correção</h3><div class="grid2">${kv("Fonte",S.corrLigada?(S.correcao==="ntrip"?"NTRIP · "+esc(S.mount):esc(S.correcao)):"desligada")}${kv("Recebido",NATIVO&&S.corrLigada?br((R.ntripBytes||0)/1024,1)+" KB":"—")}</div>
+    <button data-act="reiniciarRtk" ${S.corrLigada?"":"disabled"}>Reiniciar RTK (religar a correção)</button></section>`
+  :`<section class="card"><span class="muted small">Conecte o receptor para ver a posição.</span><button class="pri" data-tile="conexao">Conectar</button></section>`}`;
+}
+function vAntena(){
+  const t=S.altTipo||"vertical";
+  return `<span class="ttl">Antena</span>
+  <section class="card"><h3>Altura da antena</h3>
+    <div class="grid3">${opt("altTipo","vertical",t,"Vertical","até a base da rosca")}${opt("altTipo","inclinada",t,"Inclinada","até a borda")}${opt("altTipo","fase",t,"Centro de fase","já corrigida")}</div>
+    <div class="grid2"><label class="f">Altura medida (m)<input class="m" inputmode="decimal" data-bind="altura" value="${esc(S.altura)}"></label>
+    <div class="kv"><span>Altura vertical usada</span><b class="m" style="font-size:20px">${br(alturaVertical())} m</b></div></div></section>
+  <section class="card"><h3>Parâmetros da antena</h3>
+    <div class="grid2"><label class="f">Raio da antena (m)<input class="m" inputmode="decimal" data-bind="antRaio" value="${esc(S.antRaio)}"></label>
+    <label class="f">Base da rosca → centro de fase (m)<input class="m" inputmode="decimal" data-bind="antFase" value="${esc(S.antFase)}"></label></div>
+    <span class="muted small">Confira os valores do S6 no manual ou no app da ComNav (Mais › Antena). O raio só é usado na medida inclinada. Se o receptor já entrega a posição na base da rosca, deixe o centro de fase em 0.</span></section>`;
+}
+function vMock(){
+  return `<span class="ttl">Localização simulada (Mock)</span>
+  <section class="card ${S.mock?"hl":""}"><div class="split"><h3>Compartilhar posição do receptor</h3><span class="${S.mock?"st-fix":"muted"} small">${S.mock?"LIGADO":"DESLIGADO"}</span></div>
+    <span class="muted small">Faz o Android e os outros apps (Google Maps, Avenza, WhatsApp…) usarem a posição do receptor em vez do GPS do celular.</span>
+    <span class="small"><b>Uma vez só:</b> Configurações do Android › Sobre o telefone › toque 7× em "Número da versão" › volte em Opções do desenvolvedor › <b>Selecionar app de local fictício</b> › Coletora GNSS.</span>
+    <button class="${S.mock?"":"pri"}" data-act="mockToggle" ${NATIVO?"":"disabled"}>${S.mock?"Desligar":"Ligar"}</button>
+    ${R.mockErro?`<span class="small" style="color:var(--bad)">${esc(R.mockErro)}</span>`:""}</section>`;
+}
+function vCodigos(){
+  const L=S.codigos||[];
+  return `<span class="ttl">Códigos</span>
+  <section class="card"><span class="muted small">Lista de códigos (descrições) que aparece ao coletar. Toque para usar como código atual.</span>
+    <div class="grid2" style="grid-template-columns:1fr auto"><input id="novoCod" placeholder="Novo código, ex.: Muro"><button class="pri" data-act="codAdd">Adicionar</button></div>
+    ${L.length?`<div class="list">${L.map((c,i)=>`<div class="row" style="grid-template-columns:1fr auto auto"><b>${esc(c)}</b><button style="min-height:34px;font-size:13px" data-desc="${esc(c)}" aria-pressed="${S.codigo===c}">${S.codigo===c?"Em uso":"Usar"}</button><button style="min-height:34px;font-size:13px" data-coddel="${i}">Apagar</button></div>`).join("")}</div>`:`<span class="muted small">Nenhum código.</span>`}</section>`;
 }
 function vPontos(){
   const p=proj();if(!p)return `<span class="muted">Nenhum projeto aberto.</span>`;
@@ -877,7 +952,7 @@ function fmtBR(v){return v.toFixed(3).replace(".",",")}
 function vMapa(){
   const pts=proj()?.pontos||[];
   if(S.seguir||S.mapCE===null){S.mapCE=G.E;S.mapCN=G.N}
-  const W=360,H=420,mpp=S.zoom/100; // metros por pixel
+  const W=Math.round(Math.max(300,Math.min((window.innerWidth||390)-32,1000))),H=Math.round(Math.max(330,(window.innerHeight||800)-(S.loc?520:S.ptSel!=null?470:300))),mpp=S.zoom/100; // 1 unidade = 1 px
   const X=e=>W/2+(e-S.mapCE)/mpp, Y=n=>H/2-(n-S.mapCN)/mpp;
   const passos=[1,2,5,10,20,50,100,200,500,1000];const gstep=passos.find(s=>s/mpp>=60)||1000;
   let grid="";const e0=Math.floor((S.mapCE-W/2*mpp)/gstep)*gstep,n0=Math.floor((S.mapCN-H/2*mpp)/gstep)*gstep;
@@ -901,27 +976,49 @@ function vMapa(){
   if(S.ferr==="area"){const ps=(S.areaList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=`<polygon points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="#5BE3E3" fill-opacity="0.15" stroke="#5BE3E3" stroke-width="2"/>`}
   if(S.ferr==="volume"){const ps=(S.volList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=delaunay(ps).map(([a,b,c])=>`<polygon points="${[a,b,c].map(i=>X(ps[i].E)+","+Y(ps[i].N)).join(" ")}" fill="none" stroke="#5B9CFF" stroke-opacity="0.6"/>`).join("")}
   alvo=linhas+alvo;
+  const fundoAt=S.cfg.fundoMapa||"sat",corSol=!S.conectado?"var(--muted)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
+  const txtSol=!S.conectado?"Sem receptor":S.fonte==="celular"?"GPS celular":G.fix===4?"FIX":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
+  const tb=(act,ic,lbl,on)=>`<button class="mtb${on?" on":""}" data-act="${act}" aria-label="${lbl}" title="${lbl}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></button>`;
+  const ICM={camada:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',tudo:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',centro:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',mais:'<path d="M12 5v14M5 12h14"/>',menos:'<path d="M5 12h14"/>',regua:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',grade:'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 16h6M14 20h6"/>',lista:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'};
+  const alt=alturaVertical();
   return `${S.loc?locPainel():""}${ptSelCard()}
-  <section style="position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B131B">
-    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Mapa com a posição atual e os pontos coletados" style="display:block;touch-action:none">
-      <rect width="${W}" height="${H}" fill="#0B131B"/>${tiles}${grid}${pSvg}${base}${alvo}${seta}
-      <g transform="translate(14 ${H-18})"><rect width="${barra}" height="5" fill="#E8EEF4"/><text x="0" y="-6" fill="#E8EEF4" font-size="11" font-family="Barlow, sans-serif">${gstep} m</text></g>
-      <g transform="translate(${W-26} 30)"><polygon points="0,-14 7,6 0,2 -7,6" fill="#E8EEF4"/><text x="0" y="20" fill="#E8EEF4" font-size="11" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700">N</text></g>
+  <section id="mapBox" style="position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B131B;height:${H}px">
+    <svg id="mapSvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Mapa com a posição atual e os pontos coletados" style="display:block;width:100%;height:100%;touch-action:none;user-select:none">
+      <rect width="${W}" height="${H}" fill="#0B131B"/><g id="mapG">${tiles}${grid}${pSvg}${base}${alvo}${seta}</g>
+      <g transform="translate(${W-120} ${H-16})"><rect width="${barra}" height="5" fill="#E8EEF4" stroke="#0B131B" stroke-width=".5"/><text x="0" y="-6" fill="#E8EEF4" font-size="11" font-family="Barlow, sans-serif" stroke="#0B131B" stroke-width="2.5" paint-order="stroke">${gstep} m</text></g>
+      <g transform="translate(${W-24} 64)"><polygon points="0,-14 7,6 0,2 -7,6" fill="#E8EEF4" stroke="#0B131B" stroke-width="1"/><text x="0" y="20" fill="#E8EEF4" font-size="11" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" stroke="#0B131B" stroke-width="2.5" paint-order="stroke">N</text></g>
     </svg>
-    ${S.conectado?"":`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center" class="muted">Conecte o receptor para ver a sua posição no mapa.</div>`}
+    <div class="minfo"><span style="display:flex;align-items:center;gap:6px;font-weight:800"><span style="width:11px;height:11px;border-radius:50%;background:${corSol}"></span>${txtSol}</span>
+      ${S.conectado?`<span class="m">H ${br(G.hrms)} · V ${br(G.vrms)}</span><span class="m">${G.sats||0} sat${S.corrLigada?` · idade ${br(G.idade,1)} s`:""}</span>`:""}</div>
+    <div class="mtools">
+      ${tb("mapFundo",ICM.camada,"Fundo: "+({sat:"satélite",ruas:"ruas",grade:"grade"})[fundoAt])}
+      ${tb("verTudo",ICM.tudo,"Ver tudo")}
+      ${tb("seguir",ICM.centro,S.seguir?"Seguindo a posição":"Centralizar na posição",S.seguir)}
+      ${tb("zoomIn",ICM.mais,"Aproximar")}
+      ${tb("zoomOut",ICM.menos,"Afastar")}
+      ${tb("mapMedir",ICM.regua,"Medir distância",S.ferr==="medir")}
+      ${tb("mapRapida",ICM.grade,"Ferramentas rápidas",S.mapRapida)}
+    </div>
+    <button class="mfab" data-act="coletar" ${podeColetar()?"":"disabled"} aria-label="Coletar ponto ${esc(proxNome())}">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
+      <span>${S.coletando?S.coletando+"s":esc(proxNome())}</span></button>
+    ${S.mapRapida?mapaRapida():""}
+    ${S.conectado?"":`<div style="position:absolute;left:60px;right:12px;top:56px;padding:10px 12px;border-radius:10px;background:rgba(15,23,32,.85);text-align:center" class="small">Conecte o receptor para ver a sua posição. <button style="min-height:34px;margin-top:6px;width:100%" data-tile="conexao">Conectar</button></div>`}
   </section>
-  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="muted small">Fundo:</span>${[["sat","Satélite"],["ruas","Ruas"],["grade","Grade"]].map(([v,n])=>`<button style="min-height:34px;font-size:13px;padding:0 12px" data-fundo="${v}" aria-pressed="${(S.cfg.fundoMapa||"sat")===v}" class="${(S.cfg.fundoMapa||"sat")===v?"pri":""}">${n}</button>`).join("")}${S.conectado?`<a style="margin-left:auto;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none" href="https://www.google.com/maps/search/?api=1&query=${G.lat},${G.lon}" target="_blank" rel="noopener">Abrir no Google Maps ›</a>`:""}</div>
-  <div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-    <button data-act="zoomIn" aria-label="Aproximar">＋</button><button data-act="zoomOut" aria-label="Afastar">－</button>
-    <button data-act="seguir" aria-pressed="${S.seguir}" class="${S.seguir?"pri":""}">${S.seguir?"Seguindo":"Seguir"}</button>
-    <button data-act="verTudo">Ver tudo</button>
+  <div class="mbar">
+    <label class="mchip" title="Altura da antena (${({vertical:"vertical",inclinada:"inclinada",fase:"centro de fase"})[S.altTipo||"vertical"]})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M8 7l4-4 4 4"/></svg><input class="m" inputmode="decimal" data-bind="altura" value="${esc(S.altura)}" aria-label="Altura da antena"></label>
+    <label class="mfld"><span>Nome</span><input class="m" data-bind="pNum" value="${esc(proxNome())}" aria-label="Número do ponto"></label>
+    <label class="mfld"><span>Código</span><input data-bind="codigo" value="${esc(S.codigo)}" list="codLista" placeholder="MF, poste…" aria-label="Código do ponto"></label>
+    <datalist id="codLista">${[...new Set([...(S.codigos||[]),...descRecentes()])].map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
   </div>
-  <section class="card" style="padding:10px 14px">
-    <div class="grid3"><div class="kv"><span>Rumo</span><b>${S.anda?Math.round(G.course)+"°":"—"}</b></div><div class="kv"><span>Velocidade</span><b>${br(G.vel*3.6,1)} km/h</b></div><div class="kv"><span>Pontos</span><b>${pts.length}</b></div></div>
-    <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada (teste da seta)</label>
-  </section>
-  <p class="muted small" style="margin:0">${(S.cfg.fundoMapa||"sat")==="grade"?"Fundo em grade de metros.":NATIVO?"O mapa de fundo precisa de internet (dados móveis). Sem sinal, fica a grade.":"Na página de teste o mapa de fundo não carrega; no app instalado aparece."} ${(S.cfg.fundoMapa||"sat")==="sat"?"Imagens © Esri, Maxar, Earthstar Geographics.":(S.cfg.fundoMapa==="ruas"?"© colaboradores do OpenStreetMap.":"")}</p>
-  ${acoesBar()}`;
+  ${S.altTipo&&S.altTipo!=="vertical"?`<span class="muted small" style="margin-top:-6px">Altura vertical usada: ${br(alt)} m (${S.altTipo==="inclinada"?"medida inclinada":"até o centro de fase"}) · ajuste em Dispositivo › Antena</span>`:""}
+  ${descRecentes().length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:-4px">${descRecentes().map(d=>`<button style="min-height:32px;font-size:13px;padding:0 10px;flex:0 0 auto" data-desc="${esc(d)}" aria-pressed="${S.codigo===d}">${esc(d)}</button>`).join("")}</div>`:""}
+  ${S.cfg.fundoMapa!=="grade"?`<p class="muted small" style="margin:0">Arraste para mover, use dois dedos para zoom. ${fundoAt==="sat"?"Imagens © Esri, Maxar, Earthstar Geographics.":"© colaboradores do OpenStreetMap."}</p>`:`<p class="muted small" style="margin:0">Arraste para mover, use dois dedos para zoom.</p>`}`;
+}
+function mapaRapida(){
+  const it=[["Pontos","go:pontos"],["Coleta detalhada","go:coleta"],["Ver tudo","act:verTudo"],["Fundo","act:mapFundo"],["Medir","ferr:medir"],["Área","ferr:area"],["Locar ponto","act:abrirLoc"],["Locar linha","ferr:locLinha"],["Criar linha","ferr:linha"],["Offset","ferr:offset"],["Irradiação","ferr:irradiar"],["Cálculos","go:calc"],["Info posição","go:infopos"],["Antena","go:antena"],["Correção","sub:correcao"],["Fechar","act:mapRapida"]];
+  return `<div class="mrapida"><div class="split" style="margin-bottom:8px"><b>Ferramenta rápida</b><button class="mtb" data-act="mapRapida" aria-label="Fechar">✕</button></div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${it.map(([n,a])=>{const [k,v]=a.split(":");return `<button style="min-height:52px;font-size:12.5px;padding:4px;line-height:1.15" data-${k==="act"?"act":k==="go"?"go":k==="ferr"?"ferr":"sub"}="${v}">${n}</button>`}).join("")}</div></div>`;
 }
 function sCorr(){
   const c=S.correcao;
@@ -966,6 +1063,8 @@ function sCons(){
     <div class="grid2" style="grid-template-columns:1fr auto"><input class="m" id="cmdTxt" placeholder="ex.: log version" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="pri" data-act="cmdEnviar">Enviar</button></div>
     ${S.conectado&&S.fonte==="tcp"?"":`<span class="small" style="color:var(--float)">Conecte o receptor primeiro.</span>`}</section>
   <section class="card"><h3>Atalhos ComNav</h3><div class="list">${CMDS_COMNAV.map(([c,n,d],i)=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-cmd="${i}"><span><b>${n}</b><br><span class="m small muted">${esc(c)}</span>${d?`<br><span class="small muted">${d}</span>`:""}</span><span class="muted">›</span></button>`).join("")}</div>
+    <button data-act="brutoGravar" style="margin-top:8px">Gravar dados brutos (60 s) e enviar</button>
+    <span class="muted small">Grava tudo o que o receptor manda (inclusive o formato próprio da ComNav) e abre o compartilhar. Mande o arquivo para o Claude descobrir onde vem a bateria. Deixe o app da ComNav fechado.</span>
     <span class="muted small">Ordem sugerida: 1) Ver versão → se responder, 2) Ver configuração das portas → me mande o print. Não use "Gravar" antes de confirmar que fixou.</span></section>
   <div class="split"><span class="eyebrow">Respostas do receptor</span><button style="min-height:32px;font-size:13px;padding:0 12px" data-act="cmdLimpar">Limpar</button></div>
   <div class="monitor" id="cons">${esc(R.cons.join("\n"))||"Nada ainda. Envie um comando."}</div>`;
@@ -994,6 +1093,45 @@ function sAparelhos(){
 function demoNota(){return `<p class="muted small" style="margin:0">Versão de teste: o receptor é simulado. Os dados de posição, status e NMEA imitam um receptor real para você avaliar as telas.</p>`}
 function tempo(t){const s=Math.floor((Date.now()-t)/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,"0")).join(":")}
 
+// ---------- gestos do mapa ----------
+const MG={p:new Map(),start:null,moved:false,supr:false};
+function mgPts(){return [...MG.p.values()]}
+document.addEventListener("pointerdown",e=>{
+  const sv=e.target.closest&&e.target.closest("#mapSvg");if(!sv)return;
+  MG.p.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const ps=mgPts();
+  if(ps.length===1){MG.start={x:e.clientX,y:e.clientY};MG.moved=false;MG.sc=1;MG.c0={x:e.clientX,y:e.clientY};MG.c1=MG.c0}
+  if(ps.length===2){MG.d0=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/(MG.sc||1);MG.c0={x:(ps[0].x+ps[1].x)/2-(MG.c1.x-MG.c0.x),y:(ps[0].y+ps[1].y)/2-(MG.c1.y-MG.c0.y)}}
+  R.gesto=true;
+});
+document.addEventListener("pointermove",e=>{
+  if(!MG.p.has(e.pointerId))return;MG.p.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const ps=mgPts(),g=$("mapG");if(!g)return;
+  if(ps.length===1){MG.c1={x:ps[0].x,y:ps[0].y};if(Math.abs(MG.c1.x-MG.start.x)+Math.abs(MG.c1.y-MG.start.y)>6)MG.moved=true}
+  else if(ps.length>=2){MG.c1={x:(ps[0].x+ps[1].x)/2,y:(ps[0].y+ps[1].y)/2};MG.sc=Math.max(.05,Math.min(20,Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/MG.d0));MG.moved=true}
+  if(!MG.moved)return;
+  const sv=$("mapSvg"),r=sv.getBoundingClientRect(),k=sv.viewBox.baseVal.width/r.width;
+  const c0x=(MG.c0.x-r.left)*k,c0y=(MG.c0.y-r.top)*k,c1x=(MG.c1.x-r.left)*k,c1y=(MG.c1.y-r.top)*k;
+  g.setAttribute("transform",`translate(${c1x} ${c1y}) scale(${MG.sc}) translate(${-c0x} ${-c0y})`);
+});
+function mgFim(e){
+  if(!MG.p.has(e.pointerId))return;MG.p.delete(e.pointerId);
+  if(MG.p.size>0){const ps=mgPts();MG.start={x:ps[0].x,y:ps[0].y};return}
+  R.gesto=false;
+  if(!MG.moved)return;
+  const sv=$("mapSvg");if(!sv)return;const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,k=vb.width/r.width,W=vb.width,H=vb.height;
+  const mpp=S.zoom/100,sc=MG.sc||1,mpp2=Math.max(.01,Math.min(20,mpp/sc));
+  const c0x=(MG.c0.x-r.left)*k,c0y=(MG.c0.y-r.top)*k,c1x=(MG.c1.x-r.left)*k,c1y=(MG.c1.y-r.top)*k;
+  // o ponto do mapa sob c0 passa a ficar sob c1
+  const E0=S.mapCE+(c0x-W/2)*mpp,N0=S.mapCN-(c0y-H/2)*mpp;
+  S.zoom=mpp2*100;S.mapCE=E0-(c1x-W/2)*mpp2;S.mapCN=N0+(c1y-H/2)*mpp2;S.seguir=false;MG.supr=true;setTimeout(()=>MG.supr=false,80);render();
+}
+document.addEventListener("pointerup",mgFim);document.addEventListener("pointercancel",mgFim);
+document.addEventListener("click",e=>{if(MG.supr&&e.target.closest&&e.target.closest("#mapSvg")){e.stopPropagation();e.preventDefault()}},true);
+document.addEventListener("wheel",e=>{const sv=e.target.closest&&e.target.closest("#mapSvg");if(!sv)return;e.preventDefault();
+  const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,k=vb.width/r.width,cx=(e.clientX-r.left)*k,cy=(e.clientY-r.top)*k,mpp=S.zoom/100,f=e.deltaY>0?1.25:0.8,mpp2=Math.max(.01,Math.min(20,mpp*f));
+  const E0=S.mapCE+(cx-vb.width/2)*mpp,N0=S.mapCN-(cy-vb.height/2)*mpp;S.zoom=mpp2*100;S.mapCE=E0-(cx-vb.width/2)*mpp2;S.mapCN=N0+(cy-vb.height/2)*mpp2;S.seguir=false;render()},{passive:false});
+
 // ---------- Render ----------
 let ultimaTela="";
 function render(full=true){
@@ -1004,11 +1142,12 @@ function render(full=true){
   if(!full&&editando){ // não redesenha enquanto a pessoa digita; só atualiza o monitor
     const m=$("mon");if(m&&S.conectado){m.textContent=G.nmea.join("\n");m.scrollTop=m.scrollHeight}const k=$("cons");if(k){k.textContent=R.cons.join("\n");k.scrollTop=k.scrollHeight}return}
   if(!full&&S.tela==="mapa"&&S.locPick&&!S.loc) return;
+  if(!full&&R.gesto) return;
   if(!full&&S.tela==="calc"&&!["medir","locLinha"].includes(S.ferr))return;
   if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
-  v.innerHTML=({home:vHome,info:vInfo,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
+  v.innerHTML=({home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]();
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
@@ -1042,7 +1181,8 @@ document.addEventListener("click",e=>{
   if(b.dataset.btaddr){S.btAddr=b.dataset.btaddr;S.btNome=b.dataset.btnome;salvar();render();return}
   if(b.dataset.mount){S.mount=b.dataset.mount;R.mounts=[];salvar();render();toast("Ponto de montagem: "+S.mount);return}
   if(b.dataset.fundo){S.cfg.fundoMapa=b.dataset.fundo;salvar();render();return}
-  if(b.dataset.desc){S.codigo=b.dataset.desc;render();return}
+  if(b.dataset.desc){S.codigo=b.dataset.desc;salvar();render();return}
+  if(b.dataset.coddel!=null){S.codigos.splice(+b.dataset.coddel,1);salvar();render();return}
   if(b.dataset.cv){S.cvDe=b.dataset.cv;render();return}
   if(b.dataset.ladd){const k=b.dataset.ladd,v=S["sel_"+k]??"0";if(!proj()?.pontos[+v]){toast("Escolha um ponto");return}(S[k]=S[k]||[]).push(v);const n=proj().pontos.length;S["sel_"+k]=String(Math.min(+v+1,n-1));render();return}
   if(b.dataset.lall){S[b.dataset.lall]=(proj()?.pontos||[]).map((p,i)=>[p,String(i)]).filter(([p])=>!(b.dataset.lall==="volList"&&(p.st==="PROJ"||p.st==="CALC"))).map(x=>x[1]);render();return}
@@ -1072,9 +1212,12 @@ document.addEventListener("click",e=>{
     if(receptorReal())enviarLista(cmdsBase(),"Base");
     toast(prov?"Base iniciada em coordenada provisória. Gravando RINEX para o ajuste.":"Base iniciada")}
   if(a==="pararBase"){if(receptorReal())enviarLista(cmdsPararBase(),"Parar base");S.baseLigada=false;render();toast("Base parada")}
-  if(a==="zoomIn"){S.zoom=Math.max(1,S.zoom/2);render()}
+  if(a==="zoomIn"){S.zoom=Math.max(1,S.zoom/2);S.seguir=S.seguir;render()}
   if(a==="zoomOut"){S.zoom=Math.min(2000,S.zoom*2);render()}
   if(a==="seguir"){S.seguir=!S.seguir;render()}
+  if(a==="mapFundo"){const o=["sat","ruas","grade"],i=o.indexOf(S.cfg.fundoMapa||"sat");S.cfg.fundoMapa=o[(i+1)%3];salvar();render();toast("Fundo: "+({sat:"satélite",ruas:"ruas",grade:"grade"})[S.cfg.fundoMapa]);return}
+  if(a==="mapRapida"){S.mapRapida=!S.mapRapida;render();return}
+  if(a==="mapMedir"){if(S.ferr==="medir"){S.ferr=null;toast("Medição desligada")}else{S.ferr="medir";S.medList=S.medList||[];toast("Medir: toque nos pontos do mapa e use Adicionar em Cálculos")}render();return}
   if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
     const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
@@ -1098,8 +1241,14 @@ document.addEventListener("click",e=>{
   if(a==="testarSom"){const t=b.dataset.som||"ok";const sv=S.cfg.somColeta,sf=S.cfg.somFix;S.cfg.somColeta=true;S.cfg.somFix=true;bip(t);S.cfg.somColeta=sv;S.cfg.somFix=sf}
   if(a==="buscarMounts")buscarMounts();
   if(a==="fecharMounts"){R.mounts=[];render()}
+  if(a==="fazMedia"){const ps=(S.mediaList||[]).map(getPt).filter(Boolean);if(ps.length<2)return;const m=k=>ps.reduce((x,p)=>x+p[k],0)/ps.length;const nm=(S.mediaNome||proxNome()).trim();
+    if(proj().pontos.some(p=>p.nome===nm)){toast("Já existe um ponto "+nm);return}novoPonto(nm,"média",m("E"),m("N"),m("h"));S.mediaNome="";salvar();render();toast("Ponto "+nm+" criado")}
+  if(a==="reiniciarRtk")reiniciarRtk();
+  if(a==="mockToggle"){mockLigar(!S.mock)}
+  if(a==="codAdd"){const el=$("novoCod"),v=(el?.value||"").trim();if(!v)return;S.codigos=S.codigos||[];if(!S.codigos.includes(v))S.codigos.push(v);salvar();render()}
   if(a==="cmdEnviar"){const el=$("cmdTxt");enviarComando(el?.value);if(el)el.value=""}
   if(a==="cmdLimpar"){R.cons=[];render()}
+  if(a==="brutoGravar")capturarBruto(60);
   if(a==="btBuscar"){NP.GnssTcp.btPaired().then(r=>{R.btDevs=r.devices||[];render();if(!R.btDevs.length)toast("Nenhum aparelho pareado. Pareie o receptor nas configurações de Bluetooth.")}).catch(e=>toast(e.message||String(e)))}
   if(a==="compartilhar")compartilharArquivo();
   if(a==="ptFechar"){S.ptSel=null;S.ptEdit=false;S.ptDelConf=false;render()}
@@ -1324,6 +1473,36 @@ function ferrCorpo(){
       <label class="f">Pontos intermediários a cada (m)<input class="m" inputmode="decimal" value="${esc(S.tPasso||"")}" data-bind="tPasso" placeholder="só A e B"></label></div>
       ${pouco}<button class="pri" data-act="fazOffset" ${pts.length>=2?"":"disabled"}>Criar pontos de offset</button>`;
   }
+  if(S.ferr==="pontoLinha"){
+    const A=getPt(S.tA??"0"),B=getPt(S.tB??"1"),P=getPt(S.tP??"atual");let res="";
+    if(A&&B&&P&&(A.E!==B.E||A.N!==B.N)){const r=projNaLinha([A,B],P.E,P.N);const dist=Math.hypot(B.E-A.E,B.N-A.N);
+      res=`<section class="card" style="background:var(--bg)"><div class="grid2">
+        <div class="kv"><span>Estaca (a partir de A)</span><b style="font-size:20px">${br(r.est,3)} m</b></div><div class="kv"><span>Afastamento</span><b style="font-size:20px">${br(Math.abs(r.off),3)} m ${r.off>=0?"à direita":"à esquerda"}</b></div>
+        <div class="kv"><span>Cota na linha</span><b>${br(r.h,3)} m</b></div><div class="kv"><span>Δ cota (ponto − linha)</span><b>${br(P.h-r.h,3)} m</b></div>
+        <div class="kv"><span>Comprimento A→B</span><b>${br(dist,3)} m</b></div><div class="kv"><span>Estaqueamento</span><b>${estaca(r.est)}</b></div></div>
+        ${r.fora?`<span class="small" style="color:var(--float)">O ponto projeta fora do trecho A→B.</span>`:""}</section>`}
+    body=`<span class="muted small">Mostra onde um ponto cai em relação à linha A→B: a estaca (distância ao longo da linha) e o afastamento perpendicular.</span>
+      <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label></div>
+      <label class="f">Ponto a verificar<select data-bind="tP">${ptOpts(S.tP??"atual",true)}</select></label>${pouco}${res}`;
+  }
+  if(S.ferr==="deflexao"){
+    const A=getPt(S.tA??"0"),B=getPt(S.tB??"1"),C=getPt(S.tC??"2");let res="";
+    if(A&&B&&C){const az=(p,q)=>(Math.atan2(q.E-p.E,q.N-p.N)*180/Math.PI+360)%360;const azBA=az(B,A),azBC=az(B,C),azAB=az(A,B);
+      let ang=(azBC-azBA+360)%360;let defl=((azBC-azAB+540)%360)-180;
+      res=`<section class="card" style="background:var(--bg)"><div class="grid2">
+        <div class="kv"><span>Ângulo horário A-B-C</span><b style="font-size:20px">${fmtAng(ang)}</b></div><div class="kv"><span>Ângulo interno</span><b style="font-size:20px">${fmtAng(Math.min(ang,360-ang))}</b></div>
+        <div class="kv"><span>Deflexão em B</span><b>${fmtAng(Math.abs(defl))} ${defl>=0?"à direita":"à esquerda"}</b></div><div class="kv"><span>Azimutes</span><b class="small">B→A ${fmtAng(azBA)}<br>B→C ${fmtAng(azBC)}</b></div></div></section>`}
+    body=`<span class="muted small">Ângulo no vértice B entre as direções B→A e B→C, e a deflexão de quem vem de A e segue para C.</span>
+      <div class="grid3"><label class="f">Ré (A)<select data-bind="tA">${ptOpts(S.tA??"0",true)}</select></label><label class="f">Vértice (B)<select data-bind="tB">${ptOpts(S.tB??"1",true)}</select></label><label class="f">Vante (C)<select data-bind="tC">${ptOpts(S.tC??"2",true)}</select></label></div>${pts.length<3?`<span class="muted small">Precisa de 3 pontos.</span>`:""}${res}`;
+  }
+  if(S.ferr==="media"){
+    const ps=(S.mediaList||[]).map(getPt).filter(Boolean);let res="";
+    if(ps.length>=2){const m=k=>ps.reduce((a,p)=>a+p[k],0)/ps.length;const E=m("E"),N=m("N"),h=m("h");const dp=Math.sqrt(ps.reduce((a,p)=>a+(p.E-E)**2+(p.N-N)**2,0)/ps.length);
+      res=`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>E médio</span><b class="m">${br(E,3)}</b></div><div class="kv"><span>N médio</span><b class="m">${br(N,3)}</b></div>
+        <div class="kv"><span>Cota média</span><b class="m">${br(h,3)}</b></div><div class="kv"><span>Dispersão (RMS)</span><b class="m">${br(dp,3)} m</b></div></div>
+        <div class="grid2" style="grid-template-columns:1fr auto"><input class="m" data-bind="mediaNome" value="${esc(S.mediaNome||proxNome())}" placeholder="Nome do ponto"><button class="pri" data-act="fazMedia">Criar ponto</button></div></section>`}
+    body=`<span class="muted small">Junte várias medições do mesmo marco (por exemplo, em horários diferentes) e crie o ponto médio.</span>${selLista("mediaList","Ponto")}${res}`;
+  }
   if(S.ferr==="estender"){
     body=`<span class="muted small">Prolonga a direção A→B e cria um ponto novo na distância escolhida. Também divide o trecho em partes iguais.</span>
       <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label></div>
@@ -1395,7 +1574,7 @@ function ferrCorpo(){
   return body;
 }
 function coletar(){
-  const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=num(S.altura)||0, n=Math.max(1,parseInt(S.epocas)||5);
+  const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=alturaVertical(), n=Math.max(1,parseInt(S.epocas)||5);
   if(!nome){toast("Informe o número do ponto");return}
   if((proj()?.pontos||[]).some(p=>p.nome===nome)){bip("erro");toast(`O ponto ${nome} já existe no projeto. Escolha outro número.`);return}
   S.coletando=n;const amostras=[];render();
@@ -1507,6 +1686,38 @@ async function reconectarReceptor(){
   if(R.reconRx>=40){S.reconectando=false;S.corrLigada=false;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});bip("erro");toast("Não consegui reconectar o receptor. Confira se ele está ligado.");render();return}
   setTimeout(reconectarReceptor,3000);
 }
+async function reiniciarRtk(){
+  if(!S.corrLigada){toast("Ligue a correção primeiro (Dispositivo › Correção)");return}
+  if(!NATIVO){toast("RTK reiniciado (simulado)");S.corrDesde=Date.now();return}
+  toast("Reiniciando RTK: religando a correção…");
+  try{await NP.GnssTcp.ntripDisconnect()}catch(e){}
+  R.reconN=0;R.ntripUlt=0;S.corrDesde=Date.now();
+  setTimeout(()=>{if(S.corrLigada)ntripLigar().catch(()=>{})},800);
+}
+async function mockLigar(on){
+  R.mockErro="";
+  if(!NATIVO){toast("Só no app instalado");return}
+  try{if(on){await NP.GnssTcp.mockStart();S.mock=true;toast("Localização simulada ligada")}else{await NP.GnssTcp.mockStop();S.mock=false;toast("Localização simulada desligada")}}
+  catch(e){S.mock=false;R.mockErro=(e.message||String(e));toast("Não ligou: "+R.mockErro)}
+  salvar();render();
+}
+function mockTick(){
+  if(!S.mock||!NATIVO||!S.conectado||S.fonte==="celular"||isNaN(G.lat)||G.fix<1)return;
+  NP.GnssTcp.mockSet({lat:G.lat,lon:G.lon,alt:G.h,acc:Math.max(0.01,G.hrms||1),speed:G.vel||0,bearing:G.course||0}).catch(e=>{R.mockErro=e.message||String(e)});
+}
+async function capturarBruto(seg){
+  if(!receptorReal()){toast("Conecte o receptor primeiro");return}
+  R.bruto=[];R.brutoAte=Date.now()+seg*1000;R.cons.push(`— gravando tudo que o receptor envia por ${seg} s —`);render();
+  setTimeout(async()=>{
+    const txt=R.bruto.join("");R.bruto=null;R.brutoAte=0;
+    let bin="";for(let i=0;i<txt.length;i++)bin+=String.fromCharCode(txt.charCodeAt(i)&255);
+    const nome="S6-dados-brutos-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+".bin";
+    try{const w=await NP.Filesystem.writeFile({path:nome,data:btoa(bin),directory:"CACHE"});
+      R.cons.push(`— ${(txt.length/1024).toFixed(1)} KB gravados em ${nome} —`);render();
+      await NP.Share.share({title:nome,text:"Dados brutos do receptor",files:[w.uri],dialogTitle:"Enviar "+nome});
+    }catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui salvar: "+(e.message||e))}
+  },seg*1000);
+}
 async function ligarGpsCelular(){
   try{
     const p=await NP.Geolocation.requestPermissions();
@@ -1576,7 +1787,7 @@ async function compartilharArquivo(){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>onDados(d.text));
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");
       if(R.manual){S.corrLigada=false;toast("Receptor desconectado");render();return}
@@ -1619,6 +1830,7 @@ function nmeaCelular(){
 function tickReal(now){
   if(G.fix>0&&!isNaN(G.lat)&&(!R.ultPosT||now-R.ultPosT>60000)){R.ultPosT=now;S.ultPos={lat:G.lat,lon:G.lon};salvar()}
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
+  mockTick();
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();
   if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);

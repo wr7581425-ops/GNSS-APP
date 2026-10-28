@@ -295,6 +295,17 @@ public class GnssTcpPlugin extends Plugin {
                 BluetoothDevice dev = ad.getRemoteDevice(addr);
                 BluetoothSocket s = null;
                 Exception ultimo = null;
+                final int canal = call.getInt("channel", 0);
+                if (canal > 0) {
+                    try {
+                        Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
+                        s = (BluetoothSocket) m.invoke(dev, canal);
+                        s.connect();
+                    } catch (Exception e0) {
+                        try { if (s != null) s.close(); } catch (Exception ignored) { }
+                        throw new Exception("Canal " + canal + " não abriu: " + e0.getMessage());
+                    }
+                } else
                 try { s = dev.createRfcommSocketToServiceRecord(SPP); s.connect(); }
                 catch (Exception e1) {
                     ultimo = e1;

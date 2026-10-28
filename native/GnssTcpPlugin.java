@@ -23,6 +23,10 @@ import java.util.UUID;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.LinkProperties;
+import android.net.LinkAddress;
+import android.net.RouteInfo;
+import android.net.wifi.WifiManager;
 import android.util.Base64;
 
 import com.getcapacitor.JSArray;
@@ -688,5 +692,68 @@ public class GnssTcpPlugin extends Plugin {
         } catch (Exception e) {
             call.reject(e.toString());
         }
+    }
+
+    // ---------- descobrir o receptor na rede Wi-Fi dele ----------
+    private static String ipv4(int v) {
+        return (v & 0xff) + "." + ((v >> 8) & 0xff) + "." + ((v >> 16) & 0xff) + "." + ((v >> 24) & 0xff);
+    }
+
+    @SuppressWarnings("deprecation")
+    @PluginMethod
+    public void wifiInfo(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            Network n = redeWifi();
+            if (n != null) {
+                LinkProperties lp = cm().getLinkProperties(n);
+                if (lp != null) {
+                    for (RouteInfo ri : lp.getRoutes()) {
+                        if (ri.getGateway() instanceof Inet4Address && !ri.getGateway().isAnyLocalAddress()) { r.put("gateway", ri.getGateway().getHostAddress()); break; }
+                    }
+                    for (LinkAddress la : lp.getLinkAddresses()) {
+                        if (la.getAddress() instanceof Inet4Address) r.put("ip", la.getAddress().getHostAddress());
+                    }
+                    if (Build.VERSION.SDK_INT >= 30 && lp.getDhcpServerAddress() != null) r.put("dhcp", lp.getDhcpServerAddress().getHostAddress());
+                }
+            }
+            try {
+                WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wm != null && wm.getDhcpInfo() != null) {
+                    if (wm.getDhcpInfo().gateway != 0 && !r.has("gateway")) r.put("gateway", ipv4(wm.getDhcpInfo().gateway));
+                    if (wm.getDhcpInfo().serverAddress != 0 && !r.has("dhcp")) r.put("dhcp", ipv4(wm.getDhcpInfo().serverAddress));
+                    if (wm.getConnectionInfo() != null) r.put("ssid", wm.getConnectionInfo().getSSID());
+                }
+            } catch (Exception ignored) { }
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(e.toString());
+        }
+    }
+
+    @PluginMethod
+    public void scanPorts(final PluginCall call) {
+        final String host = call.getString("host", "");
+        final JSArray ports = call.getArray("ports", new JSArray());
+        new Thread(() -> {
+            JSArray abertas = new JSArray();
+            try {
+                Network n = redeWifi();
+                for (int i = 0; i < ports.length(); i++) {
+                    int port = ports.getInt(i);
+                    try {
+                        Socket s = novoSocket(n);
+                        s.connect(new InetSocketAddress(host, port), 700);
+                        s.close();
+                        abertas.put(port);
+                    } catch (Exception ignored) { }
+                }
+                JSObject r = new JSObject();
+                r.put("open", abertas);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(e.toString());
+            }
+        }).start();
     }
 }

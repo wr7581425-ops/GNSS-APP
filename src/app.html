@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -848,7 +848,7 @@ function sConexao(){
   </div>
   ${S.conexao==="wifi"||S.conexao==="tcp"?`<section class="card"><h3>${S.conexao==="wifi"?"Wi-Fi do receptor":"TCP cliente"}</h3>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Endereço IP<input class="m" value="${esc(S.ip)}" data-bind="ip"></label><label class="f">Porta<input class="m" inputmode="numeric" value="${esc(S.porta)}" data-bind="porta"></label></div>
-    <span class="muted small">Protocolo: ${r?.nivel==="leitura"?"genérico, só leitura NMEA":esc(r?.marca)+" (automático pela marca)"}</span></section>`
+    <span class="muted small">Protocolo: ${r?.nivel==="leitura"?"genérico, só leitura NMEA":esc(r?.marca)+" (automático pela marca)"}</span>${S.conexao==="wifi"&&NATIVO?`<button data-act="wifiDetectar" ${R.detectando?"disabled":""}>${R.detectando?"Procurando o receptor…":"Detectar receptor no Wi-Fi"}</button>${R.detectMsg?`<span class="small">${esc(R.detectMsg)}</span>`:""}`:""}</section>`
   :`<section class="card"><h3>${S.conexao==="ble"?"Bluetooth LE":"Bluetooth clássico"}</h3>${NATIVO?(S.conexao==="ble"?`<span class="muted small">O S6 e a maioria dos receptores GNSS usam Bluetooth clássico. Escolha a opção ao lado.</span>`:`<span class="muted small">1. Pareie o receptor nas configurações de Bluetooth do Android (a senha fica no manual do receptor).<br>2. Toque em Buscar e escolha o receptor.</span>
     <button data-act="btBuscar">Buscar aparelhos pareados</button>
     ${R.btDevs.length?`<div class="list">${R.btDevs.map(d=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-btaddr="${esc(d.address)}" data-btnome="${esc(d.name)}"><span><b>${esc(d.name)}</b> <span class="muted small m">${esc(d.address)}</span></span><span class="${S.btAddr===d.address?"st-fix":"muted"}">${S.btAddr===d.address?"✓":""}</span></button>`).join("")}</div>`:""}
@@ -1087,7 +1087,7 @@ function sCorr(){
     <button data-act="fecharMounts">Fechar lista</button>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
-    <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="raw" ${(S.cnEnv||"raw")==="raw"?"selected":""}>RTCM direto (padrão)</option><option value="vd" ${S.cnEnv==="vd"?"selected":""}>ComNav $$VD (S6 e outros SinoGNSS)</option></select></label>
+    <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (T70 e padrão)</option><option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6 e outros SinoGNSS)</option></select></label>
     ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:R.ntripSt==="reconectando"?`<b style="color:var(--float)">Reconectando ao caster…</b> (tentativa ${R.reconN||1})`:"Desligado"}</div>`:""}
     ${NATIVO&&S.corrLigada&&R.ntripUlt?`<div class="grid3"><div class="kv"><span>Última correção</span><b class="m" style="font-size:15px;color:${Date.now()-R.ntripUlt>3000?"var(--float)":"var(--fix)"}">há ${Math.max(0,Math.round((Date.now()-R.ntripUlt)/1000))} s</b></div><div class="kv"><span>Chegando</span><b class="m" style="font-size:15px">${R.ntripTaxa||0} B/s</b></div><div class="kv"><span>Quedas</span><b class="m" style="font-size:15px">${R.ntripRecons||0}${R.reconTot?" + "+R.reconTot+" rx":""}</b></div></div>`:""}
     ${NATIVO&&R.ntripSt==="recebendo"&&S.fonte==="tcp"?`<span class="small muted">Repassado ao receptor: <b class="m" style="color:var(--fg)">${br(R.enviados/1024,1)} KB</b>${R.erroEnvio?` · <b style="color:var(--bad)">erro ao enviar: ${esc(R.erroEnvio)}</b>`:""}</span>`:""}
@@ -1098,7 +1098,7 @@ function sCorr(){
   <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
-function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>15000&&S.corrDesde&&Date.now()-S.corrDesde>40000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
+function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
 const CMDS_COMNAV=[
   ["log version","Ver versão da placa","Testa se o receptor responde a comandos por esta conexão."],
   ["log comconfig","Ver configuração das portas","Mostra cada porta (COM1, COM2, COM3…) e o que ela aceita. Mande o print disso."],
@@ -1293,6 +1293,7 @@ document.addEventListener("click",e=>{
   if(a==="testarSom"){const t=b.dataset.som||"ok";const sv=S.cfg.somColeta,sf=S.cfg.somFix;S.cfg.somColeta=true;S.cfg.somFix=true;bip(t);S.cfg.somColeta=sv;S.cfg.somFix=sf}
   if(a==="buscarMounts")buscarMounts();
   if(a==="fecharMounts"){R.mounts=[];render()}
+  if(a==="wifiDetectar"){detectarWifi(true);return}
   if(a==="fazMedia"){const ps=(S.mediaList||[]).map(getPt).filter(Boolean);if(ps.length<2)return;const m=k=>ps.reduce((x,p)=>x+p[k],0)/ps.length;const nm=(S.mediaNome||proxNome()).trim();
     if(proj().pontos.some(p=>p.nome===nm)){toast("Já existe um ponto "+nm);return}novoPonto(nm,"média",m("E"),m("N"),m("h"));S.mediaNome="";salvar();render();toast("Ponto "+nm+" criado")}
   if(a==="reiniciarRtk")reiniciarRtk();
@@ -1373,7 +1374,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="selRec"){S.ativo=+el.value;S.conectado=false;S.corrLigada=false;salvar();render()}
   if(el.id==="soFix"){S.soFix=el.checked;salvar();render()}
   if(el.id==="gga"){S.enviaGGA=el.checked;salvar()}
-  if(el.id==="cnEnv"){S.cnEnv=el.value;salvar();if(NATIVO)NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});R.envTentado=true;S.corrDesde=Date.now();toast("Formato: "+(S.cnEnv==="vd"?"ComNav $$VD":"RTCM direto"))}
+  if(el.id==="cnEnv"){S.cnEnv=el.value;S.envRx=S.envRx||{};S.envRx[chaveRx()]=el.value;R.envUsado=el.value;salvar();if(NATIVO)NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});R.envTentado=true;S.corrDesde=Date.now();toast("Formato: "+(S.cnEnv==="vd"?"ComNav $$VD":"RTCM direto"))}
   if(el.id==="anda"){S.anda=el.checked;render()}
   if(el.id==="lcSalvar"){S.lcSalvar=el.checked}
   if(el.id==="semNet"){S.semInternet=el.checked;
@@ -1746,7 +1747,7 @@ async function conectarReal(silencioso){
   if(S.conexao==="bt"&&!S.btAddr){toast("Toque em Buscar aparelhos pareados e escolha o receptor");return}
   S.conectando=true;render();
   try{
-    R.buf="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
+    R.buf="";R.bbuf="";R.serie="";R.bateria=null;R.versao="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
     if(S.conexao==="bt")await NP.GnssTcp.btConnect({address:S.btAddr});
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
@@ -1754,7 +1755,10 @@ async function conectarReal(silencioso){
     if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
     bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
-  }catch(e){S.conectando=false;if(silencioso){render();return false}render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
+  }catch(e){S.conectando=false;if(silencioso){render();return false}
+    if(S.conexao==="wifi"&&!R.autoDetect&&/EHOSTUNREACH|ECONNREFUSED|timed out|failed to connect/i.test(String(e.message||e))){R.autoDetect=true;toast("Não achei o receptor em "+S.ip+":"+S.porta+". Procurando na rede Wi-Fi…");
+      const ok=await detectarWifi(false);R.autoDetect=false;if(ok){return conectarReal()}}
+    render();bip("erro");toast("Não conectou: "+(e.message||e)+(S.conexao==="bt"?". Confira se o receptor está ligado, pareado e sem outro aparelho conectado nele.":". Confira o Wi-Fi do receptor, o IP e a porta."))}
 }
 // tenta religar o receptor sozinho (a correção NTRIP continua ligada e volta a ser repassada)
 async function reconectarReceptor(){
@@ -1764,6 +1768,21 @@ async function reconectarReceptor(){
   if(ok){S.reconectando=false;R.reconTot=(R.reconTot||0)+1;render();return}
   if(R.reconRx>=40){S.reconectando=false;S.corrLigada=false;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});bip("erro");toast("Não consegui reconectar o receptor. Confira se ele está ligado.");render();return}
   setTimeout(reconectarReceptor,3000);
+}
+const PORTAS_WIFI=[9902,9904,9901,9903,5017,5018,6060,7000,7001,8000,8002,8080,9000,9001,9100,2101,10001,10002,5000,4001,23];
+async function detectarWifi(manual){
+  R.detectando=true;R.detectMsg="";render();
+  try{
+    const w=await NP.GnssTcp.wifiInfo();
+    const host=w.dhcp||w.gateway;
+    if(!host){R.detectMsg="O coletor não está ligado no Wi-Fi do receptor. Conecte na rede do receptor (ex.: T70-…, S6-…) nas configurações do Android.";return false}
+    R.detectMsg=`Rede ${w.ssid||""}: este coletor ${w.ip||"?"}, receptor ${host}. Procurando a porta…`;render();
+    const r=await NP.GnssTcp.scanPorts({host,ports:PORTAS_WIFI});
+    S.ip=host;
+    if(r.open&&r.open.length){S.porta=String(r.open[0]);R.detectMsg=`Receptor em ${host}, portas abertas: ${r.open.join(", ")}. Usando ${r.open[0]}.`;salvar();return true}
+    R.detectMsg=`Achei o receptor em ${host}, mas nenhuma porta de dados conhecida respondeu. Digite a porta do manual.`;salvar();return false;
+  }catch(e){R.detectMsg="Não consegui detectar: "+(e.message||e);return false}
+  finally{R.detectando=false;render()}
 }
 async function reiniciarRtk(){
   if(!S.corrLigada){toast("Ligue a correção primeiro (Dispositivo › Correção)");return}
@@ -1815,11 +1834,14 @@ async function desconectarReal(){
 }
 
 // ---------- NTRIP ----------
+// formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
+function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
+function envAtual(){S.envRx=S.envRx||{};const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(/^S6/i.test(R.serie||S.btNome||""))return "vd";if(/^T7/i.test(R.serie||S.btNome||""))return "raw";return S.cnEnv||"raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
-  try{await NP.GnssTcp.setEnvelope({mode:S.cnEnv||"raw"})}catch(e){}
-  R.envTentado=false;
+  try{await NP.GnssTcp.setEnvelope({mode:envAtual()})}catch(e){}
+  R.envTentado=false;R.envUsado=envAtual();
   await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
   R.ggaEnv=0;return true;
 }
@@ -1912,7 +1934,8 @@ function tickReal(now){
   if(G.fix>0&&!isNaN(G.lat)&&(!R.ultPosT||now-R.ultPosT>60000)){R.ultPosT=now;S.ultPos={lat:G.lat,lon:G.lon};salvar()}
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   mockTick();
-  if(semUsoCorrecao()&&!R.envTentado&&rec()?.marca==="ComNav"&&Date.now()-S.corrDesde>25000){R.envTentado=true;S.cnEnv=(S.cnEnv||"raw")==="raw"?"vd":"raw";salvar();
+  if(NATIVO&&S.corrLigada&&G.fix>=4&&S.fonte==="tcp"){S.envRx=S.envRx||{};const k=chaveRx(),e=R.envUsado||envAtual();if(S.envRx[k]!==e){S.envRx[k]=e;salvar()}}
+  if(semUsoCorrecao()&&!R.envTentado&&rec()?.marca==="ComNav"&&Date.now()-S.corrDesde>20000){R.envTentado=true;S.cnEnv=envAtual()==="raw"?"vd":"raw";S.envRx=S.envRx||{};S.envRx[chaveRx()]=S.cnEnv;R.envUsado=S.cnEnv;salvar();
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();

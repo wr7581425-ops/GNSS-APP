@@ -397,6 +397,7 @@ public class GnssTcpPlugin extends Plugin {
                 ntrip = s;
                 ntripOut = s.getOutputStream();
                 String req = "GET /" + mount + " HTTP/1.0\r\n"
+                        + "Host: " + host + ":" + port + "\r\n"
                         + "User-Agent: NTRIP ColetoraGNSS/1.0\r\n"
                         + "Accept: */*\r\n"
                         + "Authorization: Basic " + auth(user, pass) + "\r\n"

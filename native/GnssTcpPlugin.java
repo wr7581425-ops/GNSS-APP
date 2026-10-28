@@ -81,6 +81,26 @@ public class GnssTcpPlugin extends Plugin {
     // se acumular mais de 6 KB (~3 s), descarta o atraso, porque correção velha não serve.
     private final LinkedBlockingQueue<byte[]> filaRtcm = new LinkedBlockingQueue<>();
     private volatile int filaBytes = 0;
+    // formato do envio da correção ao receptor: "raw" (RTCM puro) ou "vd" (envelope $$VD da ComNav, blocos de 55 bytes)
+    private volatile String envelope = "raw";
+
+    private static byte[] envelopeVD(byte[] b) {
+        ByteArrayOutputStream o = new ByteArrayOutputStream(b.length + b.length / 55 * 9 + 16);
+        for (int i = 0; i < b.length; i += 55) {
+            int n = Math.min(55, b.length - i);
+            int x = 'V' ^ 'D' ^ 0x18 ^ n;
+            o.write('$'); o.write('$'); o.write('V'); o.write('D'); o.write(0x18); o.write(n);
+            for (int k = 0; k < n; k++) { o.write(b[i + k]); x ^= (b[i + k] & 0xff); }
+            o.write(x & 0xff); o.write('\r'); o.write('\n');
+        }
+        return o.toByteArray();
+    }
+
+    @PluginMethod
+    public void setEnvelope(PluginCall call) {
+        envelope = call.getString("mode", "raw");
+        call.resolve();
+    }
     private Thread escritor;
 
     private synchronized void iniciarEscritor() {
@@ -93,7 +113,8 @@ public class GnssTcpPlugin extends Plugin {
                     filaBytes -= b.length;
                     OutputStream o = rxOut;
                     if (o == null) { rxErroEnvio = "receptor não conectado"; continue; }
-                    synchronized (o) { o.write(b); o.flush(); }
+                    byte[] w = "vd".equals(envelope) ? envelopeVD(b) : b;
+                    synchronized (o) { o.write(w); o.flush(); }
                     rxEnviados += b.length;
                     rxErroEnvio = "";
                 } catch (InterruptedException ie) { return; }

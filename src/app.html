@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -438,20 +438,21 @@ async function iniciarEstaticoColetora(){
   if(!receptorReal()){toast("Conecte o receptor");return}
   if(marcaRx()==="spectra"){toast("Gravar na coletora ainda não está disponível para Spectra. Use a memória do receptor.");return}
   const arq=n+"_"+new Date().toISOString().slice(0,10).replace(/-/g,"")+".cnb";
-  R.gravCol={arq,partes:[],bytes:0,criado:false};
+  try{await NP.GnssTcp.recordStart({path:"WASurvey/"+arq})}catch(er){toast("Não consegui criar o arquivo: "+(er.message||er));return}
+  R.gravCol={arq,bytes:0};
   await enviarLista([`log rangecmpb ontime ${taxa}`,"log gpsephemb onchanged","log gloephemerisb onchanged","log bdsephemerisb onchanged","log galephemerisb onchanged","log qzssephemerisb onchanged"],"Brutos para a coletora",200);
   e.formato="CNB";e.arqRx=arq;e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravando na coletora: "+arq);
   R.gravTimer=setInterval(salvarBrutos,5000);
 }
+// os bytes vão direto do receptor para o arquivo no lado nativo (continua gravando com o app fechado)
 async function salvarBrutos(){
-  const g=R.gravCol;if(!g||!g.partes.length)return;
-  const txt=g.partes.join("");g.partes=[];let bin="";for(let i=0;i<txt.length;i++)bin+=String.fromCharCode(txt.charCodeAt(i)&255);
-  try{const op={path:"WASurvey/"+g.arq,data:btoa(bin),directory:"DATA",recursive:true};if(!g.criado){await NP.Filesystem.writeFile(op);g.criado=true}else await NP.Filesystem.appendFile(op);g.bytes+=txt.length}catch(e){toast("Erro ao salvar: "+(e.message||e))}
+  const g=R.gravCol;if(!g)return;
+  try{const st=await NP.GnssTcp.state();g.bytes=st.gravBytes||0}catch(e){}
 }
 async function pararEstaticoColetora(auto){
   clearInterval(R.gravTimer);
   if(receptorReal())await enviarLista(LOGS_BRUTOS.map(m=>"unlog "+m),"Parar brutos",120);
-  await salvarBrutos();const g=R.gravCol;R.gravCol=null;
+  const g=R.gravCol;R.gravCol=null;try{const r=await NP.GnssTcp.recordStop();if(g)g.bytes=r.bytes||g.bytes}catch(e){}
   pararEstatico(auto);const f=S.arquivos[0];if(f&&g){f.destino="coletora";f.caminho="WASurvey/"+g.arq;f.mb=g.bytes/1048576;salvar()}
   falar("Gravação estática encerrada");render();
 }
@@ -497,7 +498,7 @@ function pararEstatico(auto){
 }
 function sEstatico(){
   const e=S.est,now=Date.now();
-  if(e.gravando){const t=(now-e.inicio)/1000,kb=e.formato.startsWith("CNB")?2.2:7;if(R.gravCol)R.gravCol.mostra=((R.gravCol.bytes+R.gravCol.partes.reduce((a,x)=>a+x.length,0))/1048576);
+  if(e.gravando){const t=(now-e.inicio)/1000,kb=e.formato.startsWith("CNB")?2.2:7;if(R.gravCol)R.gravCol.mostra=(R.gravCol.bytes||0)/1048576;
     return `<section class="card hl"><div class="split"><h3>Gravando ${esc(e.nome)}</h3><span class="st-fix small">● GRAVANDO</span></div>
       <div class="grid2"><div class="kv"><span>Tempo</span><b style="font-size:24px">${dur(t)}</b></div><div class="kv"><span>${+e.duracao>0?"Termina em":"Duração"}</span><b>${+e.duracao>0?dur(e.duracao*60-t):"livre"}</b></div>
       <div class="kv"><span>Épocas</span><b>${Math.floor(t/+e.taxa)}</b></div><div class="kv"><span>Tamanho</span><b>${R.gravCol?br(R.gravCol.mostra||0,2):br(t/+e.taxa*kb/1024,2)} MB</b></div>
@@ -857,6 +858,11 @@ function vConfig(){
   const ck=(k,t)=>`<label class="ck"><input type="checkbox" data-cfg="${k}" ${c[k]?"checked":""}> ${t}</label>`;
   const sec=(t,body)=>`<section class="card"><h3>${t}</h3>${body}</section>`;
   return `<span class="ttl">Configurações</span>
+  ${NATIVO?sec("Funcionar com o app fechado",`<span class="muted small">Com o receptor conectado, o WA Survey continua trabalhando em segundo plano: correção NTRIP, gravação estática, servidor NMEA e local fictício seguem ligados mesmo com a tela apagada, com outro app aberto ou tirando o app dos recentes. Fica um aviso fixo na barra de notificações com o status e o botão <b>Desligar tudo</b>.</span>
+    <div class="kv"><span>Economia de bateria</span><b style="color:${R.bg?.semEconomia?"var(--fix)":"var(--float)"}">${R.bg?(R.bg.semEconomia?"Liberado":"Restrito"):"—"}</b></div>
+    <div class="kv"><span>Aviso na barra</span><b style="color:${R.bg?.notificacao?"var(--fix)":"var(--float)"}">${R.bg?(R.bg.notificacao?"Permitido":"Bloqueado"):"—"}</b></div>
+    <div class="grid2">${R.bg&&!R.bg.semEconomia?`<button class="pri" data-act="bgBateria">Liberar bateria</button>`:`<button data-act="bgBateria">Bateria do app</button>`}${R.bg&&!R.bg.notificacao?`<button class="pri" data-act="bgNotif">Permitir aviso</button>`:""}</div>
+    ${/xiaomi|redmi|poco/i.test(R.bg?.fabricante||"")?`<span class="small" style="color:var(--float)">Xiaomi: em Configurações › Apps › WA Survey, ligue <b>Início automático</b> e em <b>Economia de bateria</b> escolha <b>Sem restrições</b>. Nos recentes, segure o card do app e toque no cadeado.</span>`:`<span class="muted small">Se mesmo assim o celular desligar o app, em Configurações › Apps › WA Survey › Bateria escolha <b>Sem restrições</b>.</span>`}`):""}
   ${sec("Unidades e formato",`<div class="grid2">
     <label class="f">Casas decimais nas coordenadas${sel("dec",[["2","2 (cm)"],["3","3 (mm)"],["4","4"]])}</label>
     <label class="f">Separador decimal${sel("sepDec",[["virgula","Vírgula (1.234,567)"],["ponto","Ponto (1,234.567)"]])}</label>
@@ -1342,6 +1348,8 @@ document.addEventListener("click",e=>{
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
+  if(a==="bgBateria"){NP.GnssTcp.askBattery().then(()=>setTimeout(lerSegundoPlano,4000)).catch(e=>toast(""+(e.message||e)));return}
+  if(a==="bgNotif"){NP.GnssTcp.askNotifications().then(lerSegundoPlano).catch(()=>{});return}
   if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
@@ -1469,7 +1477,7 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="se
 document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="selRec"){S.ativo=+el.value;S.conectado=false;S.corrLigada=false;salvar();render()}
   if(el.id==="soFix"){S.soFix=el.checked;salvar();render()}
-  if(el.id==="gga"){S.enviaGGA=el.checked;salvar()}
+  if(el.id==="gga"){S.enviaGGA=el.checked;salvar();if(NATIVO)NP.GnssTcp.ntripOptions({gga:S.enviaGGA}).catch(()=>{})}
   if(el.id==="simples"){S.simples=S.simples||{};S.simples[chaveCon()]=el.checked;if(!el.checked&&S.canalTentado)delete S.canalTentado[S.btAddr];salvar();toast(el.checked?"Modo simples ligado para este receptor":"Modo simples desligado");render()}
   if(el.id==="cnEnv"){S.cnEnv=el.value;S.envRx=S.envRx||{};S.envRx[chaveRx()]=el.value;R.envUsado=el.value;salvar();if(NATIVO)NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});R.envTentado=true;S.corrDesde=Date.now();toast("Formato: "+(S.cnEnv==="vd"?"ComNav $$VD":"RTCM direto"))}
   if(el.id==="anda"){S.anda=el.checked;render()}
@@ -1913,7 +1921,7 @@ async function conectarReal(silencioso){
     iniciarSpectra();
     iniciarComNav().then(ok=>{if(ok===false&&!R.emLoop&&S.conexao==="bt")buscarCanal()});
     if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
-    bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");
+    bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");setTimeout(prepararSegundoPlano,2500);
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)ligarNmea()},5000);
   }catch(e){S.conectando=false;if(silencioso){render();return false}
     if(S.conexao==="wifi"&&!R.autoDetect&&/EHOSTUNREACH|ECONNREFUSED|timed out|failed to connect/i.test(String(e.message||e))){R.autoDetect=true;toast("Não achei o receptor em "+S.ip+":"+S.porta+". Procurando na rede Wi-Fi…");
@@ -2018,7 +2026,7 @@ async function ntripLigar(){
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
   try{await NP.GnssTcp.setEnvelope({mode:envAtual()})}catch(e){}
   R.envTentado=false;R.envTrocas=0;R.envUsado=envAtual();
-  await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||""});
+  await NP.GnssTcp.ntripConnect({host:S.caster.trim(),port:parseInt(S.cport)||2101,mount:S.mount.trim(),user:S.user||"",pass:S.senha||"",gga:!!S.enviaGGA});
   R.ggaEnv=0;return true;
 }
 async function posicaoReferencia(){
@@ -2066,7 +2074,7 @@ async function compartilharArquivo(){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text);if(R.gravCol){R.gravCol.partes.push(d.text)}});
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
       if(R.trocandoCanal){render();return}
@@ -2089,6 +2097,32 @@ if(NATIVO&&NP.GnssTcp){
   });
   NP.GnssTcp.addListener("clients",c=>{R.clientes=c.list||[];render(false)});
 }
+// ---------- segundo plano ----------
+// ao abrir o app de novo (depois de fechar a tela ou tirar dos recentes), reencontra o que ficou ligado no serviço
+async function sincronizarNativo(){
+  if(!NATIVO||!NP.GnssTcp?.state)return;
+  let st;try{st=await NP.GnssTcp.state()}catch(e){return}
+  const avisos=[];
+  if(st.receptor){S.conectado=true;S.fonte="tcp";S.desde=st.desde||Date.now();R.ultimo=Date.now();R.manual=false;avisos.push("receptor")}
+  else if(st.receptorDesejado){R.manual=false;R.reconRx=0;setTimeout(()=>reconectarReceptor(),500);avisos.push("receptor (reconectando)")}
+  if(st.ntripDesejado){S.corrLigada=true;S.correcao="ntrip";R.ntripSt=st.ntripStatus;R.ntripBytes=st.ntripBytes;R.ntripMsg=st.mount;avisos.push("NTRIP");
+    if(!st.ntrip)setTimeout(()=>{if(S.corrLigada)ntripLigar().catch(()=>{})},1500)}
+  if(st.gravando){const arq=(st.gravCaminho||"").split("/").pop();R.gravCol={arq,bytes:st.gravBytes||0};
+    Object.assign(S.est,{gravando:true,inicio:st.gravInicio||Date.now(),destino:"coletora",formato:"CNB",arqRx:arq});R.gravTimer=setInterval(salvarBrutos,5000);avisos.push("gravação estática")}
+  if(st.servidor){S.servidor=true}
+  if(avisos.length){toast("Continuou ligado com o app fechado: "+avisos.join(", "));render()}
+}
+// pede, uma vez, o aviso na barra e a liberação da economia de bateria (sem isso o Android pode desligar o app em segundo plano)
+async function prepararSegundoPlano(forcar){
+  if(!NATIVO||!NP.GnssTcp?.backgroundInfo)return;
+  if(S.bgPedido&&!forcar)return;
+  S.bgPedido=true;salvar();
+  try{await NP.GnssTcp.askNotifications()}catch(e){}
+  try{const b=await NP.GnssTcp.backgroundInfo();R.bg=b;
+    if(!b.semEconomia){toast("Para o app continuar ligado com a tela fechada, toque em Permitir na próxima tela.");await espera(1800);await NP.GnssTcp.askBattery()}}catch(e){}
+}
+async function lerSegundoPlano(){try{R.bg=await NP.GnssTcp.backgroundInfo();render()}catch(e){}}
+if(NATIVO&&NP.GnssTcp)setTimeout(()=>{sincronizarNativo();lerSegundoPlano()},300);
 // envia a posição (GGA) ao caster a cada 10 s, exigido em redes VRS
 setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ultGGA&&Date.now()-R.ggaEnv>10000){R.ggaEnv=Date.now();NP.GnssTcp.ntripGGA({line:R.ultGGA}).catch(()=>{})}},2000);
 

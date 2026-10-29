@@ -60,35 +60,339 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @CapacitorPlugin(
         name = "GnssTcp",
         permissions = {
-                @Permission(alias = "bluetooth", strings = {"android.permission.BLUETOOTH_CONNECT", "android.permission.BLUETOOTH_SCAN"})
+                @Permission(alias = "bluetooth", strings = {"android.permission.BLUETOOTH_CONNECT", "android.permission.BLUETOOTH_SCAN"}),
+                @Permission(alias = "notif", strings = {"android.permission.POST_NOTIFICATIONS"})
         })
 public class GnssTcpPlugin extends Plugin {
 
-    private volatile Socket rx;
-    private volatile OutputStream rxOut;
-    private volatile boolean rxRun = false;
-    private volatile BluetoothSocket bt;
+    private static volatile Socket rx;
+    private static volatile OutputStream rxOut;
+    private static volatile boolean rxRun = false;
+    private static volatile BluetoothSocket bt;
     private static final UUID SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    private volatile ServerSocket srv;
-    private final List<Socket> clientes = new CopyOnWriteArrayList<>();
+    private static volatile ServerSocket srv;
+    private static final List<Socket> clientes = new CopyOnWriteArrayList<>();
 
-    private volatile Socket ntrip;
-    private volatile OutputStream ntripOut;
-    private volatile long rxEnviados = 0;
-    private volatile String rxErroEnvio = "";
-    private volatile boolean ntripRun = false;
-    private volatile long ntripBytes = 0;
-    private volatile int ntripGen = 0;
-    private volatile long rxDescartados = 0;
-    private PowerManager.WakeLock wl;
+    private static volatile Socket ntrip;
+    private static volatile OutputStream ntripOut;
+    private static volatile long rxEnviados = 0;
+    private static volatile String rxErroEnvio = "";
+    private static volatile boolean ntripRun = false;
+    private static volatile long ntripBytes = 0;
+    private static volatile int ntripGen = 0;
+    private static volatile long rxDescartados = 0;
+    private static PowerManager.WakeLock wl;
 
     // fila da correção para o receptor: a leitura do caster nunca espera o Bluetooth;
     // se acumular mais de 6 KB (~3 s), descarta o atraso, porque correção velha não serve.
-    private final LinkedBlockingQueue<byte[]> filaRtcm = new LinkedBlockingQueue<>();
-    private volatile int filaBytes = 0;
+    private static final LinkedBlockingQueue<byte[]> filaRtcm = new LinkedBlockingQueue<>();
+    private static volatile int filaBytes = 0;
     // formato do envio da correção ao receptor: "raw" (RTCM puro) ou "vd" (envelope $$VD da ComNav, blocos de 55 bytes)
-    private volatile String envelope = "raw";
+    private static volatile String envelope = "raw";
+
+    // ---------- funcionamento em segundo plano ----------
+    // Todo o estado das conexões é estático: se a tela for fechada (ou o app tirado dos recentes),
+    // o serviço em primeiro plano mantém o processo vivo e, ao abrir de novo, a tela nova reencontra tudo ligado.
+    private static volatile GnssTcpPlugin atual;
+    private static volatile boolean uiViva = false;
+    private static volatile boolean uiVisivel = false;
+    private static Context app;
+    private static Context ctx() { return app; }
+
+    private static volatile int rxGen = 0;
+    private static volatile boolean rxDesejado = false;
+    private static volatile String rxTipo = "", rxAlvo = "";
+    private static volatile int rxCanal = 0, rxPorta = 0, rxTentativas = 0, rxReconexoes = 0;
+    private static volatile boolean rxWifi = true;
+    private static volatile long rxDesde = 0;
+
+    private static volatile boolean ntripDesejado = false, ntripGga = false;
+    private static volatile String nHost = "", nMount = "", nUser = "", nPass = "";
+    private static volatile int nPort = 2101, ntripRecons = 0;
+    private static volatile String ntripSt = "desligado";
+
+    private static final StringBuilder ggaBuf = new StringBuilder();
+    private static volatile String ultGGA = "";
+    private static volatile int qualidade = 0;
+    private static volatile long ggaJs = 0, ggaEnv = 0, ultAviso = 0;
+    private static volatile boolean mockLigado = false;
+
+    private static volatile java.io.FileOutputStream grav;
+    private static volatile String gravCaminho = "";
+    private static volatile long gravBytes = 0, gravInicio = 0, gravFlush = 0;
+
+    @Override
+    public void load() {
+        app = getContext().getApplicationContext();
+        atual = this;
+        uiViva = true;
+        uiVisivel = true;
+    }
+
+    @Override
+    protected void handleOnResume() {
+        if (atual != this) return;
+        uiVisivel = true;
+        // se o serviço estava reconectando sozinho, devolve a reconexão para o app
+        if (rxDesejado && !rxRun) status("desconectado", "Reconectando…");
+        if (ntripDesejado && !ntripRun) ntripStatus("erro", "Reconectando…");
+    }
+
+    @Override
+    protected void handleOnPause() {
+        if (atual == this) uiVisivel = false;
+    }
+
+    private void emitir(String ev, JSObject o) {
+        GnssTcpPlugin p = atual;
+        if (p == null || !uiViva) return;
+        try { p.notifyListeners(ev, o); } catch (Exception ignored) { }
+    }
+
+    /** Liga, atualiza ou desliga o serviço com o aviso fixo na barra de notificações. */
+    private static void servico() {
+        boolean ativo = rxDesejado || ntripDesejado || grav != null || srv != null;
+        try {
+            if (ativo) GnssService.ligar(app, textoAviso());
+            else GnssService.desligar(app);
+        } catch (Exception ignored) { }
+    }
+
+    private static void aviso(boolean ja) {
+        long agora = System.currentTimeMillis();
+        if (!ja && agora - ultAviso < 3000) return;
+        ultAviso = agora;
+        if (GnssService.rodando) { try { GnssService.atualizar(app, textoAviso()); } catch (Exception ignored) { } }
+    }
+
+    private static String textoAviso() {
+        StringBuilder b = new StringBuilder();
+        if (rxDesejado) {
+            if (rxRun) {
+                String q = qualidade == 4 ? "FIX" : qualidade == 5 ? "FLOAT" : qualidade == 2 ? "DGPS" : qualidade == 1 ? "Autônomo" : "sem posição";
+                b.append("Receptor ").append(q);
+            } else b.append("Reconectando receptor").append(rxTentativas > 0 ? " (" + rxTentativas + ")" : "…");
+        }
+        if (ntripDesejado) {
+            if (b.length() > 0) b.append(" · ");
+            b.append(ntripRun ? "NTRIP " + (ntripBytes / 1024) + " KB" : "NTRIP reconectando…");
+        }
+        if (grav != null) {
+            if (b.length() > 0) b.append(" · ");
+            long min = (System.currentTimeMillis() - gravInicio) / 60000;
+            b.append(String.format(Locale.US, "Gravando %.1f MB (%d min)", gravBytes / 1048576.0, min));
+        }
+        if (srv != null) {
+            if (b.length() > 0) b.append(" · ");
+            b.append("Servidor NMEA (").append(clientes.size()).append(")");
+        }
+        return b.length() == 0 ? "WA Survey em espera" : b.toString();
+    }
+
+    /** Acha a última GGA nos dados do receptor: qualidade para o aviso, posição para o caster e o local fictício. */
+    private void procurarGGA(String t) {
+        String l = null;
+        synchronized (ggaBuf) {
+            ggaBuf.append(t);
+            if (ggaBuf.length() > 4096) ggaBuf.delete(0, ggaBuf.length() - 1024);
+            int i = ggaBuf.lastIndexOf("GGA,");
+            if (i >= 3) {
+                int ini = ggaBuf.lastIndexOf("$", i);
+                int fim = ggaBuf.indexOf("*", i);
+                if (ini >= 0 && i - ini <= 3 && fim > 0 && fim + 3 <= ggaBuf.length()) {
+                    l = ggaBuf.substring(ini, fim + 3);
+                    ggaBuf.delete(0, fim + 3);
+                } else if (ini >= 0 && i - ini <= 3 && fim < 0) {
+                    ggaBuf.delete(0, ini); // linha incompleta: guarda só ela
+                }
+            }
+        }
+        if (l == null) return;
+        ultGGA = l;
+        String[] f = l.split(",", -1);
+        if (f.length < 10) return;
+        try { qualidade = f[6].length() > 0 ? Integer.parseInt(f[6]) : 0; } catch (Exception e) { qualidade = 0; }
+        long agora = System.currentTimeMillis();
+        // posição para o caster (VRS): o app manda enquanto está aberto; sem ele, o serviço manda
+        OutputStream o = ntripOut;
+        if (ntripGga && o != null && agora - ggaJs > 15000 && agora - ggaEnv > 10000 && qualidade > 0) {
+            ggaEnv = agora;
+            try { synchronized (o) { o.write((l + "\r\n").getBytes(StandardCharsets.ISO_8859_1)); o.flush(); } } catch (Exception ignored) { }
+        }
+        if (mockLigado && !uiVisivel && qualidade > 0) mockDeGGA(f);
+    }
+
+    private static double grausNmea(String v, String h) {
+        if (v == null || v.length() < 4) return Double.NaN;
+        int p = v.indexOf('.');
+        int gl = (p < 0 ? v.length() : p) - 2;
+        double g = Double.parseDouble(v.substring(0, gl)) + Double.parseDouble(v.substring(gl)) / 60.0;
+        return ("S".equals(h) || "W".equals(h)) ? -g : g;
+    }
+
+    private void mockDeGGA(String[] f) {
+        try {
+            double lat = grausNmea(f[2], f[3]), lon = grausNmea(f[4], f[5]);
+            if (Double.isNaN(lat) || Double.isNaN(lon)) return;
+            double alt = f[9].length() > 0 ? Double.parseDouble(f[9]) : 0;
+            double hdop = f[8].length() > 0 ? Double.parseDouble(f[8]) : 1;
+            float acc = qualidade == 4 ? 0.02f : qualidade == 5 ? 0.3f : (float) Math.max(1.0, hdop * 2.5);
+            Location loc = new Location(LocationManager.GPS_PROVIDER);
+            loc.setLatitude(lat); loc.setLongitude(lon); loc.setAltitude(alt); loc.setAccuracy(acc);
+            loc.setTime(System.currentTimeMillis());
+            loc.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+            if (Build.VERSION.SDK_INT >= 26) loc.setVerticalAccuracyMeters(acc * 1.7f);
+            lm().setTestProviderLocation(LocationManager.GPS_PROVIDER, loc);
+        } catch (Exception ignored) { }
+    }
+
+    // ---------- gravação dos dados brutos do receptor direto em arquivo (continua com a tela fechada) ----------
+    private static void gravarBrutos(byte[] buf, int n) {
+        java.io.FileOutputStream g = grav;
+        if (g == null) return;
+        try {
+            g.write(buf, 0, n);
+            gravBytes += n;
+            long agora = System.currentTimeMillis();
+            if (agora - gravFlush > 5000) { gravFlush = agora; g.getFD().sync(); }
+        } catch (Exception ignored) { }
+    }
+
+    @PluginMethod
+    public void recordStart(PluginCall call) {
+        String path = call.getString("path", "");
+        try {
+            fecharGravacao();
+            java.io.File f = new java.io.File(ctx().getFilesDir(), path);
+            if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            gravBytes = 0;
+            gravInicio = System.currentTimeMillis();
+            gravCaminho = path;
+            grav = new java.io.FileOutputStream(f, false);
+            servico();
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void recordStop(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("bytes", gravBytes);
+        r.put("path", gravCaminho);
+        fecharGravacao();
+        servico();
+        call.resolve(r);
+    }
+
+    private static void fecharGravacao() {
+        java.io.FileOutputStream g = grav;
+        grav = null;
+        if (g != null) { try { g.getFD().sync(); } catch (Exception ignored) { } try { g.close(); } catch (Exception ignored) { } }
+    }
+
+    /** Situação das conexões, para a tela se reencontrar ao abrir de novo. */
+    @PluginMethod
+    public void state(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("receptor", rxRun);
+        r.put("receptorDesejado", rxDesejado);
+        r.put("via", rxTipo);
+        r.put("alvo", rxAlvo);
+        r.put("desde", rxDesde);
+        r.put("reconexoes", rxReconexoes);
+        r.put("ntrip", ntripRun);
+        r.put("ntripDesejado", ntripDesejado);
+        r.put("ntripStatus", ntripSt);
+        r.put("ntripBytes", ntripBytes);
+        r.put("ntripRecons", ntripRecons);
+        r.put("mount", nMount);
+        r.put("envelope", envelope);
+        r.put("gravando", grav != null);
+        r.put("gravCaminho", gravCaminho);
+        r.put("gravBytes", gravBytes);
+        r.put("gravInicio", gravInicio);
+        r.put("servidor", srv != null);
+        r.put("servico", GnssService.rodando);
+        r.put("gga", ultGGA);
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void ntripOptions(PluginCall call) {
+        ntripGga = call.getBoolean("gga", ntripGga);
+        call.resolve();
+    }
+
+    // ---------- permissões para o segundo plano ----------
+    @PluginMethod
+    public void backgroundInfo(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            PowerManager pm = (PowerManager) ctx().getSystemService(Context.POWER_SERVICE);
+            r.put("semEconomia", Build.VERSION.SDK_INT < 23 || pm.isIgnoringBatteryOptimizations(ctx().getPackageName()));
+            r.put("notificacao", Build.VERSION.SDK_INT < 33 || getPermissionState("notif") == PermissionState.GRANTED);
+            r.put("fabricante", Build.MANUFACTURER);
+        } catch (Exception e) { r.put("erro", e.toString()); }
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void askNotifications(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notif") != PermissionState.GRANTED) {
+            requestPermissionForAlias("notif", call, "notifPerm");
+            return;
+        }
+        call.resolve();
+    }
+
+    @PermissionCallback
+    private void notifPerm(PluginCall call) {
+        if (GnssService.rodando) aviso(true);
+        call.resolve();
+    }
+
+    @SuppressLint("BatteryLife")
+    @PluginMethod
+    public void askBattery(PluginCall call) {
+        try {
+            android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            i.setData(android.net.Uri.parse("package:" + ctx().getPackageName()));
+            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            try {
+                android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.setData(android.net.Uri.parse("package:" + ctx().getPackageName()));
+                i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx().startActivity(i);
+                call.resolve();
+            } catch (Exception e2) { call.reject(e2.toString()); }
+        }
+    }
+
+    /** Chamado pelo botão "Desligar tudo" da notificação. */
+    static void desligarTudo() {
+        rxDesejado = false; rxGen++;
+        rxRun = false;
+        try { if (rx != null) rx.close(); } catch (Exception ignored) { }
+        try { if (bt != null) bt.close(); } catch (Exception ignored) { }
+        rx = null; bt = null; rxOut = null;
+        ntripDesejado = false; ntripGen++; ntripRun = false;
+        try { if (ntrip != null) ntrip.close(); } catch (Exception ignored) { }
+        ntrip = null; ntripOut = null;
+        fecharGravacao();
+        try { if (srv != null) srv.close(); } catch (Exception ignored) { }
+        srv = null;
+        for (Socket c : clientes) { try { c.close(); } catch (Exception ignored) { } }
+        clientes.clear();
+        try { if (wl != null && wl.isHeld()) wl.release(); } catch (Exception ignored) { }
+        GnssTcpPlugin p = atual;
+        if (p != null) { p.status("desconectado", "Desligado pela notificação"); p.ntripStatus("desligado", ""); }
+    }
 
     private static byte[] envelopeVD(byte[] b) {
         ByteArrayOutputStream o = new ByteArrayOutputStream(b.length + b.length / 55 * 9 + 16);
@@ -107,9 +411,9 @@ public class GnssTcpPlugin extends Plugin {
         envelope = call.getString("mode", "raw");
         call.resolve();
     }
-    private Thread escritor;
+    private static Thread escritor;
 
-    private synchronized void iniciarEscritor() {
+    private static synchronized void iniciarEscritor() {
         if (escritor != null && escritor.isAlive()) return;
         escritor = new Thread(() -> {
             while (true) {
@@ -143,7 +447,7 @@ public class GnssTcpPlugin extends Plugin {
         try {
             if (on) {
                 if (wl == null) {
-                    PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+                    PowerManager pm = (PowerManager) ctx().getSystemService(Context.POWER_SERVICE);
                     wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ColetoraGNSS:ntrip");
                     wl.setReferenceCounted(false);
                 }
@@ -154,7 +458,7 @@ public class GnssTcpPlugin extends Plugin {
 
     // ---------- redes ----------
     private ConnectivityManager cm() {
-        return (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        return (ConnectivityManager) ctx().getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     /** Rede Wi-Fi atual (o Wi-Fi do receptor normalmente não tem internet). */
@@ -188,7 +492,7 @@ public class GnssTcpPlugin extends Plugin {
         JSObject o = new JSObject();
         o.put("kind", tipo);
         o.put("msg", msg == null ? "" : msg);
-        notifyListeners("status", o);
+        emitir("status", o);
     }
 
     // ---------- receptor ----------
@@ -198,29 +502,39 @@ public class GnssTcpPlugin extends Plugin {
         final int port = call.getInt("port", 9902);
         final boolean usarWifi = call.getBoolean("wifi", true);
         fecharReceptor();
+        final int gen = ++rxGen;
         new Thread(() -> {
             boolean respondeu = false;
             try {
-                Socket s = novoSocket(usarWifi ? redeWifi() : null);
-                s.connect(new InetSocketAddress(host, port), 8000);
-                s.setTcpNoDelay(true);
-                s.setKeepAlive(true);
+                Socket s = abrirTcp(host, port, usarWifi);
+                if (gen != rxGen) { s.close(); return; }
                 rx = s;
                 rxOut = s.getOutputStream();
                 rxRun = true;
+                rxTipo = "tcp"; rxAlvo = host; rxPorta = port; rxWifi = usarWifi; rxDesejado = true; rxDesde = System.currentTimeMillis();
                 JSObject r = new JSObject();
                 r.put("connected", true);
                 call.resolve(r);
                 respondeu = true;
                 status("conectado", host + ":" + port);
+                servico();
                 lerReceptor(s.getInputStream());
+                caiu(gen, "O receptor encerrou a conexão");
             } catch (Exception e) {
                 if (!respondeu) call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
-                else if (rxRun) status("desconectado", e.getMessage());
+                else caiu(gen, e.getMessage());
             } finally {
-                rxRun = false;
+                if (gen == rxGen) rxRun = false;
             }
         }).start();
+    }
+
+    private Socket abrirTcp(String host, int port, boolean usarWifi) throws Exception {
+        Socket s = novoSocket(usarWifi ? redeWifi() : null);
+        s.connect(new InetSocketAddress(host, port), 8000);
+        s.setTcpNoDelay(true);
+        s.setKeepAlive(true);
+        return s;
     }
 
     private void lerReceptor(InputStream in) throws Exception {
@@ -228,11 +542,61 @@ public class GnssTcpPlugin extends Plugin {
         int n;
         while (rxRun && (n = in.read(buf)) > 0) {
             repassarClientes(buf, n);
+            gravarBrutos(buf, n);
+            String t = new String(buf, 0, n, StandardCharsets.ISO_8859_1);
+            procurarGGA(t);
             JSObject d = new JSObject();
-            d.put("text", new String(buf, 0, n, StandardCharsets.ISO_8859_1));
-            notifyListeners("data", d);
+            d.put("text", t);
+            emitir("data", d);
+            aviso(false);
         }
-        if (rxRun) status("desconectado", "O receptor encerrou a conexão");
+    }
+
+    /** A conexão com o receptor caiu: com a tela aberta, o app reconecta; com ela fechada, o serviço reconecta sozinho. */
+    private void caiu(int gen, String msg) {
+        if (gen != rxGen || !rxRun) return;
+        rxRun = false;
+        if (uiVisivel || !rxDesejado) { status("desconectado", msg); aviso(true); return; }
+        aviso(true);
+        reconectarSozinho(gen);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void reconectarSozinho(final int gen) {
+        new Thread(() -> {
+            rxTentativas = 0;
+            while (rxDesejado && gen == rxGen && !uiVisivel) {
+                try { Thread.sleep(4000); } catch (Exception e) { return; }
+                if (!rxDesejado || gen != rxGen || uiVisivel) break;
+                rxTentativas++;
+                aviso(true);
+                try {
+                    InputStream in;
+                    if ("bt".equals(rxTipo)) {
+                        BluetoothSocket s = abrirBt(rxAlvo, rxCanal);
+                        if (gen != rxGen) { s.close(); return; }
+                        bt = s; rxOut = s.getOutputStream(); in = s.getInputStream();
+                    } else {
+                        Socket s = abrirTcp(rxAlvo, rxPorta, rxWifi);
+                        if (gen != rxGen) { s.close(); return; }
+                        rx = s; rxOut = s.getOutputStream(); in = s.getInputStream();
+                    }
+                    rxRun = true; rxTentativas = 0; rxReconexoes++;
+                    status("conectado", rxAlvo);
+                    aviso(true);
+                    lerReceptor(in);
+                } catch (Exception ignored) {
+                } finally {
+                    if (gen == rxGen) {
+                        rxRun = false;
+                        try { if (bt != null) bt.close(); } catch (Exception ignored) { }
+                        try { if (rx != null) rx.close(); } catch (Exception ignored) { }
+                    }
+                }
+            }
+            // a tela voltou e o receptor ainda não voltou: o app assume a reconexão
+            if (gen == rxGen && rxDesejado && !rxRun) status("desconectado", "Reconectando…");
+        }).start();
     }
 
     // ---------- Bluetooth clássico (SPP) ----------
@@ -282,64 +646,74 @@ public class GnssTcpPlugin extends Plugin {
     }
 
     @SuppressLint("MissingPermission")
+    private BluetoothSocket abrirBt(String addr, int canal) throws Exception {
+        BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+        if (ad == null) throw new Exception("Este celular não tem Bluetooth");
+        if (!ad.isEnabled()) throw new Exception("Ligue o Bluetooth do celular");
+        ad.cancelDiscovery();
+        BluetoothDevice dev = ad.getRemoteDevice(addr);
+        BluetoothSocket s = null;
+        Exception ultimo = null;
+        if (canal > 0) {
+            try {
+                Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
+                s = (BluetoothSocket) m.invoke(dev, canal);
+                s.connect();
+                return s;
+            } catch (Exception e0) {
+                try { if (s != null) s.close(); } catch (Exception ignored) { }
+                throw new Exception("Canal " + canal + " não abriu: " + e0.getMessage());
+            }
+        }
+        try { s = dev.createRfcommSocketToServiceRecord(SPP); s.connect(); return s; }
+        catch (Exception e1) {
+            ultimo = e1;
+            try { if (s != null) s.close(); } catch (Exception ignored) { }
+            s = null;
+        }
+        try { s = dev.createInsecureRfcommSocketToServiceRecord(SPP); s.connect(); return s; }
+        catch (Exception e2) {
+            ultimo = e2;
+            try { if (s != null) s.close(); } catch (Exception ignored) { }
+            s = null;
+        }
+        try {
+            Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
+            s = (BluetoothSocket) m.invoke(dev, 1);
+            s.connect();
+            return s;
+        } catch (Exception e3) { ultimo = e3; try { if (s != null) s.close(); } catch (Exception ignored) { } }
+        throw ultimo != null ? ultimo : new Exception("Falha ao conectar");
+    }
+
     private void conectarBt(final PluginCall call) {
         final String addr = call.getString("address", "");
+        final int canal = call.getInt("channel", 0);
         fecharReceptor();
+        final int gen = ++rxGen;
         new Thread(() -> {
             boolean respondeu = false;
             try {
-                BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
-                if (ad == null) throw new Exception("Este celular não tem Bluetooth");
-                if (!ad.isEnabled()) throw new Exception("Ligue o Bluetooth do celular");
-                ad.cancelDiscovery();
-                BluetoothDevice dev = ad.getRemoteDevice(addr);
-                BluetoothSocket s = null;
-                Exception ultimo = null;
-                final int canal = call.getInt("channel", 0);
-                if (canal > 0) {
-                    try {
-                        Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
-                        s = (BluetoothSocket) m.invoke(dev, canal);
-                        s.connect();
-                    } catch (Exception e0) {
-                        try { if (s != null) s.close(); } catch (Exception ignored) { }
-                        throw new Exception("Canal " + canal + " não abriu: " + e0.getMessage());
-                    }
-                } else
-                try { s = dev.createRfcommSocketToServiceRecord(SPP); s.connect(); }
-                catch (Exception e1) {
-                    ultimo = e1;
-                    try { if (s != null) s.close(); } catch (Exception ignored) { }
-                    s = null;
-                    try { s = dev.createInsecureRfcommSocketToServiceRecord(SPP); s.connect(); ultimo = null; }
-                    catch (Exception e2) {
-                        ultimo = e2;
-                        try { if (s != null) s.close(); } catch (Exception ignored) { }
-                        s = null;
-                        try {
-                            Method m = dev.getClass().getMethod("createRfcommSocket", int.class);
-                            s = (BluetoothSocket) m.invoke(dev, 1);
-                            s.connect();
-                            ultimo = null;
-                        } catch (Exception e3) { ultimo = e3; s = null; }
-                    }
-                }
-                if (s == null) throw ultimo != null ? ultimo : new Exception("Falha ao conectar");
+                BluetoothSocket s = abrirBt(addr, canal);
+                if (gen != rxGen) { s.close(); return; }
                 bt = s;
                 rxOut = s.getOutputStream();
                 rxRun = true;
+                rxTipo = "bt"; rxAlvo = addr; rxCanal = canal; rxDesejado = true; rxDesde = System.currentTimeMillis();
                 JSObject r = new JSObject();
                 r.put("connected", true);
                 call.resolve(r);
                 respondeu = true;
                 status("conectado", addr);
+                servico();
                 lerReceptor(s.getInputStream());
+                caiu(gen, "O receptor encerrou a conexão");
             } catch (Exception e) {
                 String msg = e.getMessage() == null ? e.toString() : e.getMessage();
                 if (!respondeu) call.reject(msg);
-                else if (rxRun) status("desconectado", msg);
+                else caiu(gen, msg);
             } finally {
-                rxRun = false;
+                if (gen == rxGen) rxRun = false;
             }
         }).start();
     }
@@ -359,7 +733,10 @@ public class GnssTcpPlugin extends Plugin {
 
     @PluginMethod
     public void disconnect(PluginCall call) {
+        rxDesejado = false;
+        rxGen++;
         fecharReceptor();
+        servico();
         call.resolve();
     }
 
@@ -391,7 +768,7 @@ public class GnssTcpPlugin extends Plugin {
         for (Socket c : clientes) lista.put(c.getInetAddress().getHostAddress());
         o.put("count", clientes.size());
         o.put("list", lista);
-        notifyListeners("clients", o);
+        emitir("clients", o);
     }
 
     private JSArray ipsLocais() {
@@ -419,6 +796,7 @@ public class GnssTcpPlugin extends Plugin {
             JSObject r = new JSObject();
             r.put("ips", ipsLocais());
             call.resolve(r);
+            servico();
             new Thread(() -> {
                 while (srv != null && !srv.isClosed()) {
                     try {
@@ -447,6 +825,7 @@ public class GnssTcpPlugin extends Plugin {
     @PluginMethod
     public void stopServer(PluginCall call) {
         pararServidor();
+        servico();
         call.resolve();
     }
 
@@ -478,13 +857,14 @@ public class GnssTcpPlugin extends Plugin {
 
     private void ntripStatus(String st, String msg) {
         JSObject o = new JSObject();
+        ntripSt = st;
         o.put("status", st);
         o.put("msg", msg == null ? "" : msg);
         o.put("bytes", ntripBytes);
         o.put("enviados", rxEnviados);
         o.put("erroEnvio", rxErroEnvio);
         o.put("descartados", rxDescartados);
-        notifyListeners("ntrip", o);
+        emitir("ntrip", o);
     }
 
     @PluginMethod
@@ -494,11 +874,18 @@ public class GnssTcpPlugin extends Plugin {
         final String mount = call.getString("mount", "");
         final String user = call.getString("user", "");
         final String pass = call.getString("pass", "");
+        ntripGga = call.getBoolean("gga", ntripGga);
+        call.resolve();
+        abrirNtrip(host, port, mount, user, pass);
+    }
+
+    private void abrirNtrip(final String host, final int port, final String mount, final String user, final String pass) {
         fecharNtrip();
         final int gen = ++ntripGen;
+        nHost = host; nPort = port; nMount = mount; nUser = user; nPass = pass; ntripDesejado = true;
         iniciarEscritor();
         segurarCpu(true);
-        call.resolve();
+        servico();
         new Thread(() -> {
             try {
                 ntripRun = true;
@@ -529,7 +916,7 @@ public class GnssTcpPlugin extends Plugin {
                     String motivo = primeira == null ? "sem resposta" : primeira;
                     if (primeira != null && primeira.contains("SOURCETABLE")) motivo = "Ponto de montagem não encontrado";
                     if (primeira != null && primeira.contains("401")) motivo = "Usuário ou senha recusados";
-                    if (gen == ntripGen) { ntripStatus("erro", motivo); fecharNtrip(); }
+                    if (gen == ntripGen) { ntripDesejado = false; ntripStatus("erro", motivo); fecharNtrip(); servico(); }
                     return;
                 }
                 if (primeira.startsWith("HTTP")) {
@@ -537,6 +924,7 @@ public class GnssTcpPlugin extends Plugin {
                     while ((l = lerLinha(in)) != null && l.length() > 0) { /* cabeçalhos */ }
                 }
                 ntripStatus("recebendo", mount);
+                aviso(true);
                 byte[] buf = new byte[2048];
                 int n;
                 long ultimoAviso = 0;
@@ -544,16 +932,29 @@ public class GnssTcpPlugin extends Plugin {
                     ntripBytes += n;
                     enfileirar(buf, n);
                     long agora = System.currentTimeMillis();
-                    if (agora - ultimoAviso > 1000) { ultimoAviso = agora; ntripStatus("recebendo", mount); }
+                    if (agora - ultimoAviso > 1000) { ultimoAviso = agora; ntripStatus("recebendo", mount); aviso(false); }
                 }
-                if (ntripRun && gen == ntripGen) ntripStatus("erro", "O caster encerrou a conexão");
+                if (ntripRun && gen == ntripGen) ntripCaiu(gen, "O caster encerrou a conexão");
             } catch (SocketTimeoutException te) {
-                if (ntripRun && gen == ntripGen) ntripStatus("erro", "Sem dados do caster há 15 s");
+                if (ntripRun && gen == ntripGen) ntripCaiu(gen, "Sem dados do caster há 15 s");
             } catch (Exception e) {
-                if (ntripRun && gen == ntripGen) ntripStatus("erro", e.getMessage() == null ? e.toString() : e.getMessage());
+                if (ntripRun && gen == ntripGen) ntripCaiu(gen, e.getMessage() == null ? e.toString() : e.getMessage());
             } finally {
                 if (gen == ntripGen) ntripRun = false;
             }
+        }).start();
+    }
+
+    /** O caster caiu: com a tela aberta o app decide; com ela fechada o serviço reconecta sozinho. */
+    private void ntripCaiu(final int gen, String msg) {
+        if (uiVisivel || !ntripDesejado) { ntripStatus("erro", msg); return; }
+        ntripRecons++;
+        aviso(true);
+        new Thread(() -> {
+            try { Thread.sleep(5000); } catch (Exception e) { return; }
+            if (gen != ntripGen || !ntripDesejado) return;
+            if (uiVisivel) { ntripStatus("erro", "Reconectando…"); return; }
+            abrirNtrip(nHost, nPort, nMount, nUser, nPass);
         }).start();
     }
 
@@ -561,9 +962,10 @@ public class GnssTcpPlugin extends Plugin {
     public void ntripGGA(PluginCall call) {
         try {
             String line = call.getString("line", "");
-            if (ntripOut != null && line.length() > 0) {
-                ntripOut.write((line + "\r\n").getBytes(StandardCharsets.ISO_8859_1));
-                ntripOut.flush();
+            OutputStream o = ntripOut;
+            if (o != null && line.length() > 0) {
+                ggaJs = System.currentTimeMillis();
+                synchronized (o) { o.write((line + "\r\n").getBytes(StandardCharsets.ISO_8859_1)); o.flush(); }
             }
             call.resolve();
         } catch (Exception e) {
@@ -573,12 +975,14 @@ public class GnssTcpPlugin extends Plugin {
 
     @PluginMethod
     public void ntripDisconnect(PluginCall call) {
+        ntripDesejado = false;
         fecharNtrip();
         ntripGen++;
         segurarCpu(false);
         filaRtcm.clear();
         filaBytes = 0;
         ntripStatus("desligado", "");
+        servico();
         call.resolve();
     }
 
@@ -623,13 +1027,12 @@ public class GnssTcpPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        fecharReceptor();
-        fecharNtrip();
-        pararServidor();
+        // a tela foi fechada (ou o app tirado dos recentes): as conexões continuam no serviço
+        if (atual == this) { uiViva = false; uiVisivel = false; }
     }
 
     // ---------- localização simulada (outros apps usam a posição do receptor) ----------
-    private LocationManager lm() { return (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE); }
+    private LocationManager lm() { return (LocationManager) ctx().getSystemService(Context.LOCATION_SERVICE); }
 
     @SuppressWarnings("deprecation")
     @PluginMethod
@@ -639,6 +1042,7 @@ public class GnssTcpPlugin extends Plugin {
             try { m.removeTestProvider(LocationManager.GPS_PROVIDER); } catch (Exception ignored) { }
             m.addTestProvider(LocationManager.GPS_PROVIDER, false, false, false, false, true, true, true, 1, 1);
             m.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true);
+            mockLigado = true;
             call.resolve();
         } catch (SecurityException se) {
             call.reject("Escolha a Coletora GNSS como app de local fictício nas Opções do desenvolvedor do Android");
@@ -675,20 +1079,21 @@ public class GnssTcpPlugin extends Plugin {
 
     @PluginMethod
     public void mockStop(PluginCall call) {
+        mockLigado = false;
         try { lm().removeTestProvider(LocationManager.GPS_PROVIDER); } catch (Exception ignored) { }
         call.resolve();
     }
 
     // ---------- voz (avisos falados em português) ----------
-    private TextToSpeech tts;
-    private volatile boolean ttsOk = false;
+    private static TextToSpeech tts;
+    private static volatile boolean ttsOk = false;
 
     @PluginMethod
     public void speak(PluginCall call) {
         final String txt = call.getString("text", "");
         try {
             if (tts == null) {
-                tts = new TextToSpeech(getContext(), st -> {
+                tts = new TextToSpeech(ctx(), st -> {
                     if (st == TextToSpeech.SUCCESS) {
                         int r = tts.setLanguage(new Locale("pt", "BR"));
                         ttsOk = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
@@ -729,7 +1134,7 @@ public class GnssTcpPlugin extends Plugin {
                 }
             }
             try {
-                WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                WifiManager wm = (WifiManager) ctx().getSystemService(Context.WIFI_SERVICE);
                 if (wm != null && wm.getDhcpInfo() != null) {
                     if (wm.getDhcpInfo().gateway != 0 && !r.has("gateway")) r.put("gateway", ipv4(wm.getDhcpInfo().gateway));
                     if (wm.getDhcpInfo().serverAddress != 0 && !r.has("dhcp")) r.put("dhcp", ipv4(wm.getDhcpInfo().serverAddress));

@@ -264,10 +264,12 @@ const proj=()=>S.projetos.find(p=>p.id===S.projAtivo);
 function stCls(){return !S.conectado?"c-off":G.fix===4?"c-fix":G.fix===5?"c-float":G.fix===1?"c-bad":"c-off"}
 
 // ---------- Cabeçalho ----------
+// nome do receptor em uso: o nome do Bluetooth (ex.: S61L05376, T72L01017, SP60_480002); no Wi-Fi, o número de série lido do receptor
+function nomeRx(){if(S.fonte==="celular"&&S.conectado)return "GPS do celular";if(S.conexao==="bt"&&S.btNome)return S.btNome;if(R.serie)return R.serie;const r=rec();return r?`${r.marca} ${r.modelo}`:""}
 function header(){
   const r=rec();
   $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
-  $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(r?`${r.marca} ${r.modelo} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
+  $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(nomeRx()?`${nomeRx()} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
   c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?"Autônomo (sem correção)":"Buscando satélites";
   if(S.tela!=="home"&&ABA_DE[S.tela])S.aba=ABA_DE[S.tela];
@@ -560,7 +562,8 @@ function vLocacao(){
     const aneis=[1,2,3,4].map(i=>`<circle cx="150" cy="150" r="${R*i/4}" fill="none" stroke="#263241"/>`).join("");
     const lbl=[1,2,3,4].map(i=>`<text x="${150+4}" y="${150-R*i/4-3}" fill="#9FB0C2" font-size="10" font-family="Barlow, sans-serif">${br(esc_*i/4,esc_<2?2:1)} m</text>`).join("");
     return `${locPainel()}
-    <section class="card" style="align-items:center;padding:10px">
+    <details class="card" style="padding:10px"><summary class="small" style="cursor:pointer">Radar e simulação</summary>
+    <section style="display:flex;flex-direction:column;align-items:center">
       <svg viewBox="0 0 300 300" width="100%" style="max-width:320px" role="img" aria-label="Radar de aproximação até o ponto">
         ${aneis}${lbl}<line x1="150" y1="20" x2="150" y2="280" stroke="#1E2B38"/><line x1="20" y1="150" x2="280" y2="150" stroke="#1E2B38"/>
         <text x="150" y="14" fill="#E8EEF4" font-size="12" text-anchor="middle" font-weight="700" font-family="Barlow, sans-serif">N</text>
@@ -568,9 +571,9 @@ function vLocacao(){
         <g transform="translate(${tx} ${ty})"><circle r="11" fill="none" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="3"/><line x1="-16" y1="0" x2="16" y2="0" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="2"/><line x1="0" y1="-16" x2="0" y2="16" stroke="${ok?"#3DDC84":"#FF8A1F"}" stroke-width="2"/></g>
         <g transform="translate(150 150) rotate(${G.course})"><polygon points="0,-16 11,12 0,6 -11,12" fill="${G.fix===4?"#3DDC84":"#FFC24B"}" stroke="#0F1720" stroke-width="2"/></g>`:`<text x="150" y="155" fill="#9FB0C2" font-size="13" text-anchor="middle" font-family="Barlow, sans-serif">Conecte o receptor</text>`}
       </svg>
-      <span class="muted small">${S.cfg.locVibrar||S.cfg.locSom?`Aviso de aproximação ligado a partir de ${S.cfg.locRaio} m: quanto mais perto, mais rápido.`:"Aviso de aproximação desligado nas Configurações."}</span>
+      <span class="muted small">${S.cfg.locVibrar||S.cfg.locSom?`Aviso de aproximação ligado a partir de ${S.cfg.locRaio} m: quanto mais perto, mais rápido. No ponto com FIX, apita sem parar com som diferente.`:"Aviso de aproximação desligado nas Configurações."}</span>
     </section>
-    <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada até o ponto</label>
+    <label class="ck small"><input type="checkbox" id="anda" ${S.anda?"checked":""}> Simular caminhada até o ponto</label></details>
     <div class="grid2"><button data-go="mapa">Ver no mapa</button><button data-act="pararLoc">Parar locação</button></div>`;
   }
   const pts=proj()?.pontos||[], q=(S.lcBusca||"").toLowerCase();
@@ -605,13 +608,22 @@ function vLocacao(){
   <div class="grid2"><label class="f">Tolerância "no ponto" (m)<input class="m" inputmode="decimal" data-bind="locTol" value="${esc(S.locTol)}"></label>
     <div class="kv" style="justify-content:end"><span>Locados no projeto</span><b>${(proj()?.locados||[]).length}</b></div></div>`;
 }
+// bússola do celular (para a seta da locação quando a pessoa está parada)
+(function(){const h=e=>{let v=null;if(e.webkitCompassHeading!=null)v=e.webkitCompassHeading;else if(e.absolute&&e.alpha!=null)v=(360-e.alpha)%360;if(v==null)return;
+  const so=(screen.orientation&&screen.orientation.angle)||0;R.bussola=(v+so+360)%360;R.bussolaT=Date.now();
+  if(S.tela==="locacao"&&S.loc&&!(S.conectado&&G.vel>0.4)){const g=document.getElementById("locSeta"),st=locEstado();if(g&&st)g.style.transform=`rotate(${(((st.az-R.bussola)%360)+360)%360}deg)`}};
+  window.addEventListener("deviceorientationabsolute",h,true);window.addEventListener("deviceorientation",e=>{if(e.webkitCompassHeading!=null||e.absolute)h(e)},true)})();
 // aviso de aproximação: pulsos mais rápidos quanto mais perto
 let ultPulso=0,chegouAviso=false;
 setInterval(()=>{
   if(!S.loc||!S.conectado){chegouAviso=false;return}
   const c=S.cfg;if(!c.locVibrar&&!c.locSom)return;
   const al=alvoEN();if(!al)return;const d=Math.hypot(al.E-G.E,al.N-G.N),tol=num(S.locTol)||0.03,raio=num(c.locRaio)||5,now=Date.now();
-  if(d<=tol){if(!chegouAviso){chegouAviso=true;if(c.locVibrar)vib([500,100,500],true);if(c.locSom)tom(1760,.4)}return}
+  if(d<=tol){const fixo=G.fix===4||S.fonte!=="tcp";
+    if(!chegouAviso){chegouAviso=true;if(c.locVibrar)vib([500,100,500],true);if(fixo)falar("Ponto achado")}
+    // achado com boa precisão: bipe duplo agudo repetido (som diferente do de aproximação)
+    if(fixo&&now-ultPulso>=700){ultPulso=now;if(c.locSom){tom(2093,.09);setTimeout(()=>tom(2637,.12),120)}if(c.locVibrar)vib(60,true)}
+    return}
   chegouAviso=false;if(d>raio)return;
   const per=Math.max(120,Math.min(1600,120+d/raio*1480));
   if(now-ultPulso>=per){ultPulso=now;if(c.locVibrar)vib(35,true);if(c.locSom)tom(700+(1-d/raio)*900,.05)}
@@ -834,6 +846,7 @@ function vPontos(){
       <div class="kv"><span>Latitude</span><b class="m">${x.lat!=null?gms(x.lat,"N","S"):"—"}</b></div><div class="kv"><span>Longitude</span><b class="m">${x.lon!=null?gms(x.lon,"E","W"):"—"}</b></div>
       ${ehCol(x)?`<div class="kv"><span>Altura da antena</span><b class="m">${br(x.alt||0)} m</b></div><div class="kv"><span>Precisão H</span><b class="m">${br(x.h_rms||0)} m</b></div>`:""}
       ${x.rn?`<div class="kv"><span>Cota pela RN</span><b>${esc(x.rn)}</b></div>`:""}
+      ${x.estaq?`<div class="kv"><span>Estaqueado de ${esc(x.estaq.alvo)}</span><b class="m">erro ${br(x.estaq.dist)} m · ΔZ ${br(x.estaq.dH)} m</b></div>`:""}
       <div class="grid2"><label class="f">Nome<input data-ptnome="${i}" value="${esc(x.nome)}"></label><label class="f">Descrição<input data-ptcod="${i}" value="${esc(x.cod||"")}"></label></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptmapa="${i}">No mapa</button>
       ${S.ptApagar===i?`<button style="min-height:36px;font-size:13px;background:var(--bad,#c33);color:#fff" data-ptdel="${i}">Confirmar apagar</button>`:`<button style="min-height:36px;font-size:13px" data-ptapg="${i}">Apagar</button>`}</div></div>`:""}</div>`}).join("")}</div>`
@@ -1141,7 +1154,7 @@ function vMapa(){
   const tb=(act,ic,lbl,on)=>`<button class="mtb${on?" on":""}" data-act="${act}" aria-label="${lbl}" title="${lbl}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></button>`;
   const ICM={camada:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',tudo:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',centro:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',mais:'<path d="M12 5v14M5 12h14"/>',menos:'<path d="M5 12h14"/>',regua:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',grade:'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 16h6M14 20h6"/>',lista:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'};
   const alt=alturaVertical();
-  return `${S.loc?locPainel():""}${ptSelCard()}
+  return `${S.loc?locPainel(true):""}${ptSelCard()}
   <section id="mapBox" style="position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B131B;height:${H}px">
     <svg id="mapSvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Mapa com a posição atual e os pontos coletados" style="display:block;width:100%;height:100%;touch-action:none;user-select:none">
       <rect width="${W}" height="${H}" fill="#0B131B"/><g id="mapG">${tiles}${grid}${pSvg}${base}${alvo}${seta}</g>
@@ -1488,6 +1501,14 @@ document.addEventListener("click",e=>{
     else if($("locPto")){S.loc={tipo:"ponto",idx:+$("locPto").value}}
     else{toast("Escolha um ponto ou digite E e N");return}
     S.locPick=false;S.seguir=true;render();toast("Locação iniciada: siga a linha laranja")}
+  if(a==="estaquear"){const st=locEstado();if(!st)return;if(!S.conectado){toast("Conecte o receptor");return}
+    if(!st.chegou&&!S.estaqConf){S.estaqConf=true;render();setTimeout(()=>{S.estaqConf=false},6000);return}S.estaqConf=false;
+    const p=proj(),al=st.al;let nome=al.nome+"_Estaq",k=2;while(p.pontos.some(x=>x.nome===nome))nome=al.nome+"_Estaq"+(k++);
+    const alt=alturaVertical(),orig=S.loc.tipo==="ponto"?p.pontos[S.loc.idx]:null;
+    p.pontos.push({nome,cod:(orig?.cod||"ESTACA"),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:cotaTerreno(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,st:G.fix===4?"FIX":G.fix===5?"FLOAT":S.fonte==="celular"?"CEL":"AUT",alt,quando:new Date().toISOString(),
+      estaq:{alvo:al.nome,dE:+(G.E-al.E).toFixed(4),dN:+(G.N-al.N).toFixed(4),dH:+(cotaTerreno()-al.h).toFixed(4),dist:+st.dist.toFixed(4)}});
+    p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString(),dist:st.dist}]);salvar();bip("ok");falar("Ponto "+al.nome+" estaqueado");
+    toast(`${nome} salvo · erro ${br(st.dist)} m${st.chegou?"":" (fora da tolerância)"}`);render();return}
   if(a==="marcarLocado"){const al=alvoEN();const p=proj();if(p){p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString()}]);salvar()}toast(al.nome+" marcado como locado");S.loc=null;render()}
   if(a==="novoProj"){$("novoProjForm").hidden=false;$("npNome").focus()}
   if(a==="criarProj"){const n=$("npNome").value.trim();if(!n){toast("Dê um nome ao projeto");return}const id=Date.now();S.projetos.unshift({id,nome:n,cliente:$("npCli").value.trim(),pontos:[]});S.projAtivo=id;salvar();render();toast("Projeto criado e aberto")}
@@ -1530,21 +1551,42 @@ function alvoEN(){
   return {E:S.loc.E,N:S.loc.N,h:S.loc.h,nome:S.loc.nome};
 }
 function azGMS(a){const g=Math.floor(a),m=Math.floor((a-g)*60),s=Math.round(((a-g)*60-m)*60);return `${g}°${String(m).padStart(2,"0")}'${String(s).padStart(2,"0")}"`}
-function locPainel(){
-  const al=alvoEN();if(!al)return "";
-  const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360;
-  const tol=num(S.locTol)||0.03, chegou=dist<=tol, alt=num(S.altura)||0;
-  const dh=cotaTerreno()-al.h; // terreno atual menos cota do alvo
-  let rel="";
-  if(G.vel>0.05){const ang=(az-G.course)*Math.PI/180;const fr=dist*Math.cos(ang),di=dist*Math.sin(ang);
-    rel=`<div class="grid2"><div class="kv"><span>${fr>=0?"Para frente":"Para trás"}</span><b>${br(Math.abs(fr))} m</b></div><div class="kv"><span>${di>=0?"Para a direita":"Para a esquerda"}</span><b>${br(Math.abs(di))} m</b></div></div>`}
-  return `<section class="card" style="border:2px solid ${chegou?"var(--fix)":"var(--accent)"};${chegou?"background:var(--fix-bg)":""}">
-    <div class="split"><h3>Locando ${esc(al.nome)}</h3><button style="min-height:34px;font-size:13px" data-act="pararLoc">Parar</button></div>
-    ${chegou?`<b style="font-size:24px;color:var(--fix)">NO PONTO ✓</b>`:`<div class="grid2"><div class="kv"><span>Distância</span><b style="font-size:26px">${br(dist)} m</b></div><div class="kv"><span>Azimute</span><b>${fmtAng(az)}</b></div></div>`}
-    <div class="grid2"><div class="kv"><span>${dn>=0?"Norte":"Sul"}</span><b>${br(Math.abs(dn))} m</b></div><div class="kv"><span>${de>=0?"Leste":"Oeste"}</span><b>${br(Math.abs(de))} m</b></div></div>
-    ${rel}
-    <div class="kv"><span>${dh>=0?"Corte":"Aterro"} (cota do projeto ${br(al.h)} m)</span><b>${br(Math.abs(dh))} m</b></div>
-    ${chegou?`<button class="pri" data-act="marcarLocado">Marcar como locado</button>`:""}
+// direção de referência da seta: caminhada (rumo do GNSS), bússola do celular ou norte
+function locRumo(){
+  if(S.conectado&&G.vel>0.4)return {h:G.course,fonte:"direção da caminhada"};
+  if(R.bussola!=null&&Date.now()-R.bussolaT<2500)return {h:R.bussola,fonte:"bússola do celular"};
+  return {h:0,fonte:"norte para cima (ande alguns passos para a seta seguir você)"};
+}
+function locEstado(){
+  const al=alvoEN();if(!al)return null;
+  const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360,tol=num(S.locTol)||0.03;
+  const preciso=G.fix===4||S.fonte==="celular"||S.fonte==="sim";
+  return {al,de,dn,dist,az,tol,chegou:dist<=tol,achado:dist<=tol&&preciso,perto:dist<=Math.max(1,tol*10)};
+}
+function locPainel(compacto){
+  const st=locEstado();if(!st)return "";
+  const {al,de,dn,dist,az,tol,chegou,achado,perto}=st,dh=cotaTerreno()-al.h,ru=locRumo(),rel=((az-ru.h)%360+360)%360;
+  const cor=achado?"var(--fix)":chegou?"var(--float)":perto?"var(--float)":"var(--accent)";
+  const CARD=["Norte","Nordeste","Leste","Sudeste","Sul","Sudoeste","Oeste","Noroeste"];
+  const lado=ru.fonte.startsWith("norte")?"Siga para o "+CARD[Math.round(az/45)%8]:rel<=20||rel>=340?"Siga em frente":rel>=160&&rel<=200?"Vire para trás":rel<180?"Vire à direita":"Vire à esquerda";
+  const fr=dist*Math.cos(rel*Math.PI/180),di=dist*Math.sin(rel*Math.PI/180);
+  const ja=(proj()?.pontos||[]).some(p=>p.nome===al.nome+"_Estaq");
+  const seta=`<svg viewBox="-60 -60 120 120" width="${compacto?110:190}" height="${compacto?110:190}" aria-hidden="true">
+      <circle r="56" fill="none" stroke="${achado?"#3DDC84":"#263241"}" stroke-width="${achado?4:2}"/>
+      ${achado?`<circle r="20" fill="#3DDC84"/><path d="M-9 0 l6 7 l13 -14" stroke="#0F1720" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+      :`<g id="locSeta" style="transform:rotate(${rel.toFixed(1)}deg);transition:transform .25s"><polygon points="0,-50 22,10 7,3 7,40 -7,40 -7,3 -22,10" fill="${perto?"#FFC24B":"#FF8A1F"}" stroke="#0F1720" stroke-width="2"/></g>`}
+      ${ru.fonte.startsWith("norte")?`<text x="0" y="-44" fill="#9FB0C2" font-size="9" text-anchor="middle" font-weight="700">N</text>`:""}</svg>`;
+  return `<section class="card" style="border:3px solid ${cor};${achado?"background:var(--fix-bg)":""};align-items:center;text-align:center">
+    <div class="split" style="width:100%"><h3 style="margin:0">Locando <span class="m">${esc(al.nome)}</span></h3><button style="min-height:34px;font-size:13px" data-act="pararLoc">Parar</button></div>
+    ${S.conectado?`${seta}
+    <b class="m" style="font-size:${compacto?30:46}px;line-height:1;color:${cor}">${dist<10?br(dist,dist<1?3:2):br(dist,1)} m</b>
+    <b style="font-size:18px;color:${cor}">${achado?"PONTO ACHADO ✓":chegou?"No ponto, mas sem FIX: aguarde a precisão":lado}</b>
+    ${achado?"":`<span class="muted small">${G.vel>0.4?`${fr>=0?"Frente":"Trás"} ${br(Math.abs(fr))} m · ${di>=0?"Direita":"Esquerda"} ${br(Math.abs(di))} m · `:""}Referência: ${ru.fonte}</span>`}
+    <div class="grid2" style="width:100%"><div class="kv"><span>${dn>=0?"Norte":"Sul"}</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(dn))} m</b></div><div class="kv"><span>${de>=0?"Leste":"Oeste"}</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(de))} m</b></div>
+    <div class="kv"><span>Azimute</span><b>${fmtAng(az)}</b></div><div class="kv"><span>${dh>=0?"Corte":"Aterro"} (projeto ${br(al.h)})</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(dh))} m</b></div></div>
+    ${compacto?"":`<button class="${chegou?"pri big":""}" style="width:100%" data-act="estaquear">${chegou?`Estaquear (salvar ${esc(al.nome)}_Estaq)`:S.estaqConf?"Fora da tolerância: toque de novo para estaquear assim mesmo":`Estaquear aqui (${esc(al.nome)}_Estaq)`}</button>
+    ${ja?`<span class="small" style="color:var(--fix)">${esc(al.nome)} já foi estaqueado</span>`:""}`}`
+    :`<span class="muted">Conecte o receptor para ver a direção.</span>`}
   </section>`;
 }
 function locPicker(){

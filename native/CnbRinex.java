@@ -170,7 +170,8 @@ public class CnbRinex {
         else xyz = null;
 
         Resultado res = new Resultado();
-        String nObs = nomeBase + ".obs", nNav = nomeBase + ".nav";
+        String yy = String.format(Locale.US, "%02d", gpsData(t[0])[0] % 100);
+        String nObs = nomeBase + "." + yy + "o", nNav = nomeBase + "." + yy + "n"; // nome curto padrão RINEX (aceito pelo IBGE-PPP e pelos programas de PPK)
         File fo = new File(saidaDir, nObs);
         final long passo = Math.max(1, Math.round(intervalo * 1000));
         final double[] xyzF = xyz == null ? sppPrimeiro(b, efs) : xyz;

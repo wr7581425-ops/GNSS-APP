@@ -1363,6 +1363,32 @@ function sAparelhos(){
 function demoNota(){return `<p class="muted small" style="margin:0">Versão de teste: o receptor é simulado. Os dados de posição, status e NMEA imitam um receptor real para você avaliar as telas.</p>`}
 function tempo(t){const s=Math.floor((Date.now()-t)/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,"0")).join(":")}
 
+// ---------- pressionar o mapa por 2 s: digitar ponto para locar (já vem com a coordenada do lugar pressionado) ----------
+const PRESSAO_MS=2000;
+function pressaoIniciar(x,y){pressaoCancelar();
+  const d=document.createElement("div");d.id="pressAnel";d.style.cssText=`position:fixed;left:${x-34}px;top:${y-34}px;width:68px;height:68px;border-radius:50%;border:4px solid var(--accent);pointer-events:none;z-index:50;opacity:.9;transform:scale(.2);transition:transform ${PRESSAO_MS}ms linear`;
+  document.body.appendChild(d);requestAnimationFrame(()=>d.style.transform="scale(1)");
+  MG.pressT=setTimeout(()=>{pressaoCancelar();if(MG.moved||MG.p.size!==1)return;
+    const sv=$("mapSvg");if(!sv)return;const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,k=vb.width/r.width,mpp=S.zoom/100;
+    const E=S.mapCE+((x-r.left)*k-vb.width/2)*mpp,N=S.mapCN-((y-r.top)*k-vb.height/2)*mpp;
+    MG.supr=true;setTimeout(()=>MG.supr=false,600);vib(80,true);abrirDigitarPonto(E,N)},PRESSAO_MS)}
+function pressaoCancelar(){clearTimeout(MG.pressT);const d=document.getElementById("pressAnel");if(d)d.remove()}
+function abrirDigitarPonto(E,N){const dc_=+S.cfg.dec||3;R.dig={nome:S.lcNome||"L-01",E:E!=null?E.toFixed(dc_).replace(".",","):"",N:N!=null?N.toFixed(dc_).replace(".",","):"",h:"",desc:"",salvar:S.lcSalvar!==false};render()}
+function vDigitarPonto(){const d=R.dig;if(!d)return "";
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center" data-digfundo="1">
+  <section class="card" style="width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px 22px;gap:10px">
+    <div class="split"><h3 style="margin:0">Digitar ponto para locar</h3><button style="min-height:34px;font-size:13px" data-act="digFechar">Fechar</button></div>
+    <span class="muted small">${sisTxt()} · a coordenada já vem do lugar que você pressionou; pode corrigir.</span>
+    <div class="grid2">
+      <label class="f">Nome<input class="m" data-dig="nome" value="${esc(d.nome)}"></label>
+      <label class="f">Descrição<input data-dig="desc" value="${esc(d.desc)}" placeholder="opcional"></label>
+      <label class="f">E (m)<input class="m" inputmode="decimal" data-dig="E" value="${esc(d.E)}"></label>
+      <label class="f">N (m)<input class="m" inputmode="decimal" data-dig="N" value="${esc(d.N)}"></label>
+      <label class="f">Cota de projeto (m)<input class="m" inputmode="decimal" data-dig="h" value="${esc(d.h)}" placeholder="opcional"></label>
+    </div>
+    <label class="ck small"><input type="checkbox" data-dig="salvar" ${d.salvar?"checked":""}> Salvar no projeto como ponto de projeto</label>
+    <button class="pri big" data-act="digLocar">${ICONE_OK}Locar este ponto</button>
+  </section></div>`}
 // ---------- gestos do mapa ----------
 const MG={p:new Map(),start:null,moved:false,supr:false};
 function mgPts(){return [...MG.p.values()]}
@@ -1370,7 +1396,8 @@ document.addEventListener("pointerdown",e=>{
   const sv=e.target.closest&&e.target.closest("#mapSvg");if(!sv)return;
   MG.p.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const ps=mgPts();
-  if(ps.length===1){MG.start={x:e.clientX,y:e.clientY};MG.moved=false;MG.sc=1;MG.c0={x:e.clientX,y:e.clientY};MG.c1=MG.c0}
+  if(ps.length===1){MG.start={x:e.clientX,y:e.clientY};MG.moved=false;MG.sc=1;MG.c0={x:e.clientX,y:e.clientY};MG.c1=MG.c0;pressaoIniciar(e.clientX,e.clientY)}
+  else pressaoCancelar();
   if(ps.length===2){MG.d0=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/(MG.sc||1);MG.c0={x:(ps[0].x+ps[1].x)/2-(MG.c1.x-MG.c0.x),y:(ps[0].y+ps[1].y)/2-(MG.c1.y-MG.c0.y)}}
   R.gesto=true;
 });
@@ -1379,12 +1406,13 @@ document.addEventListener("pointermove",e=>{
   const ps=mgPts(),g=$("mapG");if(!g)return;
   if(ps.length===1){MG.c1={x:ps[0].x,y:ps[0].y};if(Math.abs(MG.c1.x-MG.start.x)+Math.abs(MG.c1.y-MG.start.y)>6)MG.moved=true}
   else if(ps.length>=2){MG.c1={x:(ps[0].x+ps[1].x)/2,y:(ps[0].y+ps[1].y)/2};MG.sc=Math.max(.05,Math.min(20,Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/MG.d0));MG.moved=true}
-  if(!MG.moved)return;
+  if(!MG.moved)return;pressaoCancelar();
   const sv=$("mapSvg"),r=sv.getBoundingClientRect(),k=sv.viewBox.baseVal.width/r.width;
   const c0x=(MG.c0.x-r.left)*k,c0y=(MG.c0.y-r.top)*k,c1x=(MG.c1.x-r.left)*k,c1y=(MG.c1.y-r.top)*k;
   g.setAttribute("transform",`translate(${c1x} ${c1y}) scale(${MG.sc}) translate(${-c0x} ${-c0y})`);
 });
 function mgFim(e){
+  pressaoCancelar();
   if(!MG.p.has(e.pointerId))return;MG.p.delete(e.pointerId);
   if(MG.p.size>0){const ps=mgPts();MG.start={x:ps[0].x,y:ps[0].y};return}
   R.gesto=false;
@@ -1417,7 +1445,7 @@ function render(full=true){
   if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
-  v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,exportar:vExportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
+  v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,exportar:vExportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos()+vDigitarPonto();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
@@ -1571,11 +1599,7 @@ document.addEventListener("click",e=>{
   if(a==="impColado"){if(!(S.impTxt||"").trim()){toast("Cole a lista primeiro");return}const r=lerTexto(S.impTxt,cfgImp().ordem);R.impPrev={pts:r.pts,origem:"lista colada",aviso:r.aviso};render();return}
   if(a==="impConfirmar"){confirmarImport();return}
   if(a==="impCancelar"){R.impPrev=null;render();return}
-  if(a==="locDigitado"){const E=num(S.lcE),N=num(S.lcN);if(isNaN(E)||isNaN(N)){toast("Preencha E e N");return}
-    const h=isNaN(num(S.lcH))?cotaTerreno():num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
-    if(S.lcSalvar!==false&&proj()){if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome} no projeto`);return}novoPonto(nome,(S.lcDesc||"").trim()||"PROJETO",E,N,h);proj().pontos[proj().pontos.length-1].st="PROJ";S.loc={tipo:"ponto",idx:proj().pontos.length-1};salvar()}
-    else S.loc={tipo:"coord",E,N,h,nome};
-    S.lcNome=incNome(nome);S.lcE="";S.lcN="";chegouAviso=false;render();toast("Locação iniciada")}
+  if(a==="locDigitado"){acaoLocDigitado();return}
   if(a==="fazIrradiar"){const B=getPt(S.irB??"atual"),az=parseAng(S.irAz)*Math.PI/180,d=num(S.irD),nome=(S.irNome||"IR-01").trim();if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome}`);return}
     novoPonto(nome,"IRR",B.E+Math.sin(az)*d,B.N+Math.cos(az)*d,B.h+(num(S.irDh)||0));S.irNome=incNome(nome);salvar();render();toast(`${nome} criado`)}
   if(a==="fazIntersecao"){const A=getPt(S.ixA??"0"),B=getPt(S.ixB??"1"),C=getPt(S.ixC??"2"),D=getPt(S.ixD??"3");const x1=B.E-A.E,y1=B.N-A.N,x2=D.E-C.E,y2=D.N-C.N,t=((C.E-A.E)*y2-(C.N-A.N)*x2)/(x1*y2-y1*x2);
@@ -1610,6 +1634,9 @@ document.addEventListener("click",e=>{
     else if($("locPto")){S.loc={tipo:"ponto",idx:+$("locPto").value}}
     else{toast("Escolha um ponto ou digite E e N");return}
     S.locPick=false;S.seguir=true;render();toast("Locação iniciada: siga a linha laranja")}
+  if(a==="digFechar"){R.dig=null;render();return}
+  if(a==="digLocar"){const d=R.dig;if(!d)return;S.lcNome=d.nome;S.lcE=d.E;S.lcN=d.N;S.lcH=d.h;S.lcDesc=d.desc;S.lcSalvar=d.salvar;R.dig=null;
+    const antes=S.loc;acaoLocDigitado();if(S.loc&&S.loc!==antes){S.tela="locacao";render()}return}
   if(a==="locAnt"||a==="locProx"){const v=vizLoc(),i=a==="locAnt"?v.ant:v.prox;if(i==null)return;S.loc={tipo:"ponto",idx:i};chegouAviso=false;S.estaqConf=false;bip("ok");falar(a==="locAnt"?"Ponto anterior":"Próximo ponto");render();toast("Locando "+proj().pontos[i].nome);return}
   if(a==="estaquear"){const st=locEstado();if(!st)return;if(!S.conectado){toast("Conecte o receptor");return}
     if(!st.chegou&&!S.estaqConf){S.estaqConf=true;render();setTimeout(()=>{S.estaqConf=false},6000);return}S.estaqConf=false;
@@ -1627,10 +1654,11 @@ document.addEventListener("click",e=>{
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind==="pNum"){const pj=proj();if(pj){pj.pNum=el.value.trim()||undefined;salvar()}return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.dig&&R.dig&&el.type!=="checkbox"){R.dig[el.dataset.dig]=el.value;return}if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind==="pNum"){const pj=proj();if(pj){pj.pNum=el.value.trim()||undefined;salvar()}return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
+  if(el.dataset.dig&&R.dig){R.dig[el.dataset.dig]=el.type==="checkbox"?el.checked:el.value;return}
   if(el.dataset.ptnome!==undefined){const p=proj(),i=+el.dataset.ptnome,v=el.value.trim();if(!v){render();return}if(p.pontos.some((x,k)=>k!==i&&x.nome===v)){toast("Já existe "+v);render();return}p.pontos[i].nome=v;salvar();toast("Nome alterado");return}
   if(el.dataset.ptcod!==undefined){proj().pontos[+el.dataset.ptcod].cod=el.value.trim();salvar();toast("Descrição alterada");return}
   if(el.dataset.bind==="ptOrdem"){S.ptOrdem=el.value;render();return}
@@ -1676,6 +1704,11 @@ function locEstado(){
   const preciso=G.fix===4||S.fonte==="celular"||S.fonte==="sim";
   return {al,de,dn,dist,az,tol,chegou:dist<=tol,achado:dist<=tol&&preciso,perto:dist<=Math.max(1,tol*10)};
 }
+function acaoLocDigitado(){const E=num(S.lcE),N=num(S.lcN);if(isNaN(E)||isNaN(N)){toast("Preencha E e N");return}
+    const h=isNaN(num(S.lcH))?cotaTerreno():num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
+    if(S.lcSalvar!==false&&proj()){if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome} no projeto`);return}novoPonto(nome,(S.lcDesc||"").trim()||"PROJETO",E,N,h);proj().pontos[proj().pontos.length-1].st="PROJ";S.loc={tipo:"ponto",idx:proj().pontos.length-1};salvar()}
+    else S.loc={tipo:"coord",E,N,h,nome};
+    S.lcNome=incNome(nome);S.lcE="";S.lcN="";chegouAviso=false;render();toast("Locação iniciada")}
 // sequência da locação: pontos de projeto (importados) na ordem da lista; se o alvo não for de projeto, usa todos os pontos
 function vizLoc(){
   if(S.loc?.tipo!=="ponto")return {total:0};const pts=proj()?.pontos||[],atual=pts[S.loc.idx];if(!atual)return {total:0};

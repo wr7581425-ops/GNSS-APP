@@ -117,18 +117,40 @@ const S={
   corrLigada:false, corrDesde:0,
   sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
   projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
-  codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"5", coletando:0,
-  baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
+  codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"1", coletando:0,
+  baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"2,000", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
-  est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
+  est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2,000",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
-  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"3",cfgVer:3,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn"])if(s[k]!==undefined)S[k]=s[k];
-  if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
-function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo"])if(s[k]!==undefined)S[k]=s[k];
+  if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
+    // v3: pontos começam em 001, coleta rápida com 1 época, antena 2,000 m
+    if(S.cfg.cfgVer<3){if(S.cfg.digitos==="2")S.cfg.digitos="3";if(S.epocas==="5")S.epocas="1";if(S.altura==="1,800")S.altura="2,000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
+// Sem limite de pontos: cada obra também é gravada num arquivo próprio no celular (WASurvey/obras/<id>.json).
+// O localStorage do navegador tem limite (~5 MB); se encher, ele guarda só as configurações e os pontos ficam nos arquivos.
+let tSalvarObras=null;const obrasSujas=new Set();
+function salvar(){
+  const pj=proj();if(pj){pj.salvoEm=Date.now();obrasSujas.add(pj.id)}
+  try{localStorage.setItem(KEY,JSON.stringify(S));S.pontosNoArquivo=false}
+  catch(e){try{localStorage.setItem(KEY,JSON.stringify(Object.assign({},S,{pontosNoArquivo:true,projetos:S.projetos.map(p=>Object.assign({},p,{pontos:[],nPontos:p.pontos.length}))})))}catch(e2){}}
+  try{if(NATIVO&&R.obrasCarregadas){clearTimeout(tSalvarObras);tSalvarObras=setTimeout(gravarObras,700)}}catch(e){}
+}
+async function gravarObras(){
+  for(const id of [...obrasSujas]){const p=S.projetos.find(x=>x.id===id);obrasSujas.delete(id);if(!p)continue;
+    try{await NP.Filesystem.writeFile({path:"WASurvey/obras/"+id+".json",data:JSON.stringify(p),directory:"DATA",encoding:"utf8",recursive:true})}catch(e){obrasSujas.add(id)}}
+}
+async function carregarObras(){
+  try{for(const p of S.projetos){
+      let f=null;try{const r=await NP.Filesystem.readFile({path:"WASurvey/obras/"+p.id+".json",directory:"DATA",encoding:"utf8"});f=JSON.parse(r.data)}catch(e){}
+      if(f&&Array.isArray(f.pontos)&&((f.salvoEm||0)>(p.salvoEm||0)||f.pontos.length>p.pontos.length&&(f.salvoEm||0)>=(p.salvoEm||0)||S.pontosNoArquivo&&!p.pontos.length))Object.assign(p,f);
+      else obrasSujas.add(p.id); // primeira vez: cria o arquivo da obra
+    }}catch(e){}
+  R.obrasCarregadas=true;await gravarObras();render();
+}
 
 // ---------- Simulador do receptor ----------
 const G={fix:0,sats:0,pdop:9.9,hrms:9,vrms:9,lat:-3.10207,lon:-60.02553,E:0,N:0,h:42.316,idade:0,course:35,vel:0,const:{GPS:9,GLONASS:6,Galileo:5,BeiDou:4},nmea:[]};
@@ -296,10 +318,11 @@ function vPainel(){
   ${!S.corrLigada?`<div class="banner">Sem correção: a precisão está em metros. Ligue o NTRIP ou o rádio em Receptor › Correção para chegar ao FIX.</div>`:""}
   <button class="pri big" data-go="coleta">Coletar ponto</button>`;
 }
+// numeração por obra: ao abrir a obra, continua do último ponto coletado + 1 (ex.: parou no 025 → 026)
 function proxNome(){
-  if(S.pNum)return S.pNum;
+  const pj=proj();if(pj&&pj.pNum)return pj.pNum;
   const pre=S.cfg.prefixo||"",pts=(proj()?.pontos||[]).filter(p=>p.st!=="CALC"&&p.st!=="PROJ");
-  let max=0,larg=+S.cfg.digitos||2;
+  let max=0,larg=+S.cfg.digitos||3;
   for(const p of pts){const m=String(p.nome).match(/^(.*?)(\d+)$/);if(m&&m[1]===pre){if(+m[2]>max)max=+m[2];larg=Math.max(larg,m[2].length)}}
   return pre+String(max+1).padStart(larg,"0");
 }
@@ -904,7 +927,7 @@ function vPontos(){
   <div class="grid2"><label class="f">Buscar<input data-bind="ptBusca" value="${esc(S.ptBusca||"")}" placeholder="Número ou descrição"></label>
   <label class="f">Ordem<select data-bind="ptOrdem"><option value="recente" ${ord==="recente"?"selected":""}>Mais recentes</option><option value="antigo" ${ord==="antigo"?"selected":""}>Mais antigos</option><option value="nome" ${ord==="nome"?"selected":""}>Nome</option><option value="prec" ${ord==="prec"?"selected":""}>Pior precisão</option></select></label></div>
   <div class="grid2"><button data-go="exportar">Exportar lista</button><button data-go="mapa">Ver no mapa</button></div>
-  ${lista.length?`<div class="list">${lista.map(({x,i})=>{const [E,N]=ptEN(x),aberto=ab===i;return `<div class="row" style="grid-template-columns:1fr auto;gap:4px 8px">
+  ${lista.length?`<div class="list">${lista.slice(0,R.ptLim||200).map(({x,i})=>{const [E,N]=ptEN(x),aberto=ab===i;return `<div class="row" style="grid-template-columns:1fr auto;gap:4px 8px">
     <button data-ptabre="${i}" style="all:unset;cursor:pointer;grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:2px 8px">
     <span><b class="m">${esc(x.nome)}</b> <span class="muted small">${esc(x.cod||"")}</span></span><span class="small">${tag(x.st)}</span>
     <span class="m small muted" style="grid-column:1/-1">N ${br(N,d)} · E ${br(E,d)} · Z ${br(x.h,d)}${x.h_rms?` · ±${br(x.h_rms)} m`:""}</span></button>
@@ -916,7 +939,7 @@ function vPontos(){
       ${x.estaq?`<div class="kv"><span>Estaqueado de ${esc(x.estaq.alvo)}</span><b class="m">erro ${br(x.estaq.dist)} m · ΔZ ${br(x.estaq.dH)} m</b></div>`:""}
       <div class="grid2"><label class="f">Nome<input data-ptnome="${i}" value="${esc(x.nome)}"></label><label class="f">Descrição<input data-ptcod="${i}" value="${esc(x.cod||"")}"></label></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptmapa="${i}">No mapa</button>
-      ${S.ptApagar===i?`<button style="min-height:36px;font-size:13px;background:var(--bad,#c33);color:#fff" data-ptdel="${i}">Confirmar apagar</button>`:`<button style="min-height:36px;font-size:13px" data-ptapg="${i}">Apagar</button>`}</div></div>`:""}</div>`}).join("")}</div>`
+      ${S.ptApagar===i?`<button style="min-height:36px;font-size:13px;background:var(--bad,#c33);color:#fff" data-ptdel="${i}">Confirmar apagar</button>`:`<button style="min-height:36px;font-size:13px" data-ptapg="${i}">Apagar</button>`}</div></div>`:""}</div>`}).join("")}</div>${lista.length>(R.ptLim||200)?`<button data-act="ptMais">Mostrar mais (${lista.length-(R.ptLim||200)} restantes)</button>`:""}`
   :`<p class="muted small" style="margin:0">Nenhum ponto${q?" encontrado":f==="coletados"?" coletado ainda":""}.</p>`}`;
 }
 function tileLayer(fundo,X,Y,W,H,mpp){
@@ -1486,6 +1509,7 @@ document.addEventListener("click",e=>{
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
   if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
   if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
+  if(a==="ptMais"){R.ptLim=(R.ptLim||200)+500;render();return}
   if(a==="autoIniciar"){if(!proj()){toast("Abra um projeto primeiro");return}
     const modo=S.colModo,iv=num(S.colInt||"1"),ds=num(S.colDist||"1");
     if(modo==="tempo"&&!(iv>0)){toast("Informe o intervalo em segundos");return}if(modo==="dist"&&!(ds>0)){toast("Informe a distância em metros");return}
@@ -1602,7 +1626,7 @@ document.addEventListener("click",e=>{
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind==="pNum"){const pj=proj();if(pj){pj.pNum=el.value.trim()||undefined;salvar()}return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
@@ -1901,7 +1925,7 @@ function salvarPontoUnico(){
   p.pontos.push({nome,cod:(S.codigo||"").trim(),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h-alt+rnOff(),...(rnAtiva()?{rn:p.rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,v_rms:G.vrms||G.hrms*1.7,
     pdop:G.pdop||0,hdop:G.hdop||0,vdop:G.vdop||0,sats:G.sats||0,idade:G.idade||0,epocas:1,sep:R.sep||0,hElip:G.h-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),
     st:S.fonte==="celular"?"CEL":G.fix===4?"FIX":G.fix===5?"FLOAT":"AUT",alt,quando:new Date().toISOString(),auto:R.auto?.modo});
-  S.pNum=incNome(nome);
+  proj().pNum=incNome(nome);
 }
 setInterval(()=>{
   const a=R.auto;if(!a||!S.conectado)return;
@@ -1929,7 +1953,7 @@ function coletar(obsSeg){
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
       proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:E0,N:N0,h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
         disp:+disp.toFixed(4),obs:obsSeg?amostras.length:undefined,sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
-      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`)};
+      proj().pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`)};
   const iv=setInterval(()=>{amostra();S.coletando--;if(S.coletando<=0)fim();else render()},1000);
   R.coletaFim=()=>{amostra();fim()};
 }
@@ -2738,6 +2762,7 @@ async function prepararSegundoPlano(forcar){
 }
 async function lerSegundoPlano(){try{R.bg=await NP.GnssTcp.backgroundInfo();render()}catch(e){}}
 if(NATIVO&&NP.GnssTcp)setTimeout(()=>{sincronizarNativo();lerSegundoPlano()},300);
+if(NATIVO&&NP.Filesystem)carregarObras();else R.obrasCarregadas=true;
 // envia a posição (GGA) ao caster a cada 10 s, exigido em redes VRS
 setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ultGGA&&Date.now()-R.ggaEnv>10000){R.ggaEnv=Date.now();NP.GnssTcp.ntripGGA({line:R.ultGGA}).catch(()=>{})}},2000);
 

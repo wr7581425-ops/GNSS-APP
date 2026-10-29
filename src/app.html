@@ -349,7 +349,7 @@ function vColeta(){
   </section>
   <button class="pri big" data-act="coletar" ${pode?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:"Coletar "+proxNome()}</button>
   ${motivo?`<p class="muted small" style="margin:0">${motivo}</p>`:""}
-  <button data-go="mapa">Ver pontos no mapa</button>
+  <div class="grid2"><button data-go="pontos">Lista de pontos (${p.pontos.filter(x=>!["PROJ","CALC"].includes(x.st)).length})</button><button data-go="mapa">Ver no mapa</button></div>
   <section style="display:flex;flex-direction:column;gap:8px">
     <div class="split"><span class="eyebrow">Últimos pontos</span><span class="muted small">${p.pontos.length} no projeto</span></div>
     ${ult.length?`<div class="list">${ult.map(x=>`<div class="row"><b class="m">${esc(x.nome)}</b><span class="muted">${esc(x.cod)} · ${br(x.h_rms)} m</span><span class="${x.st==="FIX"?"st-fix":"st-float"}">${x.st}</span></div>`).join("")}</div>`:`<p class="muted small" style="margin:0">Nenhum ponto ainda. O primeiro aparece aqui.</p>`}
@@ -682,7 +682,7 @@ const IC={
 };
 const COR={verde:"#2E9E5B",roxo:"#9B4DCA",violeta:"#6E5BD9",laranja:"#E0702A",teal:"#138A7E",azul:"#2F7FD1",vermelho:"#C9453D",ambar:"#B8860B",rosa:"#C2477A",ciano:"#1D8FAE",cinza:"#55657A"};
 const TILES={
-  projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos","pontos","verde",()=>go("pontos")],
+  projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos coletados","pontos","verde",()=>go("pontos")],
            ["importar","Importar pontos","importar","violeta",()=>go("importar")],["codigos","Códigos","codigos","rosa",()=>go("codigos")],["exportar","Exportar","exportar","laranja",()=>go("exportar")],["config","Configurações","config","cinza",()=>go("config")]],
   dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],
            ["correcao","Correção (NTRIP, rádio)","correcao","azul",()=>sub("correcao")],["estatico","Gravar estático","estatico","laranja",()=>sub("estatico")],["ajuste","Ajustar base","ajuste","vermelho",()=>sub("ajuste")],
@@ -690,7 +690,7 @@ const TILES={
            ["infopos","Info posição","infopos","verde",()=>go("infopos")],["antena","Antena","antena","violeta",()=>go("antena")],["mock","Localização simulada","mock","ciano",()=>go("mock")],["reiniciar","Reiniciar RTK","reiniciar","vermelho",()=>{reiniciarRtk()}]],
   levantamento:[["painel","Painel RTK","painel","verde",()=>go("painel")],["coletar","Coletar pontos","coletar","laranja",()=>go("coleta")],["mapa","Mapa","mapa","azul",()=>go("mapa")],
            ["locarPonto","Locar ponto","locarPonto","vermelho",()=>{S.lcModo="lista";go("locacao")}],["locarLinha","Locar linha","locarLinha","rosa",()=>calc("locLinha")],["linha","Criar linha","linha","teal",()=>calc("linha")],
-           ["pontos2","Pontos","pontos","ciano",()=>go("pontos")]],
+           ["pontos2","Lista de pontos","pontos","ciano",()=>go("pontos")]],
   ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
            ["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
            ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["rnref","RN - REF","rnref","vermelho",()=>go("rnref")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
@@ -795,16 +795,35 @@ function vCodigos(){
     ${L.length?`<div class="list">${L.map((c,i)=>`<div class="row" style="grid-template-columns:1fr auto auto"><b>${esc(c)}</b><button style="min-height:34px;font-size:13px" data-desc="${esc(c)}" aria-pressed="${S.codigo===c}">${S.codigo===c?"Em uso":"Usar"}</button><button style="min-height:34px;font-size:13px" data-coddel="${i}">Apagar</button></div>`).join("")}</div>`:`<span class="muted small">Nenhum código.</span>`}</section>`;
 }
 function vPontos(){
-  const p=proj();if(!p)return `<span class="muted">Nenhum projeto aberto.</span>`;
-  const q=(S.ptBusca||"").toLowerCase(),lista=p.pontos.map((x,i)=>({x,i})).filter(({x})=>!q||x.nome.toLowerCase().includes(q)||(x.cod||"").toLowerCase().includes(q));
-  const tag=st=>st==="FIX"?`<span class="st-fix">FIX</span>`:st==="CALC"?`<span style="color:#5B9CFF;font-weight:700">CALC</span>`:st==="PROJ"?`<span style="color:var(--accent);font-weight:700">PROJ</span>`:`<span class="st-float">${st}</span>`;
-  return `<div class="split"><span class="ttl">Pontos</span><span class="muted small">${p.pontos.length} em ${esc(p.nome)}</span></div>
-  <label class="f">Buscar<input data-bind="ptBusca" value="${esc(S.ptBusca||"")}" placeholder="Número ou descrição"></label>
-  ${lista.length?`<div class="list">${lista.slice().reverse().map(({x,i})=>{const [E,N]=ptEN(x);return `<div class="row" style="grid-template-columns:1fr auto;gap:4px 8px">
+  const p=proj();if(!p)return `<span class="ttl">Pontos coletados</span><section class="card"><p class="muted">Nenhum projeto aberto.</p><button data-go="projetos">Projetos</button></section>`;
+  const f=S.ptFiltro||"coletados",ord=S.ptOrdem||"recente",q=(S.ptBusca||"").toLowerCase(),d=dc();
+  const ehCol=x=>!["PROJ","CALC"].includes(x.st);
+  const nCol=p.pontos.filter(ehCol).length,nFix=p.pontos.filter(x=>x.st==="FIX").length,nProj=p.pontos.length-nCol;
+  let lista=p.pontos.map((x,i)=>({x,i})).filter(({x})=>f==="todos"||(f==="coletados"?ehCol(x):f==="fix"?x.st==="FIX":!ehCol(x)))
+    .filter(({x})=>!q||x.nome.toLowerCase().includes(q)||(x.cod||"").toLowerCase().includes(q));
+  if(ord==="recente")lista.reverse();else if(ord==="nome")lista.sort((a,b)=>a.x.nome.localeCompare(b.x.nome,"pt",{numeric:true}));else if(ord==="prec")lista.sort((a,b)=>(b.x.h_rms||0)-(a.x.h_rms||0));
+  const tag=st=>st==="FIX"?`<span class="st-fix">FIX</span>`:st==="CALC"?`<span style="color:#5B9CFF;font-weight:700">CALC</span>`:st==="PROJ"?`<span style="color:var(--accent);font-weight:700">PROJ</span>`:`<span class="st-float">${esc(st)}</span>`;
+  const chip=(v,t)=>`<button style="min-height:36px;font-size:13px;padding:0 12px" data-ptf="${v}" ${f===v?'class="pri"':""}>${t}</button>`;
+  const ab=S.ptAberto;
+  return `<div class="split"><span class="ttl">Pontos coletados</span><span class="muted small">${esc(p.nome)}</span></div>
+  <section class="card"><div class="grid3" style="text-align:center"><div><b class="m" style="font-size:20px">${nCol}</b><div class="muted small">coletados</div></div><div><b class="m st-fix" style="font-size:20px">${nFix}</b><div class="muted small">FIX</div></div><div><b class="m" style="font-size:20px">${nProj}</b><div class="muted small">projeto/apoio</div></div></div></section>
+  <div style="display:flex;flex-wrap:wrap;gap:6px">${chip("coletados","Coletados")}${chip("fix","Só FIX")}${chip("projeto","Projeto/apoio")}${chip("todos","Todos")}</div>
+  <div class="grid2"><label class="f">Buscar<input data-bind="ptBusca" value="${esc(S.ptBusca||"")}" placeholder="Número ou descrição"></label>
+  <label class="f">Ordem<select data-bind="ptOrdem"><option value="recente" ${ord==="recente"?"selected":""}>Mais recentes</option><option value="antigo" ${ord==="antigo"?"selected":""}>Mais antigos</option><option value="nome" ${ord==="nome"?"selected":""}>Nome</option><option value="prec" ${ord==="prec"?"selected":""}>Pior precisão</option></select></label></div>
+  <div class="grid2"><button data-go="exportar">Exportar lista</button><button data-go="mapa">Ver no mapa</button></div>
+  ${lista.length?`<div class="list">${lista.map(({x,i})=>{const [E,N]=ptEN(x),aberto=ab===i;return `<div class="row" style="grid-template-columns:1fr auto;gap:4px 8px">
+    <button data-ptabre="${i}" style="all:unset;cursor:pointer;grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:2px 8px">
     <span><b class="m">${esc(x.nome)}</b> <span class="muted small">${esc(x.cod||"")}</span></span><span class="small">${tag(x.st)}</span>
-    <span class="m small muted" style="grid-column:1/-1">E ${br(E,dc())} · N ${br(N,dc())} · h ${br(x.h,dc())}${x.ajustado?" · ajustado":""}</span>
-    <div style="grid-column:1/-1;display:flex;gap:6px"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptdel="${i}">Apagar</button></div></div>`}).join("")}</div>`
-  :`<p class="muted small" style="margin:0">Nenhum ponto${q?" encontrado":" ainda"}.</p>`}`;
+    <span class="m small muted" style="grid-column:1/-1">N ${br(N,d)} · E ${br(E,d)} · Z ${br(x.h,d)}${x.h_rms?` · ±${br(x.h_rms)} m`:""}</span></button>
+    ${aberto?`<div style="grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--line)">
+      <div class="kv"><span>Data / hora</span><b>${x.quando?new Date(x.quando).toLocaleString("pt-BR"):"—"}</b></div>
+      <div class="kv"><span>Latitude</span><b class="m">${x.lat!=null?gms(x.lat,"N","S"):"—"}</b></div><div class="kv"><span>Longitude</span><b class="m">${x.lon!=null?gms(x.lon,"E","W"):"—"}</b></div>
+      ${ehCol(x)?`<div class="kv"><span>Altura da antena</span><b class="m">${br(x.alt||0)} m</b></div><div class="kv"><span>Precisão H</span><b class="m">${br(x.h_rms||0)} m</b></div>`:""}
+      ${x.rn?`<div class="kv"><span>Cota pela RN</span><b>${esc(x.rn)}</b></div>`:""}
+      <div class="grid2"><label class="f">Nome<input data-ptnome="${i}" value="${esc(x.nome)}"></label><label class="f">Descrição<input data-ptcod="${i}" value="${esc(x.cod||"")}"></label></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptmapa="${i}">No mapa</button>
+      ${S.ptApagar===i?`<button style="min-height:36px;font-size:13px;background:var(--bad,#c33);color:#fff" data-ptdel="${i}">Confirmar apagar</button>`:`<button style="min-height:36px;font-size:13px" data-ptapg="${i}">Apagar</button>`}</div></div>`:""}</div>`}).join("")}</div>`
+  :`<p class="muted small" style="margin:0">Nenhum ponto${q?" encontrado":f==="coletados"?" coletado ainda":""}.</p>`}`;
 }
 function tileLayer(fundo,X,Y,W,H,mpp){
   const z0=zonaAtual(),h0=hemiAtual();
@@ -1289,10 +1308,14 @@ document.addEventListener("click",e=>{
   const sel=e.target.closest("[data-ptsel]");
   if(sel){S.ptSel=+sel.dataset.ptsel;S.ptEdit=false;S.ptDelConf=false;S.seguir=false;render();return}
   const b=e.target.closest("button");if(!b||b.disabled)return;
+  if(b.dataset.ptf){S.ptFiltro=b.dataset.ptf;S.ptAberto=null;render();return}
+  if(b.dataset.ptabre!==undefined){const i=+b.dataset.ptabre;S.ptAberto=S.ptAberto===i?null:i;S.ptApagar=null;render();return}
+  if(b.dataset.ptapg!==undefined){S.ptApagar=+b.dataset.ptapg;render();return}
+  if(b.dataset.ptmapa!==undefined){const i=+b.dataset.ptmapa,x=proj().pontos[i],[E,N]=ptEN(x);S.ptSel=i;S.seguir=false;S.mapCE=E;S.mapCN=N;go("mapa");return}
   if(b.dataset.go){S.tela=b.dataset.go;exportTxt="";render();return}
   if(b.dataset.aba){S.aba=b.dataset.aba;S.tela="home";S.ferr=null;render();window.scrollTo(0,0);return}
   if(b.dataset.tile){const t=Object.values(TILES).flat().find(x=>x[0]===b.dataset.tile);if(t)t[4]();return}
-  if(b.dataset.ptdel!==undefined){const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
+  if(b.dataset.ptdel!==undefined){S.ptAberto=null;S.ptApagar=null;const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
   if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
   if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&S.corrLigada){S.corrLigada=false;toast("Correção desligada ao trocar a fonte")}salvar();render();return}
   if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
@@ -1459,10 +1482,13 @@ document.addEventListener("click",e=>{
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
+  if(el.dataset.ptnome!==undefined){const p=proj(),i=+el.dataset.ptnome,v=el.value.trim();if(!v){render();return}if(p.pontos.some((x,k)=>k!==i&&x.nome===v)){toast("Já existe "+v);render();return}p.pontos[i].nome=v;salvar();toast("Nome alterado");return}
+  if(el.dataset.ptcod!==undefined){proj().pontos[+el.dataset.ptcod].cod=el.value.trim();salvar();toast("Descrição alterada");return}
+  if(el.dataset.bind==="ptOrdem"){S.ptOrdem=el.value;render();return}
   if(el.id==="impArq"){lerArquivosImport([...el.files]);return}
   if(mudaExport(el))return;
   if(el.dataset.impsel){cfgImp()[el.dataset.impsel]=el.value;salvar();return}

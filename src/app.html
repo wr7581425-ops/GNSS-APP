@@ -126,7 +126,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -354,8 +354,14 @@ function vColeta(){
       <label class="f">Épocas (s)<input class="m" id="ep" inputmode="numeric" value="${esc(S.epocas)}" data-bind="epocas"></label>
     </div>
   </section>
-  <div class="subtabs" role="tablist">${[["ponto","Ponto"],["tempo","Por tempo"],["dist","Por distância"]].map(([k,t])=>`<button role="tab" data-colmodo="${k}" aria-selected="${(S.colModo||"ponto")===k}" ${R.auto?"disabled":""}>${t}</button>`).join("")}</div>
-  ${(S.colModo||"ponto")==="ponto"?`<button class="pri big" data-act="coletar" ${pode?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:"Coletar "+proxNome()}</button>`
+  <div class="subtabs" role="tablist">${[["ponto","Rápido"],["obs","Observado"],["tempo","Tempo"],["dist","Distância"]].map(([k,t])=>`<button role="tab" data-colmodo="${k}" aria-selected="${(S.colModo||"ponto")===k}" ${R.auto||S.coletando?"disabled":""}>${t}</button>`).join("")}</div>
+  ${(S.colModo||"ponto")==="ponto"?botaoColetar("ponto",pode)
+  :S.colModo==="obs"?`<section class="card">
+    <label class="f">Tempo de observação<div style="display:flex;gap:6px;flex-wrap:wrap">${[["2","s"],["3","s"],["5","s"],["10","s"],["30","s"],["1","min"],["2","min"],["5","min"]].map(([v,u])=>`<button style="min-height:40px;padding:0 12px" data-obsv="${v}" data-obsu="${u}" aria-pressed="${String(S.obsVal||"3")===v&&(S.obsUn||"s")===u}" ${S.coletando?"disabled":""}>${v} ${u}</button>`).join("")}</div></label>
+    <div class="grid2"><label class="f">Ou digite<input class="m" inputmode="decimal" data-bind="obsVal" value="${esc(S.obsVal||"3")}" ${S.coletando?"disabled":""}></label>
+    <label class="f">Unidade<select data-bind="obsUn" ${S.coletando?"disabled":""}><option value="s" ${(S.obsUn||"s")==="s"?"selected":""}>segundos</option><option value="min" ${S.obsUn==="min"?"selected":""}>minutos</option></select></label></div>
+    <span class="muted small">O receptor fica parado observando o ponto pelo tempo definido; o app tira a média de todas as épocas e guarda a dispersão.</span>
+    ${botaoColetar("obs",pode)}</section>`
   :`<section class="card" style="${R.auto?"border:2px solid var(--fix)":""}">
     ${S.colModo==="tempo"?`<label class="f">Coletar um ponto a cada (segundos)<div style="display:flex;gap:6px;flex-wrap:wrap">${["1","2","3","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-colint="${v}" aria-pressed="${String(S.colInt||"1")===v}" ${R.auto?"disabled":""}>${v} s</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colInt" value="${esc(S.colInt||"1")}" ${R.auto?"disabled":""}></div></label>`
     :`<label class="f">Coletar um ponto a cada (metros)<div style="display:flex;gap:6px;flex-wrap:wrap">${["0,5","1","2","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-coldist="${v}" aria-pressed="${String(S.colDist||"1")===v}" ${R.auto?"disabled":""}>${v} m</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colDist" value="${esc(S.colDist||"1")}" ${R.auto?"disabled":""}></div></label>`}
@@ -1235,7 +1241,7 @@ function vMapa(){
       ${tb("mapMedir",ICM.regua,"Medir distância",S.ferr==="medir")}
       ${tb("mapRapida",ICM.grade,"Ferramentas rápidas",S.mapRapida)}
     </div>
-    <button class="mfab" data-act="coletar" ${podeColetar()?"":"disabled"} aria-label="Coletar ponto ${esc(proxNome())}">
+    <button class="mfab" data-act="coletar" ${podeColetar()||S.coletando?"":"disabled"} aria-label="Coletar ponto ${esc(proxNome())}">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
       <span>${S.coletando?S.coletando+"s":esc(proxNome())}</span></button>
     ${S.mapRapida?mapaRapida():""}
@@ -1427,6 +1433,7 @@ document.addEventListener("click",e=>{
     if(k==="simppp"){const [E,N]=toUTM(f.lat,f.lon,zonaAtual(),hemiAtual());f.res=[E+(Math.random()-.5)*3,N+(Math.random()-.5)*3,f.h+(Math.random()-.5)*4,f.dur>=3600?0.012:0.045];f.ppp="ok";bip("ok");toast("Resultado do IBGE-PPP recebido")}
     salvar();render();return}
   if(b.dataset.colmodo){S.colModo=b.dataset.colmodo;salvar();render();return}
+  if(b.dataset.obsv){S.obsVal=b.dataset.obsv;S.obsUn=b.dataset.obsu;salvar();render();return}
   if(b.dataset.colint){S.colInt=b.dataset.colint;salvar();render();return}
   if(b.dataset.coldist){S.colDist=b.dataset.coldist;salvar();render();return}
   if(b.dataset.ferr){S.tela="calc";S.ferr=b.dataset.ferr;render();return}
@@ -1484,6 +1491,8 @@ document.addEventListener("click",e=>{
     if(modo==="tempo"&&!(iv>0)){toast("Informe o intervalo em segundos");return}if(modo==="dist"&&!(ds>0)){toast("Informe a distância em metros");return}
     R.auto={modo,int:iv,dist:ds,n:0,pulos:0,ult:0,ultE:null,ultN:null};render();falar(modo==="tempo"?"Coleta por tempo iniciada":"Coleta por distância iniciada");return}
   if(a==="autoParar"){const n=R.auto?.n||0;R.auto=null;salvar();render();bip("ok");falar(n+" pontos coletados");toast(`Coleta contínua encerrada: ${n} pontos`);return}
+  if(a==="coletar"&&S.coletando){if(R.coletaFim)R.coletaFim();return}
+  if(a==="coletarObs"){if(S.coletando){if(R.coletaFim)R.coletaFim();return}if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar(obsSegundos());return}
   if(a==="coletar"){if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar()}
   if(a==="estIniciar"){iniciarEstaticoCN();return}
   if(a==="estParar"){pararEstaticoCN(false);return}
@@ -1600,6 +1609,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.dataset.ptnome!==undefined){const p=proj(),i=+el.dataset.ptnome,v=el.value.trim();if(!v){render();return}if(p.pontos.some((x,k)=>k!==i&&x.nome===v)){toast("Já existe "+v);render();return}p.pontos[i].nome=v;salvar();toast("Nome alterado");return}
   if(el.dataset.ptcod!==undefined){proj().pontos[+el.dataset.ptcod].cod=el.value.trim();salvar();toast("Descrição alterada");return}
   if(el.dataset.bind==="ptOrdem"){S.ptOrdem=el.value;render();return}
+  if(el.dataset.bind==="obsUn"){S.obsUn=el.value;salvar();render();return}
   if(el.dataset.bind==="rnxSis"){S.rnxSis=el.value;salvar();render();return}
   if(el.id==="impArq"){lerArquivosImport([...el.files]);return}
   if(mudaExport(el))return;
@@ -1694,7 +1704,7 @@ function acoesBar(){
    </div>
    ${rec_.length?`<div style="display:flex;gap:6px;overflow-x:auto">${rec_.map(d=>`<button style="min-height:32px;font-size:13px;padding:0 10px;flex:0 0 auto" data-desc="${esc(d)}" aria-pressed="${S.codigo===d}">${esc(d)}</button>`).join("")}</div>`:""}
    <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:8px">
-    <button class="pri" style="min-height:52px;font-size:17px" data-act="coletar" ${ok?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:`Coletar ${proxNome()}`}</button>
+    <button class="pri" style="min-height:52px;font-size:17px" data-act="coletar" ${ok||S.coletando?"":"disabled"}>${S.coletando?`${ICONE_OK}Salvar agora · ${S.coletaTotal-S.coletando}/${S.coletaTotal}`:`Coletar ${proxNome()}`}</button>
     <button style="min-height:52px" data-act="${S.loc?"pararLoc":"abrirLoc"}">${S.loc?"Parar loc.":"Locar"}</button>
     <button style="min-height:52px" data-go="calc">Cálculos</button>
   </div></div>`;
@@ -1904,34 +1914,46 @@ setInterval(()=>{
   salvarPontoUnico();a.n++;a.ult=agora;a.ultE=G.E;a.ultN=G.N;
   if(a.n%10===0)salvar();try{tom(1320,.04)}catch(e){}if(S.cfg.vibrar)vib(20);render(false);
 },200);
-function coletar(){
-  const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=alturaVertical(), n=Math.max(1,parseInt(S.epocas)||5);
+// obsSeg: ponto observado (segundos definidos). Tocar de novo em Coletar salva na hora com as épocas já medidas.
+function coletar(obsSeg){
+  const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=alturaVertical(), n=Math.max(1,obsSeg||parseInt(S.epocas)||5);
   if(!nome){toast("Informe o número do ponto");return}
   if((proj()?.pontos||[]).some(p=>p.nome===nome)){bip("erro");toast(`O ponto ${nome} já existe no projeto. Escolha outro número.`);return}
-  S.coletando=n;const amostras=[];render();
-  const iv=setInterval(()=>{
-    amostras.push({lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h,hr:G.hrms,vr:G.vrms||G.hrms*1.7,pd:G.pdop||0,hd:G.hdop||0,vd:G.vdop||0,sv:G.sats||0,id:G.idade||0,fix:G.fix});S.coletando--;
-    if(S.coletando<=0){clearInterval(iv);
+  S.coletando=n;S.coletaTotal=n;S.coletaObs=!!obsSeg;const amostras=[];render();
+  const amostra=()=>amostras.push({lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h,hr:G.hrms,vr:G.vrms||G.hrms*1.7,pd:G.pdop||0,hd:G.hdop||0,vd:G.vdop||0,sv:G.sats||0,id:G.idade||0,fix:G.fix});
+  const fim=()=>{clearInterval(iv);R.coletaFim=null;S.coletando=0;if(!amostras.length)amostra();
       const m=k=>amostras.reduce((s,x)=>s+x[k],0)/amostras.length;
       const hr=Math.max(...amostras.map(x=>x.hr)), tol=num(S.tolH)||0.02;
+      const E0=m("E"),N0=m("N"),disp=Math.sqrt(amostras.reduce((a,x)=>a+(x.E-E0)**2+(x.N-N0)**2,0)/amostras.length);
       const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
-      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
-        sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
-      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`);
-    }else render();
-  },1000);
+      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:E0,N:N0,h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
+        disp:+disp.toFixed(4),obs:obsSeg?amostras.length:undefined,sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
+      S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`)};
+  const iv=setInterval(()=>{amostra();S.coletando--;if(S.coletando<=0)fim();else render()},1000);
+  R.coletaFim=()=>{amostra();fim()};
+}
+function tempoTxt(sg){sg=Math.max(0,Math.round(sg));return sg>=60?`${Math.floor(sg/60)}:${String(sg%60).padStart(2,"0")} min`:`${sg} s`}
+function obsSegundos(){const v=num(S.obsVal||"3");return Math.max(1,Math.round((isNaN(v)?3:v)*((S.obsUn||"s")==="min"?60:1)))}
+const ICONE_OK=`<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-6px;margin-right:6px"><path d="M4 12.5l5 5L20 6"/></svg>`;
+function botaoColetar(rotulo,pode){
+  if(S.coletando){const feito=S.coletaTotal-S.coletando,pc=Math.round(feito/S.coletaTotal*100);
+    return `<button class="pri big" data-act="coletar" style="position:relative;overflow:hidden;background:var(--fix);border-color:var(--fix);color:#0F1720">
+      <span style="position:absolute;left:0;top:0;bottom:0;width:${pc}%;background:rgba(255,255,255,.28);transition:width .9s linear"></span>
+      <span style="position:relative">${ICONE_OK}Salvar agora · ${S.coletaObs?tempoTxt(S.coletando)+" restantes":feito+"/"+S.coletaTotal+" épocas"}</span></button>
+      <span class="muted small" style="text-align:center">Toque de novo para salvar já com as épocas medidas até agora.</span>`}
+  return `<button class="pri big" data-act="${rotulo==="obs"?"coletarObs":"coletar"}" ${pode?"":"disabled"}>${ICONE_OK}${rotulo==="obs"?`Observar ${tempoTxt(obsSegundos())} e coletar ${esc(proxNome())}`:"Coletar "+esc(proxNome())}</button>`;
 }
 // ================= Exportar e importar =================
 // Campos que a pessoa escolhe (e ordena) para CSV, TXT e o relatório em PDF
 const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod:"Descrição",
   lat:"Latitude (° ' \")",lon:"Longitude (° ' \")",latd:"Latitude (graus decimais)",lond:"Longitude (graus decimais)",
   hel:"Altitude elipsoidal (m)",horto:"Altitude ortométrica (geoide do receptor)",ondul:"Ondulação geoidal N (m)",hgnss:"Altitude GNSS na antena",
-  prec:"Sigma H (m)",sigv:"Sigma V (m)",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Satélites",idade:"Idade da correção (s)",epocas:"Épocas",
+  prec:"Sigma H (m)",sigv:"Sigma V (m)",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Satélites",idade:"Idade da correção (s)",epocas:"Épocas",disp:"Dispersão das épocas (m)",
   st:"Solução (FIX/FLOAT)",ant:"Altura da antena (m)",antTipo:"Tipo de medida da antena",X:"X geocêntrico (m)",Y:"Y geocêntrico (m)",Zg:"Z geocêntrico (m)",
   kesc:"Fator de escala (k)",conv:"Convergência meridiana",zona:"Fuso UTM",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN usada",estaq:"Estaqueado de / erro"};
 const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",latd:"LatDec",lond:"LonDec",hel:"AltElips",horto:"AltOrto",ondul:"OndulN",hgnss:"AltGNSS",
-  prec:"SigmaH",sigv:"SigmaV",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Sats",idade:"IdadeCorr",epocas:"Epocas",st:"Solucao",ant:"AltAntena",antTipo:"MedidaAntena",X:"X",Y:"Y",Zg:"Z_geoc",
+  prec:"SigmaH",sigv:"SigmaV",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Sats",idade:"IdadeCorr",epocas:"Epocas",disp:"Dispersao",st:"Solucao",ant:"AltAntena",antTipo:"MedidaAntena",X:"X",Y:"Y",Zg:"Z_geoc",
   kesc:"FatorEscala",conv:"Convergencia",zona:"Fuso",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN",estaq:"Estaqueamento"};
 const PRESETS={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"],NEZD:["N","E","Z","cod"],ENZD:["E","N","Z","cod"],NEZ:["N","E","Z"],ENZ:["E","N","Z"],
   geo:["nome","lat","lon","hel","cod"],
@@ -1967,7 +1989,7 @@ function valCampo(x,k,e){
     case "hgnss":return nfx(hel+(x.alt||0),d,ds);
     case "prec":return x.h_rms!=null?nfx(x.h_rms,3,ds):"";case "sigv":return x.v_rms!=null?nfx(x.v_rms,3,ds):"";
     case "pdop":return x.pdop?nfx(x.pdop,1,ds):"";case "hdop":return x.hdop?nfx(x.hdop,1,ds):"";case "vdop":return x.vdop?nfx(x.vdop,1,ds):"";
-    case "sats":return x.sats!=null?String(x.sats):"";case "idade":return x.idade!=null?nfx(x.idade,1,ds):"";case "epocas":return x.epocas!=null?String(x.epocas):"";
+    case "sats":return x.sats!=null?String(x.sats):"";case "idade":return x.idade!=null?nfx(x.idade,1,ds):"";case "epocas":return x.epocas!=null?String(x.epocas):"";case "disp":return x.disp!=null?nfx(x.disp,4,ds):"";
     case "st":return x.st||"";case "ant":return nfx(x.alt||0,3,ds);case "antTipo":return x.alt?({vertical:"Vertical",inclinada:"Inclinada",fase:"Centro de fase"}[x.altTipo]||x.altTipo||""):"";
     case "X":return nfx(geoc(x.lat,x.lon,hel)[0],3,ds);case "Y":return nfx(geoc(x.lat,x.lon,hel)[1],3,ds);case "Zg":return nfx(geoc(x.lat,x.lon,hel)[2],3,ds);
     case "kesc":return nfx(utmKConv(x.lat,x.lon).k,8,ds);case "conv":{const g=utmKConv(x.lat,x.lon).g;return (g<0?"-":"")+gmsTxt(Math.abs(g),"","",ds)}

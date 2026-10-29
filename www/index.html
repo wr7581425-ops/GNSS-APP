@@ -1630,7 +1630,7 @@ document.addEventListener("click",e=>{
     const alt=alturaVertical(),orig=S.loc.tipo==="ponto"?p.pontos[S.loc.idx]:null;
     p.pontos.push({nome,cod:(orig?.cod||"ESTACA"),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:cotaTerreno(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,st:G.fix===4?"FIX":G.fix===5?"FLOAT":S.fonte==="celular"?"CEL":"AUT",alt,quando:new Date().toISOString(),
       estaq:{alvo:al.nome,dE:+(G.E-al.E).toFixed(4),dN:+(G.N-al.N).toFixed(4),dH:+(cotaTerreno()-al.h).toFixed(4),dist:+st.dist.toFixed(4)}});
-    p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString(),dist:st.dist}]);salvar();bip("ok");falar("Ponto "+al.nome+" estaqueado");
+    p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString(),dist:st.dist}]);salvar();bip("ok");falar("Ponto estaqueado");
     toast(`${nome} salvo · erro ${br(st.dist)} m${st.chegou?"":" (fora da tolerância)"}`);render();return}
   if(a==="marcarLocado"){const al=alvoEN();const p=proj();if(p){p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString()}]);salvar()}toast(al.nome+" marcado como locado");S.loc=null;render()}
   if(a==="novoProj"){$("novoProjForm").hidden=false;$("npNome").focus()}

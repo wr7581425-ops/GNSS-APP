@@ -456,7 +456,12 @@ async function pararEstaticoColetora(auto){
   falar("Gravação estática encerrada");render();
 }
 async function compartilharArquivoCol(f){
-  try{const u=await NP.Filesystem.getUri({path:f.caminho,directory:"DATA"});await NP.Share.share({title:f.nome,text:"Arquivo estático "+f.nome,files:[u.uri],dialogTitle:"Enviar "+f.nome})}
+  try{const nome=f.caminho.split("/").pop();
+    // o compartilhar do Android só enxerga a pasta de cache: copia para lá antes
+    try{await NP.Filesystem.deleteFile({path:nome,directory:"CACHE"})}catch(e){}
+    await NP.Filesystem.copy({from:f.caminho,directory:"DATA",to:nome,toDirectory:"CACHE"});
+    const u=await NP.Filesystem.getUri({path:nome,directory:"CACHE"});
+    await NP.Share.share({title:nome,text:"Arquivo estático "+nome,files:[u.uri],dialogTitle:"Enviar "+nome})}
   catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
 }
 async function iniciarEstaticoCN(){

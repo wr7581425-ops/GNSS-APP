@@ -111,6 +111,12 @@ public class CnbRinex {
 
     public static Resultado converter(File cnb, File saidaDir, String nomeBase, String marcador, double alturaAntena,
                                       double intervalo, double[] llhAprox, String receptor, String antena) throws IOException {
+        return converter(cnb, saidaDir, nomeBase, marcador, alturaAntena, intervalo, llhAprox, receptor, antena, null);
+    }
+
+    /** sistemas: letras dos sistemas a manter (ex.: "GR" para o IBGE-PPP); null = todos. */
+    public static Resultado converter(File cnb, File saidaDir, String nomeBase, String marcador, double alturaAntena,
+                                      double intervalo, double[] llhAprox, String receptor, String antena, final String sistemas) throws IOException {
         byte[] b = ler(cnb);
         // cabeçalho de texto do CNB (ReceiverID, MarkerName, AntHigh)
         String cab = new String(b, 0, Math.min(400, b.length), StandardCharsets.ISO_8859_1);
@@ -132,7 +138,7 @@ public class CnbRinex {
                 int n = (int) u32(buf, o);
                 for (int k = 0; k < n && o + 4 + 24 * k + 24 <= o + len; k++) {
                     int r = o + 4 + 24 * k; long st = u32(buf, r);
-                    char sys = sistema((int) (st >> 16) & 7); if (sys == 0) continue;
+                    char sys = sistema((int) (st >> 16) & 7); if (sys == 0 || (sistemas != null && sistemas.indexOf(sys) < 0)) continue;
                     int prn = buf[r + 17] & 0xff;
                     String c = codigo(sys, (int) (st >> 21) & 31, prnRinex(sys, prn)); if (c == null) continue;
                     TreeSet<String> s = tipos.get(sys); if (s == null) { s = new TreeSet<>(); tipos.put(sys, s); } s.add(c);
@@ -192,7 +198,7 @@ public class CnbRinex {
                 for (int k = 0; k < n; k++) {
                     int r = o + 4 + 24 * k; if (r + 24 > o + len) break;
                     long st = u32(buf, r);
-                    char sys = sistema((int) (st >> 16) & 7); if (sys == 0) continue;
+                    char sys = sistema((int) (st >> 16) & 7); if (sys == 0 || (sistemas != null && sistemas.indexOf(sys) < 0)) continue;
                     int prn = buf[r + 17] & 0xff, pr = prnRinex(sys, prn), sig = (int) (st >> 21) & 31;
                     String c = codigo(sys, sig, pr); if (c == null || pr <= 0) continue;
                     long v = u32(buf, r + 4) | u32(buf, r + 8) << 32;
@@ -511,7 +517,7 @@ public class CnbRinex {
     /** Teste fora do celular: java CnbRinex arquivo.cnb pastaSaida nome [intervalo] */
     public static void main(String[] a) throws Exception {
         long t0 = System.currentTimeMillis();
-        Resultado r = converter(new File(a[0]), new File(a[1]), a[2], "", Double.NaN, a.length > 3 ? Double.parseDouble(a[3]) : 1.0, null, "", "");
+        Resultado r = converter(new File(a[0]), new File(a[1]), a[2], "", Double.NaN, a.length > 3 ? Double.parseDouble(a[3]) : 1.0, null, "", "", a.length > 4 ? a[4] : null);
         System.out.println("obs=" + r.obs + " nav=" + r.nav + " epocas=" + r.epocas + " sats=" + r.sats + " " + r.inicio + " -> " + r.fim + " sis=" + r.sistemas
                 + String.format(Locale.US, " pos=%.7f %.7f %.2f", r.lat, r.lon, r.h) + " em " + (System.currentTimeMillis() - t0) + " ms");
     }

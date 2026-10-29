@@ -347,6 +347,7 @@ public class GnssTcpPlugin extends Plugin {
         final double lat = call.getDouble("lat", 0.0), lon = call.getDouble("lon", 0.0), h = call.getDouble("h", 0.0);
         final String receptor = call.getString("receiver", ""), antena = call.getString("antenna", "");
         final boolean zip = call.getBoolean("zip", true);
+        final String sistemas = call.getString("systems", "");
         new Thread(() -> {
             try {
                 java.io.File src = path.startsWith("/") ? new java.io.File(path) : new java.io.File(ctx().getFilesDir(), path);
@@ -354,7 +355,7 @@ public class GnssTcpPlugin extends Plugin {
                 java.io.File dir = new java.io.File(ctx().getFilesDir(), "WASurvey/rinex");
                 dir.mkdirs();
                 CnbRinex.Resultado r = CnbRinex.converter(src, dir, nome, marcador, altura, intervalo,
-                        (lat == 0 && lon == 0) ? null : new double[]{lat, lon, h}, receptor, antena);
+                        (lat == 0 && lon == 0) ? null : new double[]{lat, lon, h}, receptor, antena, sistemas.isEmpty() ? null : sistemas);
                 JSObject o = new JSObject();
                 String base = ctx().getFilesDir().getAbsolutePath() + "/";
                 o.put("obs", r.obs.replace(base, ""));
@@ -468,6 +469,45 @@ public class GnssTcpPlugin extends Plugin {
                 call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
             }
         }).start();
+    }
+
+    /** Compartilha arquivo(s) com o tipo certo e sem texto junto (o WhatsApp mandava só o nome do .dxf). */
+    @PluginMethod
+    public void shareFiles(final PluginCall call) {
+        try {
+            JSArray lista = call.getArray("files", new JSArray());
+            String mime = call.getString("mime", "application/octet-stream");
+            java.util.ArrayList<android.net.Uri> uris = new java.util.ArrayList<>();
+            java.io.File pasta = new java.io.File(ctx().getCacheDir(), "compartilhar");
+            pasta.mkdirs();
+            for (int i = 0; i < lista.length(); i++) {
+                org.json.JSONObject o = lista.getJSONObject(i);
+                String path = o.getString("path");
+                String dir = o.optString("dir", "data");
+                java.io.File src = path.startsWith("/") ? new java.io.File(path) : new java.io.File("cache".equals(dir) ? ctx().getCacheDir() : ctx().getFilesDir(), path);
+                if (!src.exists()) { call.reject("Arquivo não encontrado: " + src.getName()); return; }
+                java.io.File dst = new java.io.File(pasta, src.getName());
+                if (!src.getCanonicalPath().equals(dst.getCanonicalPath())) {
+                    try (InputStream in = new java.io.FileInputStream(src); java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
+                        byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                }
+                uris.add(androidx.core.content.FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", dst));
+            }
+            if (uris.isEmpty()) { call.reject("Nada para enviar"); return; }
+            android.content.Intent i = new android.content.Intent(uris.size() > 1 ? android.content.Intent.ACTION_SEND_MULTIPLE : android.content.Intent.ACTION_SEND);
+            i.setType(mime);
+            if (uris.size() > 1) i.putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, uris);
+            else i.putExtra(android.content.Intent.EXTRA_STREAM, uris.get(0));
+            i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            i.setClipData(android.content.ClipData.newRawUri("", uris.get(0)));
+            android.content.Intent ch = android.content.Intent.createChooser(i, call.getString("title", "Enviar arquivo"));
+            ch.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getActivity().startActivity(ch);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
     }
 
     // ---------- permissões para o segundo plano ----------

@@ -126,8 +126,8 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt"])if(s[k]!==undefined)S[k]=s[k];
-  if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis"])if(s[k]!==undefined)S[k]=s[k];
+  if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 // ---------- Simulador do receptor ----------
@@ -167,7 +167,7 @@ function tick(){
   if(!S.corrLigada) G.fix=G.sats>4?1:0;
   else{const c=(now-S.corrDesde)/1000;G.fix=c<3?1:c<9?5:4}
   avisoSolucao();
-  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
+  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao&&S.est.destino!=="receptor")pararEstatico(true);
   const base={0:9,1:1.8,5:0.25,4:0.008}[G.fix]||1;
   G.hrms=+(base*(0.8+Math.random()*0.4)).toFixed(3);G.vrms=+(G.hrms*1.7).toFixed(3);
   G.pdop=+(1.1+Math.random()*0.3).toFixed(1);
@@ -254,7 +254,7 @@ function stCls(){return !S.conectado?"c-off":G.fix===4?"c-fix":G.fix===5?"c-floa
 // nome do receptor em uso: o nome do Bluetooth (ex.: S61L05376, T72L01017, SP60_480002); no Wi-Fi, o número de série lido do receptor
 function nomeRx(){if(S.fonte==="celular"&&S.conectado)return "GPS do celular";if(S.conexao==="bt"&&S.btNome)return S.btNome;if(R.serie)return R.serie;const r=rec();return r?`${r.marca} ${r.modelo}`:""}
 function header(){
-  const r=rec(),hr=$("hRec");if(hr){hr.hidden=!S.est.gravando;if(S.est.gravando){const t=Math.floor((Date.now()-S.est.inicio)/1000);$("hRecT").textContent=(t>=3600?Math.floor(t/3600)+"h":"")+String(Math.floor(t%3600/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0")}}
+  const r=rec(),hr=$("hRec");if(hr){hr.hidden=!S.est.gravando;if(S.est.gravando){const t=Math.floor((Date.now()-S.est.inicio)/1000);$("hRecT").textContent=(S.est.destino==="receptor"&&!noReceptorGravando()?"BASE ":"")+(t>=3600?Math.floor(t/3600)+"h":"")+String(Math.floor(t%3600/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0")}}
   $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
   $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(nomeRx()?`${nomeRx()} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
@@ -457,11 +457,15 @@ async function pararEstaticoColetora(auto){
   falar("Gravação estática encerrada");render();
 }
 // ---------- RINEX ----------
+const RNX_SIS={ibge:["GR","IBGE-PPP (GPS + GLONASS)"],semsbas:["GREC","PPK / drone (GPS, GLONASS, Galileo, BeiDou)"],tudo:["","Completo (todos, com SBAS)"]};
+function selRnxSis(){const v=S.rnxSis||"ibge";return `<label class="f">Tipo de RINEX<select data-bind="rnxSis">${Object.entries(RNX_SIS).map(([k,[x,t]])=>`<option value="${k}" ${v===k?"selected":""}>${t}</option>`).join("")}</select></label>
+  <span class="muted small">${v==="ibge"?"Só GPS e GLONASS: é o que o IBGE-PPP processa (sem SBAS, Galileo e BeiDou, que dão erro lá).":v==="semsbas"?"Sem SBAS: para PPK do drone e programas de pós-processamento.":"Todos os sinais gravados, inclusive SBAS (alguns programas não aceitam)."}</span>`}
+function rnxSistemas(){return (RNX_SIS[S.rnxSis||"ibge"]||RNX_SIS.ibge)[0]}
 async function gerarRinex(f){
   if(!NATIVO||!f?.caminho)return;R.convertendo=f.id;render();toast("Gerando RINEX… pode levar alguns segundos");
   try{const alt=num(f.altAnt);const r=await NP.GnssTcp.cnbToRinex({path:f.caminho,name:nomeRinex(f.nome,f.inicio),marker:nomeArq(f.nome),antHeight:isNaN(alt)?0:alt,interval:num(S.rnxInt)||num(f.taxa)||1,
-      lat:f.lat||0,lon:f.lon||0,h:f.h||0,receiver:R.serie||S.btNome||"",antenna:antenaModelo(),zip:true});
-    f.rinex={zip:r.zip,obs:r.obs,nav:r.nav,epocas:r.epochs,sats:r.sats,sis:(r.systems||"").replace(/[\[\]]/g,""),mb:(r.zipBytes||0)/1048576};salvar();bip("ok");falar("RINEX pronto");
+      lat:f.lat||0,lon:f.lon||0,h:f.h||0,receiver:R.serie||S.btNome||"",antenna:antenaModelo(),zip:true,systems:rnxSistemas()});
+    f.rinex={zip:r.zip,obs:r.obs,nav:r.nav,epocas:r.epochs,sats:r.sats,sis:(r.systems||"").replace(/[\[\]]/g,""),mb:(r.zipBytes||0)/1048576,tipo:S.rnxSis||"ibge"};salvar();bip("ok");falar("RINEX pronto");
     toast(`RINEX pronto: ${r.epochs} épocas, ${r.sats} satélites`)}
   catch(e){bip("erro");toast("Não consegui gerar o RINEX: "+(e.message||e))}
   R.convertendo=null;render();
@@ -474,7 +478,7 @@ async function converterCnbEscolhido(){
   const nome=a.name.replace(/\.[^.]+$/,"");const f={id:Date.now(),nome,inicio:Date.now(),fim:Date.now(),dur:0,taxa:S.rnxInt||"1",destino:"coletora",formato:"CNB (importado)",altAnt:S.rnxAlt||"",medida:"",mb:a.bytes/1048576,ppp:"nao",caminho:a.path,importado:true};
   S.arquivos.unshift(f);salvar();render();
   const alt=num(S.rnxAlt);R.convertendo=f.id;render();toast("Convertendo "+a.name+"…");
-  try{const r=await NP.GnssTcp.cnbToRinex({path:a.path,name:nomeRinex(nome),marker:"",antHeight:isNaN(alt)?NaN:alt,interval:num(S.rnxInt)||1,lat:0,lon:0,h:0,receiver:"",antenna:"",zip:true});
+  try{const r=await NP.GnssTcp.cnbToRinex({path:a.path,name:nomeRinex(nome),marker:"",antHeight:isNaN(alt)?NaN:alt,interval:num(S.rnxInt)||1,lat:0,lon:0,h:0,receiver:"",antenna:"",zip:true,systems:rnxSistemas()});
     f.rinex={zip:r.zip,obs:r.obs,nav:r.nav,epocas:r.epochs,sats:r.sats,sis:(r.systems||"").replace(/[\[\]]/g,""),mb:(r.zipBytes||0)/1048576};f.lat=r.lat;f.lon=r.lon;f.h=r.h;
     f.dur=(new Date(r.end.replace(" ","T")+"Z")-new Date(r.start.replace(" ","T")+"Z"))/1000;f.inicio=new Date(r.start.replace(" ","T")+"Z").getTime();f.fim=f.inicio+f.dur*1000;
     salvar();bip("ok");falar("RINEX pronto");toast(`RINEX pronto: ${r.epochs} épocas · ${r.start} a ${r.end} UTC`)}
@@ -485,9 +489,12 @@ async function salvarDownloads(caminhos){
   const onde=[];for(const c of caminhos){try{const r=await NP.GnssTcp.saveToDownloads({path:c,mime:c.endsWith(".zip")?"application/zip":"application/octet-stream"});onde.push(r.where)}catch(e){toast("Não salvei "+c.split("/").pop()+": "+(e.message||e));return}}
   bip("ok");toast("Salvo em "+onde.join(" e "));
 }
+// tipo do arquivo para o Android (sem isso o WhatsApp mandava só o nome do .dxf)
+function mimeDe(n){const x=(n.split(".").pop()||"").toLowerCase();return {csv:"text/csv",txt:"text/plain",pdf:"application/pdf",zip:"application/zip",kml:"application/vnd.google-earth.kml+xml",geojson:"application/geo+json",json:"application/json"}[x]||"application/octet-stream"}
 async function compartilharArquivoCol(f){
   try{const nome=f.caminho.split("/").pop();
     // o compartilhar do Android só enxerga a pasta de cache: copia para lá antes
+    if(NP.GnssTcp.shareFiles){await NP.GnssTcp.shareFiles({files:[{path:f.caminho,dir:"data"}],mime:mimeDe(nome),title:"Enviar "+nome});return}
     try{await NP.Filesystem.deleteFile({path:nome,directory:"CACHE"})}catch(e){}
     await NP.Filesystem.copy({from:f.caminho,directory:"DATA",to:nome,toDirectory:"CACHE"});
     const u=await NP.Filesystem.getUri({path:nome,directory:"CACHE"});
@@ -509,10 +516,13 @@ async function iniciarEstaticoCN(){
     setTimeout(()=>{if(S.est.gravando)toast(R.estOk?"O receptor confirmou: gravando "+n+".cnb":"Comandos enviados. Se o LED de gravação do receptor não acender, confira em Comandos do receptor.")},2500);
   }
   if(!e.arqRx||marcaRx()!=="spectra")e.arqRx=nomeCnbRx();
-  e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada no receptor ("+e.arqRx+")");
+  e.rxSerie=R.serie||S.btNome||"";e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada no receptor ("+e.arqRx+"). Pode desconectar: o receptor continua gravando.");
 }
-async function pararEstaticoCN(auto){
+// a gravação na memória do receptor segue mesmo desconectado; para parar é preciso estar ligado nele
+function noReceptorGravando(){const e=S.est;return receptorReal()&&(!e.rxSerie||e.rxSerie===(R.serie||S.btNome||""))}
+async function pararEstaticoCN(auto,forcar){
   if(R.gravCol)return pararEstaticoColetora(auto);
+  if(S.est.destino==="receptor"&&!forcar&&!noReceptorGravando()){if(!auto)toast(`Para parar, conecte no receptor ${S.est.rxSerie||"que está gravando"}. Ele continua gravando até você parar ou desligar.`);return}
   if(receptorReal())await enviarLista(marcaRx()==="spectra"?["$PASHS,REC,N"]:["set datarecord stop","log recordfile "+dataRx()+"-"+dataRx()],"Parar estático",250);
   const arqPrev=S.est.arqRx;pararEstatico(auto);falar("Gravação estática encerrada");
   // confere na lista do receptor qual arquivo foi criado
@@ -539,7 +549,9 @@ function sEstatico(){
       <div class="kv"><span>Épocas</span><b>${Math.floor(t/+e.taxa)}</b></div><div class="kv"><span>Tamanho</span><b>${R.gravCol?br(R.gravCol.mostra||0,2):br(t/+e.taxa*kb/1024,2)} MB</b></div>
       <div class="kv"><span>Satélites</span><b>${G.sats}</b></div><div class="kv"><span>PDOP</span><b>${br(G.pdop,1)}</b></div></div>
       <span class="muted small">${e.formato} a cada ${e.taxa} s · salvando ${e.destino==="receptor"?"na memória do receptor":"neste celular"} · antena ${esc(e.altAnt)} m (${esc(e.medida)})</span>
-      <button class="pri big" data-act="estParar">Parar gravação</button></section>${listaArquivos()}`}
+      ${e.destino==="receptor"?(noReceptorGravando()?`<span class="small" style="color:var(--fix)">Pode desconectar e ir para o rover: o receptor ${esc(e.rxSerie||"")} continua gravando sozinho.</span><button class="pri big" data-act="estParar">Parar gravação</button>`
+        :`<span class="small" style="color:var(--float)">O receptor ${esc(e.rxSerie||"")} continua gravando na memória dele. Para parar, conecte nele de novo e toque em Parar.</span><button data-act="estMarcarParado">Já parei/desliguei o receptor (encerrar aqui)</button>`)
+      :`<button class="pri big" data-act="estParar">Parar gravação</button>`}</section>${listaArquivos()}`}
   return `<section class="card">
     <h3>Gravar estático</h3>
     <div class="grid2">
@@ -554,6 +566,7 @@ function sEstatico(){
     <div class="grid2">${optE("destino","receptor","Memória do receptor","pode desligar o celular")}${optE("destino","coletora","Coletora","celular conectado o tempo todo")}</div>
     <span class="eyebrow">Formato</span>
     <div class="grid3">${optE("formato","CNB","CNB","nativo ComNav")}${optE("formato","RINEX","CNB + RINEX","RINEX 3.04 ao parar")}<button class="opt" disabled aria-pressed="false">TPS<small>use o RINEX</small></button></div>
+    ${e.formato==="RINEX"&&e.destino==="coletora"?selRnxSis():""}
     <span class="muted small">${e.destino==="coletora"?"Na coletora o app grava os dados brutos que o receptor manda pelo Bluetooth (o mesmo CNB do receptor). "+(e.formato==="RINEX"?"Ao parar, já gera o RINEX 3.04 (.obs + .nav, num .zip) pronto para o IBGE-PPP e para o PPK do drone.":"Ao parar, toque em Gerar RINEX quando quiser."):"Na memória do receptor grava o CNB, igual ao Survey Master. O receptor dá o nome sozinho (série + dia + hora). Baixe o arquivo e converta aqui embaixo em “Converter CNB para RINEX”."} O formato TPS (Topcon) é fechado: os programas Topcon abrem o RINEX.</span>
 
     <button class="pri big" data-act="estIniciar" ${S.conectado?"":"disabled"}>Iniciar gravação</button>
@@ -565,6 +578,7 @@ function sEstatico(){
     <span class="muted small">Escolha um arquivo .cnb (baixado do receptor, recebido no WhatsApp, etc.). Sai um .zip com o RINEX 3.04 de observação e a navegação GPS.</span>
     <div class="grid2"><label class="f">Intervalo do RINEX<select data-bind="rnxInt">${[["1","1 s (PPK do drone)"],["5","5 s"],["15","15 s (IBGE-PPP)"],["30","30 s"]].map(([v,t])=>`<option value="${v}" ${(S.rnxInt||"1")===v?"selected":""}>${t}</option>`).join("")}</select></label>
     <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" data-bind="rnxAlt" value="${esc(S.rnxAlt||"")}" placeholder="a do arquivo"></label></div>
+    ${selRnxSis()}
     <button class="pri" data-act="cnbEscolher" ${R.convertendo?"disabled":""}>${R.convertendo?"Convertendo…":"Escolher arquivo CNB e converter"}</button></section>`:""}
   ${listaArquivos()}`;
 }
@@ -1419,7 +1433,7 @@ document.addEventListener("click",e=>{
   if(a==="irConexao"){S.tela="receptor";S.sub="conexao";render()}
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
-  if(a==="desconectar"){falar("Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
+  if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
@@ -1450,6 +1464,7 @@ document.addEventListener("click",e=>{
   if(a==="coletar"){if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar()}
   if(a==="estIniciar"){iniciarEstaticoCN();return}
   if(a==="estParar"){pararEstaticoCN(false);return}
+  if(a==="estMarcarParado"){pararEstaticoCN(false,true);return}
   if(a==="estArquivos"){listarArquivosRx();return}
   if(a==="cnbEscolher"){converterCnbEscolhido();return}
   if(a==="ajEncerrar"){S.ajuste.fim=Date.now();if(S.semInternet){S.ajuste.status="fila";toast("Sem internet: arquivo na fila de envio")}else{S.ajuste.status="aguardando";S.ajuste.enviado=Date.now();toast("RINEX enviado ao IBGE-PPP")}render()}
@@ -1562,6 +1577,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.dataset.ptnome!==undefined){const p=proj(),i=+el.dataset.ptnome,v=el.value.trim();if(!v){render();return}if(p.pontos.some((x,k)=>k!==i&&x.nome===v)){toast("Já existe "+v);render();return}p.pontos[i].nome=v;salvar();toast("Nome alterado");return}
   if(el.dataset.ptcod!==undefined){proj().pontos[+el.dataset.ptcod].cod=el.value.trim();salvar();toast("Descrição alterada");return}
   if(el.dataset.bind==="ptOrdem"){S.ptOrdem=el.value;render();return}
+  if(el.dataset.bind==="rnxSis"){S.rnxSis=el.value;salvar();render();return}
   if(el.id==="impArq"){lerArquivosImport([...el.files]);return}
   if(mudaExport(el))return;
   if(el.dataset.impsel){cfgImp()[el.dataset.impsel]=el.value;salvar();return}
@@ -1850,27 +1866,41 @@ function coletar(){
   if((proj()?.pontos||[]).some(p=>p.nome===nome)){bip("erro");toast(`O ponto ${nome} já existe no projeto. Escolha outro número.`);return}
   S.coletando=n;const amostras=[];render();
   const iv=setInterval(()=>{
-    amostras.push({lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h,hr:G.hrms,fix:G.fix});S.coletando--;
+    amostras.push({lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h,hr:G.hrms,vr:G.vrms||G.hrms*1.7,pd:G.pdop||0,hd:G.hdop||0,vd:G.vdop||0,sv:G.sats||0,id:G.idade||0,fix:G.fix});S.coletando--;
     if(S.coletando<=0){clearInterval(iv);
       const m=k=>amostras.reduce((s,x)=>s+x[k],0)/amostras.length;
       const hr=Math.max(...amostras.map(x=>x.hr)), tol=num(S.tolH)||0.02;
       const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
-      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,st,alt,quando:new Date().toISOString()});
+      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
+        sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
       S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`);
     }else render();
   },1000);
 }
 // ================= Exportar e importar =================
 // Campos que a pessoa escolhe (e ordena) para CSV, TXT e o relatório em PDF
-const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod:"Descrição",lat:"Latitude",lon:"Longitude",hgnss:"Altitude GNSS (antena)",
-  prec:"Precisão H (m)",st:"Status (FIX/FLOAT)",ant:"Altura da antena",data:"Data",hora:"Hora",rn:"RN usada",zona:"Fuso UTM"};
-const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",hgnss:"AltGNSS",prec:"PrecH",st:"Status",ant:"AltAntena",data:"Data",hora:"Hora",rn:"RN",zona:"Fuso"};
+const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod:"Descrição",
+  lat:"Latitude (° ' \")",lon:"Longitude (° ' \")",latd:"Latitude (graus decimais)",lond:"Longitude (graus decimais)",
+  hel:"Altitude elipsoidal (m)",horto:"Altitude ortométrica (geoide do receptor)",ondul:"Ondulação geoidal N (m)",hgnss:"Altitude GNSS na antena",
+  prec:"Sigma H (m)",sigv:"Sigma V (m)",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Satélites",idade:"Idade da correção (s)",epocas:"Épocas",
+  st:"Solução (FIX/FLOAT)",ant:"Altura da antena (m)",antTipo:"Tipo de medida da antena",X:"X geocêntrico (m)",Y:"Y geocêntrico (m)",Zg:"Z geocêntrico (m)",
+  kesc:"Fator de escala UTM (k)",conv:"Convergência meridiana",zona:"Fuso UTM",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN usada",estaq:"Estaqueado de / erro"};
+const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",latd:"LatDec",lond:"LonDec",hel:"AltElips",horto:"AltOrto",ondul:"OndulN",hgnss:"AltGNSS",
+  prec:"SigmaH",sigv:"SigmaV",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Sats",idade:"IdadeCorr",epocas:"Epocas",st:"Solucao",ant:"AltAntena",antTipo:"MedidaAntena",X:"X",Y:"Y",Zg:"Z_geoc",
+  kesc:"FatorEscala",conv:"Convergencia",zona:"Fuso",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN",estaq:"Estaqueamento"};
 const PRESETS={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"],NEZD:["N","E","Z","cod"],ENZD:["E","N","Z","cod"],NEZ:["N","E","Z"],ENZ:["E","N","Z"],
-  geo:["nome","lat","lon","Z","cod"],completo:["nome","E","N","Z","cod","prec","st","ant","data","hora"]};
-const PRESET_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição",ENZD:"E, N, Z, Descrição",NEZ:"N, E, Z",ENZ:"E, N, Z",geo:"Nome, Lat, Lon, Z, Descrição",completo:"Completo (com precisão e data)"};
+  geo:["nome","lat","lon","hel","cod"],
+  topografia:["nome","N","E","Z","cod","lat","lon","hel","horto","prec","sigv","pdop","hdop","vdop","sats","idade","st","ant","data","hora"],
+  completo:Object.keys(CAMPOS)};
+const PRESET_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição",ENZD:"E, N, Z, Descrição",NEZ:"N, E, Z",ENZ:"E, N, Z",
+  geo:"Nome, Lat, Lon (° ' \"), Alt. elipsoidal, Descrição",topografia:"Topografia (coordenadas, lat/lon, altitudes, sigmas, DOPs, satélites)",completo:"Tudo (todos os campos)"};
+// fator de escala e convergência meridiana da projeção UTM no ponto
+function utmKConv(lat,lon){const z=zonaAtual(),l0=(z*6-183)*Math.PI/180,f=lat*Math.PI/180,dl=lon*Math.PI/180-l0,e2=0.00673949677548,c=Math.cos(f),t=Math.tan(f),n2=e2*c*c;
+  const k=0.9996*(1+dl*dl/2*c*c*(1+n2)+dl**4/24*c**4*(5-4*t*t));const g=dl*Math.sin(f)*(1+dl*dl/3*c*c*(1+3*n2+2*n2*n2))*180/Math.PI;return {k,g}}
+function geoc(lat,lon,h){const a=6378137,e2=0.00669438002290,f=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(f)**2);return [(N+h)*Math.cos(f)*Math.cos(l),(N+h)*Math.cos(f)*Math.sin(l),(N*(1-e2)+h)*Math.sin(f)]}
 const FORMATOS={csv:"CSV",txt:"TXT",dxf:"DXF (CAD)",shp:"Shapefile",kml:"KML (Google Earth)",pdf:"PDF (relatório)",geojson:"GeoJSON",bruto:"Dados brutos (tudo)"};
-function cfgExp(){S.exp=Object.assign({fmt:S.cfg.formatoPadrao||"csv",campos:PRESETS.PNEZD.slice(),sep:S.cfg.csvSep||",",decSep:"ponto",cab:true,geoFmt:"dec",dec:S.cfg.dec||"3",
+function cfgExp(){S.exp=Object.assign({fmt:S.cfg.formatoPadrao||"csv",campos:PRESETS.PNEZD.slice(),sep:S.cfg.csvSep||",",decSep:"ponto",cab:true,dec:S.cfg.dec||"3",
   incluirProj:true,soFix:false,filtro:"",dxfNome:true,dxfCota:true,dxfDesc:false,dxfAlt:"0,5",dxfCamadas:true},S.exp||{});return S.exp}
 let R_EXP=null; // último arquivo gerado {nome,ext,txt|bytes,mime}
 
@@ -1884,19 +1914,30 @@ function pontosExport(){
 }
 function nfx(v,d,decSep){if(v==null||isNaN(v))return "";const s=(+v).toFixed(d);return decSep==="virgula"?s.replace(".",","):s}
 function valCampo(x,k,e){
-  const d=+e.dec||3,ds=e.decSep;
+  const d=+e.dec||3,ds=e.decSep,hel=x.hElip!=null?x.hElip:(x.h-(x.rnOff||0)),sep=x.sep||0;
   switch(k){
     case "nome":return x.nome||"";case "cod":return x.cod||"";case "N":return nfx(x.N,d,ds);case "E":return nfx(x.E,d,ds);case "Z":return nfx(x.h,d,ds);
-    case "lat":return e.geoFmt==="gms"?gms(x.lat,"N","S"):nfx(x.lat,9,ds);
-    case "lon":return e.geoFmt==="gms"?gms(x.lon,"E","W"):nfx(x.lon,9,ds);
-    case "hgnss":return nfx(x.h+(x.alt||0)-(x.rnOff||0),d,ds);case "prec":return nfx(x.h_rms||0,3,ds);case "st":return x.st||"";case "ant":return nfx(x.alt||0,3,ds);
+    case "lat":return gmsTxt(x.lat,"N","S",ds);case "lon":return gmsTxt(x.lon,"E","W",ds);
+    case "latd":return nfx(x.lat,9,ds);case "lond":return nfx(x.lon,9,ds);
+    case "hel":return nfx(hel,d,ds);case "horto":return sep?nfx(hel-sep,d,ds):"";case "ondul":return sep?nfx(sep,3,ds):"";
+    case "hgnss":return nfx(hel+(x.alt||0),d,ds);
+    case "prec":return x.h_rms!=null?nfx(x.h_rms,3,ds):"";case "sigv":return x.v_rms!=null?nfx(x.v_rms,3,ds):"";
+    case "pdop":return x.pdop?nfx(x.pdop,1,ds):"";case "hdop":return x.hdop?nfx(x.hdop,1,ds):"";case "vdop":return x.vdop?nfx(x.vdop,1,ds):"";
+    case "sats":return x.sats!=null?String(x.sats):"";case "idade":return x.idade!=null?nfx(x.idade,1,ds):"";case "epocas":return x.epocas!=null?String(x.epocas):"";
+    case "st":return x.st||"";case "ant":return nfx(x.alt||0,3,ds);case "antTipo":return x.alt?({vertical:"Vertical",inclinada:"Inclinada",fase:"Centro de fase"}[x.altTipo]||x.altTipo||""):"";
+    case "X":return nfx(geoc(x.lat,x.lon,hel)[0],3,ds);case "Y":return nfx(geoc(x.lat,x.lon,hel)[1],3,ds);case "Zg":return nfx(geoc(x.lat,x.lon,hel)[2],3,ds);
+    case "kesc":return nfx(utmKConv(x.lat,x.lon).k,8,ds);case "conv":{const g=utmKConv(x.lat,x.lon).g;return (g<0?"-":"")+gmsTxt(Math.abs(g),"","",ds)}
+    case "zona":return zonaAtual()+hemiAtual();case "datum":return sis().datum;case "receptor":return x.receptor||"";
     case "data":return x.quando?new Date(x.quando).toLocaleDateString("pt-BR"):"";case "hora":return x.quando?new Date(x.quando).toLocaleTimeString("pt-BR"):"";
-    case "rn":return x.rn||"";case "zona":return zonaAtual()+hemiAtual();
+    case "rn":return x.rn||"";case "estaq":return x.estaq?`${x.estaq.alvo} (${nfx(x.estaq.dist,3,ds)} m)`:"";
   }return "";
 }
+// graus, minutos e segundos com 5 casas nos segundos (padrão de topografia)
+function gmsTxt(v,pos,neg,ds){if(v==null||isNaN(v))return "";const a=Math.abs(v);let g=Math.floor(a),m=Math.floor((a-g)*60),sg=((a-g)*60-m)*60;
+  if(+sg.toFixed(5)>=60){sg=0;m++}if(m>=60){m=0;g++}const sTxt=sg.toFixed(5).padStart(8,"0");return `${g}°${String(m).padStart(2,"0")}'${ds==="virgula"?sTxt.replace(".",","):sTxt}" ${v<0?neg:pos}`.trim()}
 function sepReal(e){let s=e.sep==="tab"?"\t":e.sep==="espaco"?" ":e.sep;if(s===","&&e.decSep==="virgula")s=";";return s}
 function linhasTexto(P,campos,e){
-  const s=sepReal(e),q=v=>{v=String(v);return (s!==" "&&v.includes(s))||v.includes('"')?'"'+v.replace(/"/g,'""')+'"':s===" "?v.replace(/\s+/g,"_"):v};
+  const s=sepReal(e),q=v=>{v=String(v);return s!==" "&&(v.includes(s)||/[\r\n]/.test(v))?'"'+v.replace(/"/g,'""')+'"':s===" "?v.replace(/\s+/g,"_"):v};
   const L=[];if(e.cab)L.push(campos.map(k=>CAB_CAMPO[k]).join(s));
   for(const x of P)L.push(campos.map(k=>q(valCampo(x,k,e))).join(s));return L.join("\r\n")+"\r\n";
 }
@@ -1988,13 +2029,15 @@ function gerarSHPzip(P,nb){
     shx.setInt32(100+i*8,o/2,false);shx.setInt32(104+i*8,18,false)}
   // tabela de atributos (DBF)
   const F=[["NOME","C",24,0,x=>x.nome],["DESCR","C",40,0,x=>x.cod||""],["E","N",16,3,x=>x.E],["N","N",16,3,x=>x.N],["COTA","N",12,3,x=>x.h],
-    ["LAT","N",16,9,x=>x.lat],["LON","N",16,9,x=>x.lon],["PREC_H","N",9,3,x=>x.h_rms||0],["STATUS","C",6,0,x=>x.st||""],["ANTENA","N",8,3,x=>x.alt||0],["DATA","C",19,0,x=>(x.quando||"").slice(0,19).replace("T"," ")]];
+    ["LAT","N",16,9,x=>x.lat],["LON","N",16,9,x=>x.lon],["LAT_GMS","C",22,0,x=>gmsTxt(x.lat,"N","S","ponto")],["LON_GMS","C",22,0,x=>gmsTxt(x.lon,"E","W","ponto")],
+    ["ALT_ELIP","N",12,3,x=>x.hElip!=null?x.hElip:x.h],["ALT_ORTO","N",12,3,x=>x.sep?(x.hElip!=null?x.hElip:x.h)-x.sep:""],["SIGMA_H","N",9,3,x=>x.h_rms||0],["SIGMA_V","N",9,3,x=>x.v_rms||""],
+    ["PDOP","N",6,1,x=>x.pdop||""],["HDOP","N",6,1,x=>x.hdop||""],["VDOP","N",6,1,x=>x.vdop||""],["SATS","N",4,0,x=>x.sats??""],["IDADE","N",6,1,x=>x.idade??""],["STATUS","C",6,0,x=>x.st||""],["ANTENA","N",8,3,x=>x.alt||0],["DATA","C",19,0,x=>(x.quando||"").slice(0,19).replace("T"," ")]];
   const recLen=1+F.reduce((s,f)=>s+f[2],0),hdLen=32+32*F.length+1,dbf=new Uint8Array(hdLen+n*recLen+1),dv=new DataView(dbf.buffer),d=new Date();
   dbf[0]=3;dbf[1]=d.getFullYear()-1900;dbf[2]=d.getMonth()+1;dbf[3]=d.getDate();dv.setUint32(4,n,true);dv.setUint16(8,hdLen,true);dv.setUint16(10,recLen,true);
   F.forEach((f,i)=>{const o=32+i*32;for(let k=0;k<f[0].length;k++)dbf[o+k]=f[0].charCodeAt(k);dbf[o+11]=f[1].charCodeAt(0);dbf[o+16]=f[2];dbf[o+17]=f[3]});
   dbf[hdLen-1]=0x0D;
   P.forEach((x,r)=>{let o=hdLen+r*recLen;dbf[o++]=32;for(const f of F){let v=f[4](x);
-    if(f[1]==="N"){v=isNaN(+v)?"":(+v).toFixed(f[3]);v=v.slice(0,f[2]).padStart(f[2]," ")}else v=String(v).slice(0,f[2]).padEnd(f[2]," ");
+    if(f[1]==="N"){v=(v===""||v==null||isNaN(+v))?"":(+v).toFixed(f[3]);v=v.slice(0,f[2]).padStart(f[2]," ")}else v=String(v).slice(0,f[2]).padEnd(f[2]," ");
     dbf.set(latin1(v),o);o+=f[2]}});
   dbf[dbf.length-1]=0x1A;
   return zipStore([{name:nb+".shp",bytes:new Uint8Array(shp.buffer)},{name:nb+".shx",bytes:new Uint8Array(shx.buffer)},{name:nb+".dbf",bytes:dbf},{name:nb+".prj",bytes:latin1(prjWKT())},{name:nb+".cpg",bytes:latin1("ISO-8859-1")}]);
@@ -2002,7 +2045,7 @@ function gerarSHPzip(P,nb){
 
 // PDF simples (Helvetica), relatório com croqui e tabela dos pontos
 function gerarPDF(P,p,e){
-  const W=595,H=842,M=36,pgs=[];
+  const nCol=(e.campos||[]).length,W=nCol>7?842:595,H=nCol>7?595:842,M=30,pgs=[];
   const esp=s=>String(s??"").replace(/[\\()]/g,c=>"\\"+c).replace(/[^\x20-\x7e]/g,c=>{const k=c.charCodeAt(0);return k<256?"\\"+k.toString(8).padStart(3,"0"):"?"});
   const T=(x,y,s,txt,b)=>`BT /${b?"F2":"F1"} ${s} Tf ${x.toFixed(1)} ${y.toFixed(1)} Td (${esp(txt)}) Tj ET\n`;
   const larg=(t,s)=>String(t).length*s*0.58;
@@ -2068,7 +2111,7 @@ async function compartilharArquivo(){
     try{await NP.Filesystem.deleteFile({path:f.nome,directory:"CACHE"})}catch(e){}
     const w=f.bytes?await NP.Filesystem.writeFile({path:f.nome,data:b64(f.bytes),directory:"CACHE"})
       :await NP.Filesystem.writeFile({path:f.nome,data:f.txt,directory:"CACHE",encoding:"utf8"});
-    await NP.Share.share({title:f.nome,text:f.nome,files:[w.uri],dialogTitle:"Enviar "+f.nome});
+    await NP.GnssTcp.shareFiles({files:[{path:f.nome,dir:"cache"}],mime:mimeDe(f.nome),title:"Enviar "+f.nome});
   }catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
 }
 
@@ -2096,7 +2139,7 @@ function vExportar(){
     ${txt?`<label class="f">Separador${sel("sep",[[",","Vírgula ,"],[";","Ponto e vírgula ;"],["tab","Tabulação"],["espaco","Espaço"]])}</label>`:""}
     ${usaCampos?`<label class="f">Decimal${sel("decSep",[["ponto","Ponto (123.456)"],["virgula","Vírgula (123,456)"]])}</label>
     <label class="f">Casas decimais${sel("dec",[["2","2 (cm)"],["3","3 (mm)"],["4","4"]])}</label>
-    <label class="f">Lat/Lon${sel("geoFmt",[["dec","Graus decimais"],["gms","Graus ° ' \""]])}</label>`:""}
+    `:""}
     ${e.fmt==="dxf"?`<label class="f">Altura do texto (m)<input class="m" data-expinp="dxfAlt" value="${esc(e.dxfAlt)}"></label>`:""}
     <label class="f">Filtrar por nome ou descrição<input data-expinp="filtro" value="${esc(e.filtro)}" placeholder="ex.: cerca"></label></div>
     ${txt?ck("cab","Primeira linha com os nomes das colunas"):""}
@@ -2411,14 +2454,14 @@ function nmea(l){
   if(t==="GGA"){
     const q=+f[6];G.fix=q===4?4:q===5?5:q>0?1:0;G.sats=+f[7]||0;const hdop=+f[8];
     if(q>0&&f[2]){G.lat=dm2deg(f[2],f[3]);G.lon=dm2deg(f[4],f[5]);G.h=(+f[9]||0)+(+f[11]||0);R.sep=+f[11]||0;atualizaEN()}
-    G.idade=f[13]?+f[13]:0;R.ultGGA=l;
+    G.idade=f[13]?+f[13]:0;R.ultGGA=l;if(!isNaN(hdop)&&hdop>0)G.hdop=hdop;
     if(!R.temGST&&!isNaN(hdop)){G.hrms=G.fix===4?0.01*Math.max(1,hdop):G.fix===5?0.25*hdop:1.5*hdop;G.vrms=G.hrms*1.7}
     if(!R.temGSA&&!isNaN(hdop))G.pdop=+(hdop*1.4).toFixed(1);
   }
   if(t==="GST"){const sl=+f[6],so=+f[7],sa=+f[8];if(!isNaN(sl)&&!isNaN(so)&&f[6]!==""){G.hrms=Math.sqrt(sl*sl+so*so);G.vrms=isNaN(sa)?G.hrms*1.7:sa;R.temGST=true}}
   if(t==="RMC"){const sp=(+f[7]||0)*0.514444,cr=+f[8];G.vel=sp;if(!isNaN(cr)&&f[8]!==""&&sp>0.2)G.course=cr}
   if(t==="VTG"){const cr=+f[1],kmh=+f[7];if(!isNaN(kmh))G.vel=kmh/3.6;if(!isNaN(cr)&&f[1]!==""&&G.vel>0.2)G.course=cr}
-  if(t==="GSA"){const p=+f[15];if(!isNaN(p)&&p>0){G.pdop=p;R.temGSA=true}}
+  if(t==="GSA"){const p=+f[15],hd=+f[16],vd=parseFloat(f[17]);if(!isNaN(p)&&p>0){G.pdop=p;R.temGSA=true}if(hd>0)G.hdop=hd;if(vd>0){G.vdop=vd;R.temVDOP=true}}
   if(t==="GSV"&&TALKER[tal]){G.const[TALKER[tal]]=+f[3]||0}
 }
 
@@ -2656,7 +2699,7 @@ function tickReal(now){
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();
-  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstaticoCN(true);
+  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao&&(S.est.destino!=="receptor"||noReceptorGravando()))pararEstaticoCN(true);
   render(false);
 }
 

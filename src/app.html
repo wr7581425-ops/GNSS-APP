@@ -1610,6 +1610,7 @@ document.addEventListener("click",e=>{
     else if($("locPto")){S.loc={tipo:"ponto",idx:+$("locPto").value}}
     else{toast("Escolha um ponto ou digite E e N");return}
     S.locPick=false;S.seguir=true;render();toast("Locação iniciada: siga a linha laranja")}
+  if(a==="locAnt"||a==="locProx"){const v=vizLoc(),i=a==="locAnt"?v.ant:v.prox;if(i==null)return;S.loc={tipo:"ponto",idx:i};chegouAviso=false;S.estaqConf=false;bip("ok");falar(a==="locAnt"?"Ponto anterior":"Próximo ponto");render();toast("Locando "+proj().pontos[i].nome);return}
   if(a==="estaquear"){const st=locEstado();if(!st)return;if(!S.conectado){toast("Conecte o receptor");return}
     if(!st.chegou&&!S.estaqConf){S.estaqConf=true;render();setTimeout(()=>{S.estaqConf=false},6000);return}S.estaqConf=false;
     const p=proj(),al=st.al;let nome=al.nome+"_Estaq",k=2;while(p.pontos.some(x=>x.nome===nome))nome=al.nome+"_Estaq"+(k++);
@@ -1662,7 +1663,7 @@ function alvoEN(){
   if(S.loc.tipo==="ponto"){const p=proj()?.pontos[S.loc.idx];if(!p)return null;const [E,N]=ptEN(p);return {E,N,h:p.h,nome:p.nome}}
   return {E:S.loc.E,N:S.loc.N,h:S.loc.h,nome:S.loc.nome};
 }
-function azGMS(a){const g=Math.floor(a),m=Math.floor((a-g)*60),s=Math.round(((a-g)*60-m)*60);return `${g}°${String(m).padStart(2,"0")}'${String(s).padStart(2,"0")}"`}
+function azGMS(a){a=((a%360)+360)%360;let t=Math.round(a*3600);if(t>=1296000)t-=1296000;const g=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return `${g}°${String(m).padStart(2,"0")}'${String(s).padStart(2,"0")}"`}
 // direção de referência da seta: caminhada (rumo do GNSS), bússola do celular ou norte
 function locRumo(){
   if(S.conectado&&G.vel>0.4)return {h:G.course,fonte:"direção da caminhada"};
@@ -1674,6 +1675,13 @@ function locEstado(){
   const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360,tol=num(S.locTol)||0.03;
   const preciso=G.fix===4||S.fonte==="celular"||S.fonte==="sim";
   return {al,de,dn,dist,az,tol,chegou:dist<=tol,achado:dist<=tol&&preciso,perto:dist<=Math.max(1,tol*10)};
+}
+// sequência da locação: pontos de projeto (importados) na ordem da lista; se o alvo não for de projeto, usa todos os pontos
+function vizLoc(){
+  if(S.loc?.tipo!=="ponto")return {total:0};const pts=proj()?.pontos||[],atual=pts[S.loc.idx];if(!atual)return {total:0};
+  const ehProj=x=>["PROJ","CALC"].includes(x.st)&&!/_Estaq\d*$/.test(x.nome);
+  const seq=pts.map((x,i)=>({x,i})).filter(({x})=>ehProj(atual)?ehProj(x):!/_Estaq\d*$/.test(x.nome)).map(o=>o.i);
+  const k=seq.indexOf(S.loc.idx);return {total:seq.length,ant:k>0?seq[k-1]:null,prox:k>=0&&k<seq.length-1?seq[k+1]:null};
 }
 function locPainel(compacto){
   const st=locEstado();if(!st)return "";
@@ -1696,6 +1704,7 @@ function locPainel(compacto){
     ${achado?"":`<span class="muted small">${G.vel>0.4?`${fr>=0?"Frente":"Trás"} ${br(Math.abs(fr))} m · ${di>=0?"Direita":"Esquerda"} ${br(Math.abs(di))} m · `:""}Referência: ${ru.fonte}</span>`}
     <div class="grid2" style="width:100%"><div class="kv"><span>${dn>=0?"Norte":"Sul"}</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(dn))} m</b></div><div class="kv"><span>${de>=0?"Leste":"Oeste"}</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(de))} m</b></div>
     <div class="kv"><span>Azimute</span><b>${fmtAng(az)}</b></div><div class="kv"><span>${dh>=0?"Corte":"Aterro"} (projeto ${br(al.h)})</span><b class="m" style="color:${achado?"var(--fix)":"inherit"}">${br(Math.abs(dh))} m</b></div></div>
+    ${vizLoc().total>1?`<div class="grid2" style="width:100%"><button data-act="locAnt" ${vizLoc().ant==null?"disabled":""}>‹ Anterior${vizLoc().ant!=null?" ("+esc(proj().pontos[vizLoc().ant].nome)+")":""}</button><button data-act="locProx" ${vizLoc().prox==null?"disabled":""}>Próximo${vizLoc().prox!=null?" ("+esc(proj().pontos[vizLoc().prox].nome)+")":""} ›</button></div>`:""}
     ${compacto?"":`<button class="${chegou?"pri big":""}" style="width:100%" data-act="estaquear">${chegou?`Estaquear (salvar ${esc(al.nome)}_Estaq)`:S.estaqConf?"Fora da tolerância: toque de novo para estaquear assim mesmo":`Estaquear aqui (${esc(al.nome)}_Estaq)`}</button>
     ${ja?`<span class="small" style="color:var(--fix)">${esc(al.nome)} já foi estaqueado</span>`:""}`}`
     :`<span class="muted">Conecte o receptor para ver a direção.</span>`}

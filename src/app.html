@@ -120,7 +120,7 @@ const S={
   baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"1,800", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
-  est:{gravando:false,inicio:0,nome:"EST-01",taxa:"15",destino:"receptor",formato:"RINEX 3.04",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
+  est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"1,800",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
@@ -410,6 +410,25 @@ function manualAjuste(){
 function pontosDesde(t){return (proj()?.pontos||[]).filter(p=>new Date(p.quando).getTime()>=t)}
 
 // ---------- Gravação estática ----------
+function nomeArq(n){return (n||"EST").replace(/[^A-Za-z0-9_-]/g,"").slice(0,16)||"EST"}
+function antenaModelo(){const sr=R.serie||S.btNome||"";return /^T7/i.test(sr)?"T70(NGS)":/^S6/i.test(sr)?"S6(NGS)":""}
+async function iniciarEstaticoCN(){
+  const e=S.est;e.formato="CNB";e.destino="receptor";
+  const n=nomeArq(e.nome),taxa=(num(e.taxa)||1).toFixed(6),h=num(e.altAnt)||0;
+  if(receptorReal()){
+    R.estOk=false;
+    const mod=antenaModelo();
+    await enviarLista([...(mod?[`set antenna ${h.toFixed(6)} 1 ${mod}`]:[]),`set datarecord ${n} ${n}.cnb ${taxa} 0 1 0 7000.000000 0`,`set datarecord start ${n}.cnb`,"log datarecord"],"Gravar estático",250);
+    setTimeout(()=>{if(S.est.gravando)toast(R.estOk?"O receptor confirmou: gravando "+n+".cnb":"Comandos enviados. Se o LED de gravação do receptor não acender, confira em Comandos do receptor.")},2500);
+  }
+  e.gravando=true;e.inicio=Date.now();e.arqRx=n+".cnb";salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada: "+n+".cnb no receptor");
+}
+async function pararEstaticoCN(auto){
+  if(receptorReal())await enviarLista(["set datarecord stop","log recordfile "+dataRx()+"-"+dataRx()],"Parar estático",250);
+  pararEstatico(auto);falar("Gravação estática encerrada");
+}
+function dataRx(){const d=new Date();return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getDate()).padStart(2,"0")}
+async function listarArquivosRx(){if(!receptorReal()){toast("Conecte o receptor");return}R.arqsRx=[];await enviarComando("log recordfile "+dataRx()+"-"+dataRx(),true);toast("Pedindo a lista de arquivos ao receptor…");setTimeout(render,2500)}
 function pararEstatico(auto){
   const e=S.est;if(!e.gravando)return;const fim=Date.now(),s=(fim-e.inicio)/1000;
   const kb=e.formato.startsWith("CNB")?2.2:7;
@@ -430,19 +449,17 @@ function sEstatico(){
     <h3>Gravar estático</h3>
     <div class="grid2">
       <label class="f">Nome do ponto/arquivo<input class="m" value="${esc(e.nome)}" data-est="nome"></label>
-      <label class="f">Taxa de gravação<select data-est="taxa">${["1","5","10","15","30"].map(v=>`<option value="${v}" ${e.taxa===v?"selected":""}>${v} s</option>`).join("")}</select></label>
+      <label class="f">Taxa de gravação<select data-est="taxa">${["0.5","1","5","10","15","30"].map(v=>`<option value="${v}" ${e.taxa===v?"selected":""}>${v} s</option>`).join("")}</select></label>
       <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(e.altAnt)}" data-est="altAnt"></label>
       <label class="f">Medida da altura<select data-est="medida">${["Base da rosca","Vertical (marca)","Inclinada (borda)","Centro de fase"].map(v=>`<option ${e.medida===v?"selected":""}>${v}</option>`).join("")}</select></label>
       <label class="f">Máscara de elevação (°)<input class="m" value="${esc(e.mascara)}" data-est="mascara"></label>
       <label class="f">Duração programada<select data-est="duracao">${[["0","Parar manualmente"],["30","30 min"],["60","1 hora"],["120","2 horas"],["240","4 horas"],["360","6 horas"]].map(([v,n])=>`<option value="${v}" ${e.duracao===v?"selected":""}>${n}</option>`).join("")}</select></label>
     </div>
-    <span class="eyebrow">Salvar em</span>
-    <div class="grid2">${optE("destino","receptor","Receptor","memória interna")}${optE("destino","coletora","Coletora","este celular")}</div>
-    <span class="eyebrow">Formato</span>
-    <div class="grid3">${optE("formato","CNB","CNB","nativo ComNav")}${optE("formato","RINEX 3.04","RINEX 3.04","padrão IBGE")}${optE("formato","RINEX 2.11","RINEX 2.11","softwares antigos")}</div>
-    ${e.formato==="CNB"?`<span class="muted small">CNB é o formato nativo da ComNav, menor e mais completo. Para enviar ao IBGE-PPP o app converte para RINEX automaticamente.</span>`:""}
-    ${e.destino==="coletora"?`<span class="muted small">Gravando no celular, a conexão com o receptor precisa ficar ativa durante todo o rastreio.</span>`:`<span class="muted small">Gravando no receptor, você pode desligar o celular. Depois, baixe o arquivo pela lista abaixo.</span>`}
+    <span class="muted small">Grava na <b>memória interna do receptor</b>, no formato nativo <b>CNB</b> da ComNav (o mesmo do Survey Master). Pode desligar o celular durante o rastreio. Para PPK do drone e PPP do IBGE, converta o CNB para RINEX no Compass Solution / conversor da ComNav.</span>
+
     <button class="pri big" data-act="estIniciar" ${S.conectado?"":"disabled"}>Iniciar gravação</button>
+    <button data-act="estArquivos" ${S.conectado?"":"disabled"}>Ver arquivos de hoje no receptor</button>
+    ${(R.arqsRx||[]).length?`<div class="list">${R.arqsRx.map(f=>`<div class="row" style="grid-template-columns:1fr auto"><b class="m">${esc(f)}</b><span class="muted small">no receptor</span></div>`).join("")}</div><span class="muted small">Para baixar: pelo Survey Master (Estático › Download), pela página Wi-Fi do receptor ou pelo cabo USB.</span>`:""}
     ${S.conectado?"":`<span class="muted small">Conecte o receptor primeiro.</span>`}
   </section>${listaArquivos()}`;
 }
@@ -1224,6 +1241,8 @@ document.addEventListener("click",e=>{
   if(b.dataset.estopt){S.est[b.dataset.estopt]=b.dataset.val;salvar();render();return}
   if(b.dataset.arq){const f=S.arquivos.find(x=>x.id===+b.dataset.id);const k=b.dataset.arq;
     if(k==="apagar"){S.arquivos=S.arquivos.filter(x=>x!==f);toast("Arquivo apagado")}
+    if(k==="baixar"&&NATIVO){toast("Baixe o arquivo pelo Survey Master (Estático › Download), pela página Wi-Fi do receptor ou pelo cabo USB. O download direto pelo app vem numa próxima versão.");return}
+    if(k==="ppp"&&NATIVO){toast("Converta o CNB para RINEX e envie no site do IBGE-PPP (abrindo…)");window.open("https://www.ibge.gov.br/geociencias/informacoes-sobre-posicionamento-geodesico/servicos-para-posicionamento-geodesico/16334-servico-online-para-pos-processamento-de-dados-gnss-ibge-ppp.html","_blank");return}
     if(k==="baixar"){f.destino="coletora";toast("Arquivo copiado do receptor para o celular")}
     if(k==="compart"){toast("No app instalado: abre WhatsApp, e-mail ou Drive com o arquivo")}
     if(k==="ppp"){if(f.destino==="receptor"){toast("Baixe o arquivo para o celular antes de enviar");return}f.ppp=S.semInternet?"fila":"aguardando";f.enviado=Date.now();toast(S.semInternet?"Sem internet: arquivo na fila de envio":(f.formato==="CNB"?"Convertido para RINEX e enviado ao IBGE-PPP":"Enviado ao IBGE-PPP"))}
@@ -1278,8 +1297,9 @@ document.addEventListener("click",e=>{
   if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
   if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
   if(a==="coletar"){if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar()}
-  if(a==="estIniciar"){S.est.gravando=true;S.est.inicio=Date.now();salvar();render();toast("Gravação estática iniciada")}
-  if(a==="estParar")pararEstatico(false);
+  if(a==="estIniciar"){iniciarEstaticoCN();return}
+  if(a==="estParar"){pararEstaticoCN(false);return}
+  if(a==="estArquivos"){listarArquivosRx();return}
   if(a==="ajEncerrar"){S.ajuste.fim=Date.now();if(S.semInternet){S.ajuste.status="fila";toast("Sem internet: arquivo na fila de envio")}else{S.ajuste.status="aguardando";S.ajuste.enviado=Date.now();toast("RINEX enviado ao IBGE-PPP")}render()}
   if(a==="ajSimular"){const p=S.baseProv;S.ajuste.corr={E:p.E+(Math.random()-.5)*4,N:p.N+(Math.random()-.5)*4,h:p.h+(Math.random()-.5)*5,sig:[0.008,0.011,0.019]};S.ajuste.origem="IBGE-PPP";S.ajuste.status="processado";bip("ok");render();toast("Coordenada corrigida da base recebida")}
   if(a==="ajManual"){const E=num(S.ajE),N=num(S.ajN),h=num(S.ajH);if([E,N,h].some(isNaN)){toast("Preencha E, N e h");return}
@@ -1699,6 +1719,13 @@ async function enviarComando(txt,silencioso){
   if(!silencioso)render();
 }
 // ---------- mensagens binárias ComNav (bateria, número de série) ----------
+// confirmações em texto que podem vir no meio dos dados binários
+function textoRx(txt){
+  R.rawTail=((R.rawTail||"")+txt).slice(-3000);
+  if(/Command accepted|command \w+ ok|OK!/i.test(txt)){R.respondeu=true;const m=txt.match(/Command accepted[^\r\n]*|command \w+ ok/gi);if(m)m.forEach(x=>R.cons.push("← "+x))}
+  if(/command datarecord ok/i.test(txt))R.estOk=true;
+  const f=R.rawTail.match(/[A-Za-z0-9_-]+\.cnb/gi);if(f){R.arqsRx=[...new Set([...(R.arqsRx||[]),...f])].slice(-40)}
+}
 function lerBinario(txt){
   R.bbuf=(R.bbuf||"")+txt;if(R.bbuf.length>65536)R.bbuf=R.bbuf.slice(-8192);
   let i;
@@ -1954,7 +1981,7 @@ async function compartilharArquivo(){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text)});
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
       if(R.trocandoCanal){render();return}
@@ -2005,7 +2032,7 @@ function tickReal(now){
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();
-  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstatico(true);
+  if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao)pararEstaticoCN(true);
   render(false);
 }
 

@@ -140,7 +140,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -150,23 +150,27 @@ const G={fix:0,sats:0,pdop:9.9,hrms:9,vrms:9,lat:-3.10207,lon:-60.02553,E:0,N:0,
 const SIS_PADRAO={datum:"SIRGAS 2000",proj:"UTM",zona:"auto",hemi:"S"};
 function sis(){const p=S.projetos.find(p=>p.id===S.projAtivo);return Object.assign({},SIS_PADRAO,p?.sis||{})}
 function zonaDe(lon){return Math.floor((lon+180)/6)+1}
-function zonaAtual(){const s=sis();return s.zona==="auto"?zonaDe(G.lon):+s.zona}
+function zonaAtual(){const s=sis();if(s.proj==="RTM")return "RTM";return s.zona==="auto"?zonaDe(G.lon):+s.zona}
+// RTM (Regional Transverse Mercator) – Manaus: MC −60°, k0 0,999995, falso leste 400.000 m, falso norte 5.000.000 m (Portaria IMPLURB 18/2015)
+function tmPar(zona,hemi){if(zona==="RTM"){const mc=num(sis().mcRtm);return {lam0:isNaN(mc)?-60:mc,k0:0.999995,FE:400000,FN:5000000}}return {lam0:(zona-1)*6-180+3,k0:0.9996,FE:500000,FN:hemi==="S"?10000000:0}}
+function planar(s){s=s||sis();return s.proj==="UTM"||s.proj==="RTM"}
+function zonaTxt(){const s=sis();return s.proj==="RTM"?`RTM (MC ${tmPar("RTM").lam0}°)`:`UTM ${zonaAtual()}${hemiAtual()}`}
 function hemiAtual(){const s=sis();return s.hemi==="auto"?(G.lat<0?"S":"N"):s.hemi}
 function toUTM(lat,lon,zona,hemi){ // GRS80 (SIRGAS 2000) ~ WGS 84
-  const a=6378137,f=1/298.257222101,k0=0.9996,e2=f*(2-f),ep2=e2/(1-e2),d=Math.PI/180;
-  const L=lat*d,lam0=((zona-1)*6-180+3)*d,N=a/Math.sqrt(1-e2*Math.sin(L)**2),T=Math.tan(L)**2,C=ep2*Math.cos(L)**2,A=Math.cos(L)*(lon*d-lam0);
+  const P=tmPar(zona,hemi),a=6378137,f=1/298.257222101,k0=P.k0,e2=f*(2-f),ep2=e2/(1-e2),d=Math.PI/180;
+  const L=lat*d,lam0=P.lam0*d,N=a/Math.sqrt(1-e2*Math.sin(L)**2),T=Math.tan(L)**2,C=ep2*Math.cos(L)**2,A=Math.cos(L)*(lon*d-lam0);
   const M=a*((1-e2/4-3*e2**2/64-5*e2**3/256)*L-(3*e2/8+3*e2**2/32+45*e2**3/1024)*Math.sin(2*L)+(15*e2**2/256+45*e2**3/1024)*Math.sin(4*L)-(35*e2**3/3072)*Math.sin(6*L));
-  const E=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120)+500000;
+  const E=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120)+P.FE;
   let Nn=k0*(M+N*Math.tan(L)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720));
-  if(hemi==="S")Nn+=10000000;return [E,Nn];
+  Nn+=P.FN;return [E,Nn];
 }
 function atualizaEN(){[G.E,G.N]=toUTM(G.lat,G.lon,zonaAtual(),hemiAtual())}
 function ptEN(p){if(p.lat===undefined)return [p.E,p.N];return toUTM(p.lat,p.lon,zonaAtual(),hemiAtual())}
-function sisTxt(){const s=sis();return s.proj==="UTM"?`${s.datum} · UTM ${zonaAtual()}${hemiAtual()}${s.zona==="auto"?" (auto)":""}`:`${s.datum} · Geográficas`}
+function sisTxt(){const s=sis();return s.proj==="RTM"?`${s.datum} · ${zonaTxt()}`:s.proj==="UTM"?`${s.datum} · UTM ${zonaAtual()}${hemiAtual()}${s.zona==="auto"?" (auto)":""}`:`${s.datum} · Geográficas`}
 function gms(v,pos,neg){const a=Math.abs(v),g=Math.floor(a),m=Math.floor((a-g)*60),s=((a-g)*60-m)*60;return `${g}°${String(m).padStart(2,"0")}'${s.toFixed(4).padStart(7,"0").replace(".",",")}" ${v<0?neg:pos}`}
 function coordsHTML(lat,lon,E,N,h){
   const s=sis();
-  if(s.proj==="UTM")return `<i>E</i><span>${br(E,dc())}</span><i>N</i><span>${br(N,dc())}</span><i>h</i><span>${br(h,dc())} m</span>`;
+  if(planar(s))return `<i>E</i><span>${br(E,dc())}</span><i>N</i><span>${br(N,dc())}</span><i>h</i><span>${br(h,dc())} m</span>`;
   if(s.proj==="GMS")return `<i>φ</i><span style="font-size:17px">${gms(lat,"N","S")}</span><i>λ</i><span style="font-size:17px">${gms(lon,"E","W")}</span><i>h</i><span>${br(h)} m</span>`;
   return `<i>φ</i><span>${br(lat,8)}°</span><i>λ</i><span>${br(lon,8)}°</span><i>h</i><span>${br(h)} m</span>`;
 }
@@ -364,7 +368,16 @@ function vColeta(){
       <label class="f">Épocas (s)<input class="m" id="ep" inputmode="numeric" value="${esc(S.epocas)}" data-bind="epocas"></label>
     </div>
   </section>
-  <button class="pri big" data-act="coletar" ${pode?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:"Coletar "+proxNome()}</button>
+  <div class="subtabs" role="tablist">${[["ponto","Ponto"],["tempo","Por tempo"],["dist","Por distância"]].map(([k,t])=>`<button role="tab" data-colmodo="${k}" aria-selected="${(S.colModo||"ponto")===k}" ${R.auto?"disabled":""}>${t}</button>`).join("")}</div>
+  ${(S.colModo||"ponto")==="ponto"?`<button class="pri big" data-act="coletar" ${pode?"":"disabled"}>${S.coletando?`Coletando… ${S.coletando}s`:"Coletar "+proxNome()}</button>`
+  :`<section class="card" style="${R.auto?"border:2px solid var(--fix)":""}">
+    ${S.colModo==="tempo"?`<label class="f">Coletar um ponto a cada (segundos)<div style="display:flex;gap:6px;flex-wrap:wrap">${["1","2","3","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-colint="${v}" aria-pressed="${String(S.colInt||"1")===v}" ${R.auto?"disabled":""}>${v} s</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colInt" value="${esc(S.colInt||"1")}" ${R.auto?"disabled":""}></div></label>`
+    :`<label class="f">Coletar um ponto a cada (metros)<div style="display:flex;gap:6px;flex-wrap:wrap">${["0,5","1","2","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-coldist="${v}" aria-pressed="${String(S.colDist||"1")===v}" ${R.auto?"disabled":""}>${v} m</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colDist" value="${esc(S.colDist||"1")}" ${R.auto?"disabled":""}></div></label>`}
+    <span class="muted small">Cada ponto usa 1 época, com número automático (${esc(proxNome())}, …) e a descrição acima. Respeita "Somente FIX" e a tolerância H; os pontos fora do critério são pulados.</span>
+    ${R.auto?`<div class="grid2"><div class="kv"><span>Coletados</span><b style="font-size:24px">${R.auto.n}</b></div><div class="kv"><span>Pulados (critério)</span><b>${R.auto.pulos}</b></div></div>
+      <button class="pri big" style="background:var(--bad);border-color:var(--bad)" data-act="autoParar">Parar coleta contínua</button>`
+    :`<button class="pri big" data-act="autoIniciar" ${S.conectado?"":"disabled"}>Iniciar coleta ${S.colModo==="tempo"?"por tempo":"por distância"}</button>`}
+  </section>`}
   ${motivo?`<p class="muted small" style="margin:0">${motivo}</p>`:""}
   <div class="grid2"><button data-go="pontos">Lista de pontos (${p.pontos.filter(x=>!["PROJ","CALC"].includes(x.st)).length})</button><button data-go="mapa">Ver no mapa</button></div>
   <section style="display:flex;flex-direction:column;gap:8px">
@@ -794,7 +807,7 @@ function statusStrip(){
   const cor=!c?"var(--muted)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
   const txt=!c?"Sem receptor":G.fix===4?"Fixo":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
   const coord=!c?`<span class="muted small">Toque em Dispositivo › Conexão para conectar o receptor.</span>`
-    :s.proj==="UTM"?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`
+    :planar(s)?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`
     :`<div class="m" style="font-size:15px;line-height:1.5">B: ${gms(G.lat,"N","S")}<br>L: ${gms(G.lon,"E","W")}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`;
   return `<section class="card" style="gap:8px;padding:12px 14px">
     <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr auto;gap:8px;align-items:center">
@@ -1000,12 +1013,14 @@ function vConfig(){
 function sisCard(){
   const s=sis(), zAuto=zonaDe(G.lon);
   const zonas=[18,19,20,21,22,23,24,25];
-  const ex=s.proj==="UTM"?`E ${br(G.E)} · N ${br(G.N)}`:s.proj==="GMS"?`${gms(G.lat,"N","S")} · ${gms(G.lon,"E","W")}`:`${br(G.lat,8)}° · ${br(G.lon,8)}°`;
+  const ex=planar(s)?`E ${br(G.E)} · N ${br(G.N)}`:s.proj==="GMS"?`${gms(G.lat,"N","S")} · ${gms(G.lon,"E","W")}`:`${br(G.lat,8)}° · ${br(G.lon,8)}°`;
   return `<section class="card hl">
     <div class="split"><h3>Sistema de coordenadas</h3><span class="muted small">${esc(proj().nome)}</span></div>
     <div class="grid2">
       <label class="f">Datum<select data-sis="datum">${["SIRGAS 2000","WGS 84"].map(v=>`<option ${s.datum===v?"selected":""}>${v}</option>`).join("")}<option disabled>SAD 69 (no app instalado)</option></select></label>
-      <label class="f">Projeção<select data-sis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
+      <label class="f">Projeção<select data-sis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="RTM" ${s.proj==="RTM"?"selected":""}>RTM Manaus (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
+      ${s.proj==="RTM"?`<label class="f">Meridiano central RTM (°)<input class="m" data-sismc="1" inputmode="decimal" value="${esc(s.mcRtm??"-60")}"></label>
+      <div class="kv"><span>Parâmetros RTM</span><b style="font-size:13px">k0 0,999995 · FE 400.000 · FN 5.000.000</b></div>`:""}
       ${s.proj==="UTM"?`<label class="f">Fuso / zona UTM<select data-sis="zona"><option value="auto" ${s.zona==="auto"?"selected":""}>Automático (agora ${zAuto})</option>${zonas.map(z=>`<option value="${z}" ${String(s.zona)===String(z)?"selected":""}>Fuso ${z} · MC ${z*6-183}°</option>`).join("")}</select></label>
       <label class="f">Hemisfério<select data-sis="hemi"><option value="S" ${s.hemi==="S"?"selected":""}>Sul (S)</option><option value="N" ${s.hemi==="N"?"selected":""}>Norte (N)</option><option value="auto" ${s.hemi==="auto"?"selected":""}>Automático</option></select></label>`:""}
     </div>
@@ -1425,6 +1440,9 @@ document.addEventListener("click",e=>{
     if(k==="ppp"){if(f.destino==="receptor"){toast("Baixe o arquivo para o celular antes de enviar");return}f.ppp=S.semInternet?"fila":"aguardando";f.enviado=Date.now();toast(S.semInternet?"Sem internet: arquivo na fila de envio":(f.formato==="CNB"?"Convertido para RINEX e enviado ao IBGE-PPP":"Enviado ao IBGE-PPP"))}
     if(k==="simppp"){const [E,N]=toUTM(f.lat,f.lon,zonaAtual(),hemiAtual());f.res=[E+(Math.random()-.5)*3,N+(Math.random()-.5)*3,f.h+(Math.random()-.5)*4,f.dur>=3600?0.012:0.045];f.ppp="ok";bip("ok");toast("Resultado do IBGE-PPP recebido")}
     salvar();render();return}
+  if(b.dataset.colmodo){S.colModo=b.dataset.colmodo;salvar();render();return}
+  if(b.dataset.colint){S.colInt=b.dataset.colint;salvar();render();return}
+  if(b.dataset.coldist){S.colDist=b.dataset.coldist;salvar();render();return}
   if(b.dataset.ferr){S.tela="calc";S.ferr=b.dataset.ferr;render();return}
   if(b.dataset.lcmodo){S.lcModo=b.dataset.lcmodo;render();return}
   if(b.dataset.locp!==undefined){S.loc={tipo:"ponto",idx:+b.dataset.locp};chegouAviso=false;S.seguir=true;render();toast("Locação iniciada");return}
@@ -1475,6 +1493,11 @@ document.addEventListener("click",e=>{
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
   if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
   if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
+  if(a==="autoIniciar"){if(!proj()){toast("Abra um projeto primeiro");return}
+    const modo=S.colModo,iv=num(S.colInt||"1"),ds=num(S.colDist||"1");
+    if(modo==="tempo"&&!(iv>0)){toast("Informe o intervalo em segundos");return}if(modo==="dist"&&!(ds>0)){toast("Informe a distância em metros");return}
+    R.auto={modo,int:iv,dist:ds,n:0,pulos:0,ult:0,ultE:null,ultN:null};render();falar(modo==="tempo"?"Coleta por tempo iniciada":"Coleta por distância iniciada");return}
+  if(a==="autoParar"){const n=R.auto?.n||0;R.auto=null;salvar();render();bip("ok");falar(n+" pontos coletados");toast(`Coleta contínua encerrada: ${n} pontos`);return}
   if(a==="coletar"){if(!proj()){toast("Abra um projeto primeiro");return}if(!podeColetar()){toast(S.conectado?"Aguardando FIX":"Conecte o receptor");return}coletar()}
   if(a==="estIniciar"){iniciarEstaticoCN();return}
   if(a==="estParar"){pararEstaticoCN(false);return}
@@ -1608,6 +1631,7 @@ document.addEventListener("change",e=>{const el=e.target;
     render()}
   if(el.dataset.cfg){S.cfg[el.dataset.cfg]=el.type==="checkbox"?el.checked:el.value;salvar();if(el.tagName==="SELECT"||el.type==="checkbox")render()}
   if(el.dataset.est&&el.tagName==="SELECT"){S.est[el.dataset.est]=el.value;salvar()}
+  if(el.dataset.sismc){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{mcRtm:el.value});atualizaEN();salvar();render();toast("RTM: meridiano central "+el.value+"°");return}
   if(el.dataset.sis){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{[el.dataset.sis]:el.value});atualizaEN();salvar();render();toast("Sistema do projeto: "+sisTxt())}
   if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
   if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
@@ -1692,12 +1716,12 @@ function acoesBar(){
 
 // ---------- Cálculos (COGO) ----------
 function fromUTM(E,N,zona,hemi){
-  const a=6378137,f=1/298.257222101,k0=0.9996,e2=f*(2-f),ep2=e2/(1-e2),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2)),d=Math.PI/180;
-  const x=E-500000,y=hemi==="S"?N-10000000:N,M=y/k0,mu=M/(a*(1-e2/4-3*e2**2/64-5*e2**3/256));
+  const P=tmPar(zona,hemi),a=6378137,f=1/298.257222101,k0=P.k0,e2=f*(2-f),ep2=e2/(1-e2),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2)),d=Math.PI/180;
+  const x=E-P.FE,y=N-P.FN,M=y/k0,mu=M/(a*(1-e2/4-3*e2**2/64-5*e2**3/256));
   const p1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)+(21*e1**2/16-55*e1**4/32)*Math.sin(4*mu)+(151*e1**3/96)*Math.sin(6*mu)+(1097*e1**4/512)*Math.sin(8*mu);
   const N1=a/Math.sqrt(1-e2*Math.sin(p1)**2),T1=Math.tan(p1)**2,C1=ep2*Math.cos(p1)**2,R1=a*(1-e2)/(1-e2*Math.sin(p1)**2)**1.5,D=x/(N1*k0);
   const lat=p1-(N1*Math.tan(p1)/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*D**4/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*D**6/720);
-  const lon=((zona-1)*6-180+3)*d+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*D**5/120)/Math.cos(p1);
+  const lon=P.lam0*d+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*D**5/120)/Math.cos(p1);
   return [lat/d,lon/d];
 }
 function getPt(v){
@@ -1874,6 +1898,26 @@ function ferrCorpo(){
   }
   return body;
 }
+// ---------- coleta contínua (por tempo ou por distância) ----------
+function salvarPontoUnico(){
+  const p=proj();if(!p)return;let nome=String(proxNome()).trim();while(p.pontos.some(x=>x.nome===nome))nome=incNome(nome);
+  const alt=alturaVertical();
+  p.pontos.push({nome,cod:(S.codigo||"").trim(),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h-alt+rnOff(),...(rnAtiva()?{rn:p.rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,v_rms:G.vrms||G.hrms*1.7,
+    pdop:G.pdop||0,hdop:G.hdop||0,vdop:G.vdop||0,sats:G.sats||0,idade:G.idade||0,epocas:1,sep:R.sep||0,hElip:G.h-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),
+    st:S.fonte==="celular"?"CEL":G.fix===4?"FIX":G.fix===5?"FLOAT":"AUT",alt,quando:new Date().toISOString(),auto:R.auto?.modo});
+  S.pNum=incNome(nome);
+}
+setInterval(()=>{
+  const a=R.auto;if(!a||!S.conectado)return;
+  const chave=(R.ultGGA||"")+"|"+G.lat+"|"+G.lon;if(chave===a.ultChave)return;a.ultChave=chave; // só posição nova
+  const agora=Date.now();
+  if(a.modo==="tempo"){if(a.ult&&agora-a.ult<a.int*1000-150)return}
+  else if(a.ultE!=null&&Math.hypot(G.E-a.ultE,G.N-a.ultN)<a.dist)return;
+  const tol=num(S.tolH)||0.05;
+  if(S.fonte!=="celular"&&((S.soFix&&G.fix!==4)||G.hrms>tol)){if(a.ultPulo!==agora){a.pulos++;a.ultPulo=agora}if(a.modo==="tempo")a.ult=agora;return}
+  salvarPontoUnico();a.n++;a.ult=agora;a.ultE=G.E;a.ultN=G.N;
+  if(a.n%10===0)salvar();try{tom(1320,.04)}catch(e){}if(S.cfg.vibrar)vib(20);render(false);
+},200);
 function coletar(){
   const nome=String(proxNome()).trim(), cod=(S.codigo||"").trim(), alt=alturaVertical(), n=Math.max(1,parseInt(S.epocas)||5);
   if(!nome){toast("Informe o número do ponto");return}
@@ -1899,7 +1943,7 @@ const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod
   hel:"Altitude elipsoidal (m)",horto:"Altitude ortométrica (geoide do receptor)",ondul:"Ondulação geoidal N (m)",hgnss:"Altitude GNSS na antena",
   prec:"Sigma H (m)",sigv:"Sigma V (m)",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Satélites",idade:"Idade da correção (s)",epocas:"Épocas",
   st:"Solução (FIX/FLOAT)",ant:"Altura da antena (m)",antTipo:"Tipo de medida da antena",X:"X geocêntrico (m)",Y:"Y geocêntrico (m)",Zg:"Z geocêntrico (m)",
-  kesc:"Fator de escala UTM (k)",conv:"Convergência meridiana",zona:"Fuso UTM",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN usada",estaq:"Estaqueado de / erro"};
+  kesc:"Fator de escala (k)",conv:"Convergência meridiana",zona:"Fuso UTM",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN usada",estaq:"Estaqueado de / erro"};
 const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",latd:"LatDec",lond:"LonDec",hel:"AltElips",horto:"AltOrto",ondul:"OndulN",hgnss:"AltGNSS",
   prec:"SigmaH",sigv:"SigmaV",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Sats",idade:"IdadeCorr",epocas:"Epocas",st:"Solucao",ant:"AltAntena",antTipo:"MedidaAntena",X:"X",Y:"Y",Zg:"Z_geoc",
   kesc:"FatorEscala",conv:"Convergencia",zona:"Fuso",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN",estaq:"Estaqueamento"};
@@ -1910,8 +1954,8 @@ const PRESETS={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"]
 const PRESET_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição",ENZD:"E, N, Z, Descrição",NEZ:"N, E, Z",ENZ:"E, N, Z",
   geo:"Nome, Lat, Lon (° ' \"), Alt. elipsoidal, Descrição",topografia:"Topografia (coordenadas, lat/lon, altitudes, sigmas, DOPs, satélites)",completo:"Tudo (todos os campos)"};
 // fator de escala e convergência meridiana da projeção UTM no ponto
-function utmKConv(lat,lon){const z=zonaAtual(),l0=(z*6-183)*Math.PI/180,f=lat*Math.PI/180,dl=lon*Math.PI/180-l0,e2=0.00673949677548,c=Math.cos(f),t=Math.tan(f),n2=e2*c*c;
-  const k=0.9996*(1+dl*dl/2*c*c*(1+n2)+dl**4/24*c**4*(5-4*t*t));const g=dl*Math.sin(f)*(1+dl*dl/3*c*c*(1+3*n2+2*n2*n2))*180/Math.PI;return {k,g}}
+function utmKConv(lat,lon){const P=tmPar(zonaAtual(),hemiAtual()),l0=P.lam0*Math.PI/180,f=lat*Math.PI/180,dl=lon*Math.PI/180-l0,e2=0.00673949677548,c=Math.cos(f),t=Math.tan(f),n2=e2*c*c;
+  const k=P.k0*(1+dl*dl/2*c*c*(1+n2)+dl**4/24*c**4*(5-4*t*t));const g=dl*Math.sin(f)*(1+dl*dl/3*c*c*(1+3*n2+2*n2*n2))*180/Math.PI;return {k,g}}
 function geoc(lat,lon,h){const a=6378137,e2=0.00669438002290,f=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(f)**2);return [(N+h)*Math.cos(f)*Math.cos(l),(N+h)*Math.cos(f)*Math.sin(l),(N*(1-e2)+h)*Math.sin(f)]}
 const FORMATOS={csv:"CSV",txt:"TXT",dxf:"DXF (CAD)",shp:"Shapefile",kml:"KML (Google Earth)",pdf:"PDF (relatório)",geojson:"GeoJSON",bruto:"Dados brutos (tudo)"};
 function cfgExp(){S.exp=Object.assign({fmt:S.cfg.formatoPadrao||"csv",campos:PRESETS.PNEZD.slice(),sep:S.cfg.csvSep||",",decSep:"ponto",cab:true,dec:S.cfg.dec||"3",
@@ -1941,7 +1985,7 @@ function valCampo(x,k,e){
     case "st":return x.st||"";case "ant":return nfx(x.alt||0,3,ds);case "antTipo":return x.alt?({vertical:"Vertical",inclinada:"Inclinada",fase:"Centro de fase"}[x.altTipo]||x.altTipo||""):"";
     case "X":return nfx(geoc(x.lat,x.lon,hel)[0],3,ds);case "Y":return nfx(geoc(x.lat,x.lon,hel)[1],3,ds);case "Zg":return nfx(geoc(x.lat,x.lon,hel)[2],3,ds);
     case "kesc":return nfx(utmKConv(x.lat,x.lon).k,8,ds);case "conv":{const g=utmKConv(x.lat,x.lon).g;return (g<0?"-":"")+gmsTxt(Math.abs(g),"","",ds)}
-    case "zona":return zonaAtual()+hemiAtual();case "datum":return sis().datum;case "receptor":return x.receptor||"";
+    case "zona":return zonaTxt();case "datum":return sis().datum;case "receptor":return x.receptor||"";
     case "data":return x.quando?new Date(x.quando).toLocaleDateString("pt-BR"):"";case "hora":return x.quando?new Date(x.quando).toLocaleTimeString("pt-BR"):"";
     case "rn":return x.rn||"";case "estaq":return x.estaq?`${x.estaq.alvo} (${nfx(x.estaq.dist,3,ds)} m)`:"";
   }return "";
@@ -2028,12 +2072,13 @@ function prjWKT(){
   const s=sis(),wgs=s.datum==="WGS 84";
   const geo=wgs?'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]'
     :'GEOGCS["GCS_SIRGAS_2000",DATUM["D_SIRGAS_2000",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]';
+  if(s.proj==="RTM"){const P=tmPar("RTM");return `PROJCS["${wgs?"WGS_1984":"SIRGAS_2000"}_RTM_MC${Math.abs(P.lam0)}${P.lam0<0?"W":"E"}",${geo},PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",400000.0],PARAMETER["False_Northing",5000000.0],PARAMETER["Central_Meridian",${P.lam0}],PARAMETER["Scale_Factor",0.999995],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]`}
   if(s.proj!=="UTM")return geo;
   const z=zonaAtual(),h=hemiAtual();
   return `PROJCS["${wgs?"WGS_1984":"SIRGAS_2000"}_UTM_Zone_${z}${h}",${geo},PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",${h==="S"?10000000:0}.0],PARAMETER["Central_Meridian",${z*6-183}.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]`;
 }
 function gerarSHPzip(P,nb){
-  const utm=sis().proj==="UTM",X=P.map(x=>utm?x.E:x.lon),Y=P.map(x=>utm?x.N:x.lat),Z=P.map(x=>x.h),n=P.length;
+  const utm=planar(),X=P.map(x=>utm?x.E:x.lon),Y=P.map(x=>utm?x.N:x.lat),Z=P.map(x=>x.h),n=P.length;
   const cab=(dv,len)=>{dv.setInt32(0,9994,false);dv.setInt32(24,len/2,false);dv.setInt32(28,1000,true);dv.setInt32(32,11,true);
     dv.setFloat64(36,Math.min(...X),true);dv.setFloat64(44,Math.min(...Y),true);dv.setFloat64(52,Math.max(...X),true);dv.setFloat64(60,Math.max(...Y),true);
     dv.setFloat64(68,Math.min(...Z),true);dv.setFloat64(76,Math.max(...Z),true);dv.setFloat64(84,0,true);dv.setFloat64(92,0,true)};

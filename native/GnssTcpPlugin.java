@@ -270,6 +270,15 @@ public class GnssTcpPlugin extends Plugin {
             gravInicio = System.currentTimeMillis();
             gravCaminho = path;
             grav = new java.io.FileOutputStream(f, false);
+            // cabeçalho igual ao CNB gravado pelo próprio receptor (os programas da ComNav reconhecem)
+            String cab = call.getString("header", "");
+            if (cab.length() > 0) {
+                byte[] hb = cab.getBytes(StandardCharsets.ISO_8859_1);
+                grav.write(hb);
+                int pad = Math.max(0, 135 - hb.length);
+                grav.write(new byte[pad]);
+                gravBytes = hb.length + pad;
+            }
             servico();
             call.resolve();
         } catch (Exception e) {
@@ -324,6 +333,141 @@ public class GnssTcpPlugin extends Plugin {
     public void ntripOptions(PluginCall call) {
         ntripGga = call.getBoolean("gga", ntripGga);
         call.resolve();
+    }
+
+    // ---------- RINEX ----------
+    /** Converte um CNB (dentro da pasta do app) em RINEX 3.04 (.obs + .nav), opcionalmente num .zip. */
+    @PluginMethod
+    public void cnbToRinex(final PluginCall call) {
+        final String path = call.getString("path", "");
+        final String nome = call.getString("name", "RINEX");
+        final String marcador = call.getString("marker", "");
+        final double altura = call.getDouble("antHeight", Double.NaN);
+        final double intervalo = call.getDouble("interval", 1.0);
+        final double lat = call.getDouble("lat", 0.0), lon = call.getDouble("lon", 0.0), h = call.getDouble("h", 0.0);
+        final String receptor = call.getString("receiver", ""), antena = call.getString("antenna", "");
+        final boolean zip = call.getBoolean("zip", true);
+        new Thread(() -> {
+            try {
+                java.io.File src = path.startsWith("/") ? new java.io.File(path) : new java.io.File(ctx().getFilesDir(), path);
+                if (!src.exists()) throw new Exception("Arquivo não encontrado: " + path);
+                java.io.File dir = new java.io.File(ctx().getFilesDir(), "WASurvey/rinex");
+                dir.mkdirs();
+                CnbRinex.Resultado r = CnbRinex.converter(src, dir, nome, marcador, altura, intervalo,
+                        (lat == 0 && lon == 0) ? null : new double[]{lat, lon, h}, receptor, antena);
+                JSObject o = new JSObject();
+                String base = ctx().getFilesDir().getAbsolutePath() + "/";
+                o.put("obs", r.obs.replace(base, ""));
+                if (r.nav != null) o.put("nav", r.nav.replace(base, ""));
+                o.put("epochs", r.epocas);
+                o.put("sats", r.sats);
+                o.put("start", r.inicio);
+                o.put("end", r.fim);
+                o.put("systems", r.sistemas);
+                o.put("lat", r.lat); o.put("lon", r.lon); o.put("h", r.h);
+                if (zip) {
+                    java.io.File z = new java.io.File(dir, nome + "_RINEX.zip");
+                    try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(z))) {
+                        for (String fp : new String[]{r.obs, r.nav}) {
+                            if (fp == null) continue;
+                            java.io.File f = new java.io.File(fp);
+                            zo.putNextEntry(new java.util.zip.ZipEntry(f.getName()));
+                            try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                                byte[] buf = new byte[65536]; int n;
+                                while ((n = in.read(buf)) > 0) zo.write(buf, 0, n);
+                            }
+                            zo.closeEntry();
+                        }
+                    }
+                    o.put("zip", z.getAbsolutePath().replace(base, ""));
+                    o.put("zipBytes", z.length());
+                }
+                call.resolve(o);
+            } catch (Throwable e) {
+                call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+        }).start();
+    }
+
+    /** Abre o seletor de arquivos do Android e copia o arquivo escolhido para a pasta do app. */
+    @PluginMethod
+    public void pickFile(PluginCall call) {
+        android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        startActivityForResult(call, i, "arquivoEscolhido");
+    }
+
+    @com.getcapacitor.annotation.ActivityCallback
+    private void arquivoEscolhido(final PluginCall call, androidx.activity.result.ActivityResult res) {
+        if (call == null) return;
+        if (res.getResultCode() != android.app.Activity.RESULT_OK || res.getData() == null || res.getData().getData() == null) { call.reject("cancelado"); return; }
+        final android.net.Uri uri = res.getData().getData();
+        new Thread(() -> {
+            try {
+                String nome = "arquivo.cnb";
+                try (android.database.Cursor c = ctx().getContentResolver().query(uri, null, null, null, null)) {
+                    if (c != null && c.moveToFirst()) { int k = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME); if (k >= 0) nome = c.getString(k); }
+                }
+                nome = nome.replaceAll("[^A-Za-z0-9._-]", "_");
+                java.io.File dir = new java.io.File(ctx().getFilesDir(), "WASurvey/importados");
+                dir.mkdirs();
+                java.io.File dst = new java.io.File(dir, nome);
+                long tot = 0;
+                try (InputStream in = ctx().getContentResolver().openInputStream(uri); java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
+                    byte[] buf = new byte[65536]; int n;
+                    while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); tot += n; }
+                }
+                JSObject o = new JSObject();
+                o.put("path", "WASurvey/importados/" + nome);
+                o.put("name", nome);
+                o.put("bytes", tot);
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+        }).start();
+    }
+
+    /** Copia um arquivo da pasta do app para Downloads/WASurvey (fica visível no gerenciador de arquivos). */
+    @PluginMethod
+    public void saveToDownloads(final PluginCall call) {
+        final String path = call.getString("path", "");
+        final String mime = call.getString("mime", "application/octet-stream");
+        new Thread(() -> {
+            try {
+                java.io.File src = new java.io.File(ctx().getFilesDir(), path);
+                if (!src.exists()) throw new Exception("Arquivo não encontrado");
+                String nome = call.getString("name", src.getName());
+                java.io.OutputStream out;
+                String onde;
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.content.ContentValues v = new android.content.ContentValues();
+                    v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, nome);
+                    v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime);
+                    v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/WASurvey");
+                    android.net.Uri u = ctx().getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                    if (u == null) throw new Exception("Não consegui criar o arquivo em Downloads");
+                    out = ctx().getContentResolver().openOutputStream(u);
+                    onde = "Download/WASurvey/" + nome;
+                } else {
+                    java.io.File d = new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "WASurvey");
+                    d.mkdirs();
+                    java.io.File f = new java.io.File(d, nome);
+                    out = new java.io.FileOutputStream(f);
+                    onde = f.getAbsolutePath();
+                }
+                try (InputStream in = new java.io.FileInputStream(src); java.io.OutputStream o2 = out) {
+                    byte[] buf = new byte[65536]; int n;
+                    while ((n = in.read(buf)) > 0) o2.write(buf, 0, n);
+                }
+                JSObject o = new JSObject();
+                o.put("where", onde);
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+        }).start();
     }
 
     // ---------- permissões para o segundo plano ----------

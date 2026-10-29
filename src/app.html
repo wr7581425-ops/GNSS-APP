@@ -1953,7 +1953,7 @@ function coletar(obsSeg){
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
       proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:E0,N:N0,h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
         disp:+disp.toFixed(4),obs:obsSeg?amostras.length:undefined,sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
-      proj().pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`)};
+      proj().pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar("Ponto coletado")};
   const iv=setInterval(()=>{amostra();S.coletando--;if(S.coletando<=0)fim();else render()},1000);
   R.coletaFim=()=>{amostra();fim()};
 }

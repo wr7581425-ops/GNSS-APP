@@ -319,6 +319,26 @@ function alturaVertical(){
   if(t==="fase")return a;
   return a+f;
 }
+function rnAtiva(){const r=proj()?.rn;return !!(r&&r.ativo)}
+function rnOff(){const r=proj()?.rn;return r&&r.ativo?(+r.off||0):0}
+function cotaTerreno(){return G.h-alturaVertical()+rnOff()}
+function rnBanner(){const r=proj()?.rn;if(!r||!r.ativo)return "";
+  return `<div role="alert" style="position:sticky;top:0;z-index:20;margin:-6px 0 4px;padding:10px 12px;border-radius:10px;background:repeating-linear-gradient(45deg,#7A1F1F,#7A1F1F 10px,#962626 10px,#962626 20px);border:2px solid #FF6B5E;color:#fff;font-weight:800;font-size:14px;line-height:1.35">⚠ RN-REF ATIVA · cotas relativas à RN <span class="m">${esc(r.nome||"")}</span> (${r.off>=0?"+":""}${br(r.off,3)} m). As coordenadas E/N não mudam. <button style="min-height:30px;font-size:12px;padding:0 10px;margin-left:6px;background:#fff;color:#7A1F1F;border:0" data-go="rnref">Ver</button></div>`}
+function vRnRef(){
+  const r=proj()?.rn||{},c=S.conectado;
+  return `<span class="ttl">RN - REF</span>
+  <section class="card"><span class="muted small">Use quando a obra tem uma <b>RN (referência de nível)</b> com cota própria. Posicione o bastão sobre a RN, informe a cota dela e o app passa a calcular todas as cotas a partir dela. <b>As coordenadas E e N continuam as mesmas.</b></span></section>
+  ${r.ativo?`<section class="card" style="border:2px solid var(--bad);background:var(--bad-bg)"><h3 style="color:#FFB4AC">RN-REF ATIVA</h3>
+    <div class="grid2"><div class="kv"><span>RN</span><b class="m">${esc(r.nome||"—")}</b></div><div class="kv"><span>Cota da RN</span><b class="m">${br(r.cota,3)} m</b></div>
+    <div class="kv"><span>Diferença aplicada</span><b class="m">${r.off>=0?"+":""}${br(r.off,3)} m</b></div><div class="kv"><span>Definida em</span><b style="font-size:14px">${r.quando?new Date(r.quando).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—"}</b></div></div>
+    <button data-act="rnDesligar" style="border-color:var(--bad);color:#FFB4AC">Desligar RN-REF (voltar às cotas do GNSS)</button></section>`:""}
+  <section class="card"><h3>${r.ativo?"Redefinir a RN":"Definir a RN"}</h3>
+    <div class="grid2"><label class="f">Nome da RN<input data-bind="rnNome" value="${esc(S.rnNome||r.nome||"RN-01")}"></label>
+    <label class="f">Cota da RN na obra (m)<input class="m" inputmode="decimal" data-bind="rnCota" value="${esc(S.rnCota||"")}" placeholder="ex.: 100,000"></label></div>
+    <div class="grid2"><div class="kv"><span>Cota GNSS no bastão agora</span><b class="m">${c?br(G.h-alturaVertical(),3)+" m":"—"}</b></div><div class="kv"><span>Bastão</span><b class="m">${br(alturaVertical(),3)} m</b></div></div>
+    <button class="pri big" data-act="rnMedir" ${c&&!S.rnMedindo?"":"disabled"}>${S.rnMedindo?`Medindo… ${S.rnMedindo} s`:"Bastão sobre a RN: medir e aplicar (média de 10 s)"}</button>
+    ${c&&G.fix!==4?`<span class="small" style="color:var(--float)">Atenção: receptor sem FIX. Para definir a RN use FIX.</span>`:""}</section>`;
+}
 function vColeta(){
   const p=proj();
   if(!p) return `<div class="card"><h3>Nenhum projeto aberto</h3><button class="pri" data-go="projetos">Abrir ou criar projeto</button></div>`;
@@ -426,7 +446,35 @@ function pontosDesde(t){return (proj()?.pontos||[]).filter(p=>new Date(p.quando)
 // ---------- Gravação estática ----------
 function nomeArq(n){return (n||"EST").replace(/[^A-Za-z0-9_-]/g,"").slice(0,16)||"EST"}
 function antenaModelo(){const sr=R.serie||S.btNome||"";return /^T7/i.test(sr)?"T70(NGS)":/^S6/i.test(sr)?"S6(NGS)":""}
+const LOGS_BRUTOS=["rangecmpb","gpsephemb","gloephemerisb","bdsephemerisb","galephemerisb","qzssephemerisb"];
+async function iniciarEstaticoColetora(){
+  const e=S.est,n=nomeArq(e.nome),taxa=(num(e.taxa)||1);
+  if(!receptorReal()){toast("Conecte o receptor");return}
+  if(marcaRx()==="spectra"){toast("Gravar na coletora ainda não está disponível para Spectra. Use a memória do receptor.");return}
+  const arq=n+"_"+new Date().toISOString().slice(0,10).replace(/-/g,"")+".cnb";
+  R.gravCol={arq,partes:[],bytes:0,criado:false};
+  await enviarLista([`log rangecmpb ontime ${taxa}`,"log gpsephemb onchanged","log gloephemerisb onchanged","log bdsephemerisb onchanged","log galephemerisb onchanged","log qzssephemerisb onchanged"],"Brutos para a coletora",200);
+  e.formato="CNB";e.arqRx=arq;e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravando na coletora: "+arq);
+  R.gravTimer=setInterval(salvarBrutos,5000);
+}
+async function salvarBrutos(){
+  const g=R.gravCol;if(!g||!g.partes.length)return;
+  const txt=g.partes.join("");g.partes=[];let bin="";for(let i=0;i<txt.length;i++)bin+=String.fromCharCode(txt.charCodeAt(i)&255);
+  try{const op={path:"WASurvey/"+g.arq,data:btoa(bin),directory:"DATA",recursive:true};if(!g.criado){await NP.Filesystem.writeFile(op);g.criado=true}else await NP.Filesystem.appendFile(op);g.bytes+=txt.length}catch(e){toast("Erro ao salvar: "+(e.message||e))}
+}
+async function pararEstaticoColetora(auto){
+  clearInterval(R.gravTimer);
+  if(receptorReal())await enviarLista(LOGS_BRUTOS.map(m=>"unlog "+m),"Parar brutos",120);
+  await salvarBrutos();const g=R.gravCol;R.gravCol=null;
+  pararEstatico(auto);const f=S.arquivos[0];if(f&&g){f.destino="coletora";f.caminho="WASurvey/"+g.arq;f.mb=g.bytes/1048576;salvar()}
+  falar("Gravação estática encerrada");render();
+}
+async function compartilharArquivoCol(f){
+  try{const u=await NP.Filesystem.getUri({path:f.caminho,directory:"DATA"});await NP.Share.share({title:f.nome,text:"Arquivo estático "+f.nome,files:[u.uri],dialogTitle:"Enviar "+f.nome})}
+  catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
+}
 async function iniciarEstaticoCN(){
+  if(S.est.destino==="coletora"){return iniciarEstaticoColetora()}
   const e=S.est;e.formato="CNB";e.destino="receptor";e.arqRx="";
   const n=nomeArq(e.nome),taxa=(num(e.taxa)||1).toFixed(6),h=num(e.altAnt)||0;
   if(receptorReal()&&marcaRx()==="spectra"){
@@ -443,6 +491,7 @@ async function iniciarEstaticoCN(){
   e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada no receptor ("+e.arqRx+")");
 }
 async function pararEstaticoCN(auto){
+  if(R.gravCol)return pararEstaticoColetora(auto);
   if(receptorReal())await enviarLista(marcaRx()==="spectra"?["$PASHS,REC,N"]:["set datarecord stop","log recordfile "+dataRx()+"-"+dataRx()],"Parar estático",250);
   pararEstatico(auto);falar("Gravação estática encerrada");
 }
@@ -457,10 +506,10 @@ function pararEstatico(auto){
 }
 function sEstatico(){
   const e=S.est,now=Date.now();
-  if(e.gravando){const t=(now-e.inicio)/1000,kb=e.formato.startsWith("CNB")?2.2:7;
+  if(e.gravando){const t=(now-e.inicio)/1000,kb=e.formato.startsWith("CNB")?2.2:7;if(R.gravCol)R.gravCol.mostra=((R.gravCol.bytes+R.gravCol.partes.reduce((a,x)=>a+x.length,0))/1048576);
     return `<section class="card hl"><div class="split"><h3>Gravando ${esc(e.nome)}</h3><span class="st-fix small">● GRAVANDO</span></div>
       <div class="grid2"><div class="kv"><span>Tempo</span><b style="font-size:24px">${dur(t)}</b></div><div class="kv"><span>${+e.duracao>0?"Termina em":"Duração"}</span><b>${+e.duracao>0?dur(e.duracao*60-t):"livre"}</b></div>
-      <div class="kv"><span>Épocas</span><b>${Math.floor(t/+e.taxa)}</b></div><div class="kv"><span>Tamanho</span><b>${br(t/+e.taxa*kb/1024,2)} MB</b></div>
+      <div class="kv"><span>Épocas</span><b>${Math.floor(t/+e.taxa)}</b></div><div class="kv"><span>Tamanho</span><b>${R.gravCol?br(R.gravCol.mostra||0,2):br(t/+e.taxa*kb/1024,2)} MB</b></div>
       <div class="kv"><span>Satélites</span><b>${G.sats}</b></div><div class="kv"><span>PDOP</span><b>${br(G.pdop,1)}</b></div></div>
       <span class="muted small">${e.formato} a cada ${e.taxa} s · salvando ${e.destino==="receptor"?"na memória do receptor":"neste celular"} · antena ${esc(e.altAnt)} m (${esc(e.medida)})</span>
       <button class="pri big" data-act="estParar">Parar gravação</button></section>${listaArquivos()}`}
@@ -468,13 +517,17 @@ function sEstatico(){
     <h3>Gravar estático</h3>
     <div class="grid2">
       <label class="f">Nome do ponto/arquivo<input class="m" value="${esc(e.nome)}" data-est="nome"></label>
-      <label class="f">Taxa de gravação<select data-est="taxa">${["0.5","1","5","10","15","30"].map(v=>`<option value="${v}" ${e.taxa===v?"selected":""}>${v} s</option>`).join("")}</select></label>
+      <label class="f">Taxa de gravação<select data-est="taxa">${["0.05","0.1","0.2","0.5","1","2","5","10","15","30","60"].map(v=>`<option value="${v}" ${e.taxa===v?"selected":""}>${v} s</option>`).join("")}</select></label>
       <label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(e.altAnt)}" data-est="altAnt"></label>
       <label class="f">Medida da altura<select data-est="medida">${["Base da rosca","Vertical (marca)","Inclinada (borda)","Centro de fase"].map(v=>`<option ${e.medida===v?"selected":""}>${v}</option>`).join("")}</select></label>
       <label class="f">Máscara de elevação (°)<input class="m" value="${esc(e.mascara)}" data-est="mascara"></label>
       <label class="f">Duração programada<select data-est="duracao">${[["0","Parar manualmente"],["30","30 min"],["60","1 hora"],["120","2 horas"],["240","4 horas"],["360","6 horas"]].map(([v,n])=>`<option value="${v}" ${e.duracao===v?"selected":""}>${n}</option>`).join("")}</select></label>
     </div>
-    <span class="muted small">Grava na <b>memória interna do receptor</b>, no formato nativo <b>CNB</b> da ComNav (o mesmo do Survey Master). Pode desligar o celular durante o rastreio. Para PPK do drone e PPP do IBGE, converta o CNB para RINEX no Compass Solution / conversor da ComNav.</span>
+    <span class="eyebrow">Salvar em</span>
+    <div class="grid2">${optE("destino","receptor","Memória do receptor","pode desligar o celular")}${optE("destino","coletora","Coletora","celular conectado o tempo todo")}</div>
+    <span class="eyebrow">Formato</span>
+    <div class="grid3">${optE("formato","CNB","CNB","nativo ComNav")}<button class="opt" disabled aria-pressed="false">RINEX 3.04<small>padrão IBGE · em breve</small></button><button class="opt" disabled aria-pressed="false">TPS<small>Topcon · em breve</small></button></div>
+    <span class="muted small">${e.destino==="coletora"?"Na coletora o app grava os dados brutos que o receptor manda pelo Bluetooth (formato binário ComNav, o mesmo do CNB). Ao parar, dá para compartilhar por WhatsApp, Gmail ou Drive.":"Na memória do receptor grava o CNB, o mesmo do Survey Master."} Por enquanto, converta para RINEX no conversor da ComNav (Compass Solution); os programas Topcon abrem o RINEX.</span>
 
     <button class="pri big" data-act="estIniciar" ${S.conectado?"":"disabled"}>Iniciar gravação</button>
     <button data-act="estArquivos" ${S.conectado?"":"disabled"}>Ver arquivos de hoje no receptor</button>
@@ -600,6 +653,7 @@ function selLista(chave,rotulo){
 
 // ---------- Telas iniciais com ícones ----------
 const IC={
+  rnref:'<path d="M4 20h16"/><path d="M12 20V5"/><path d="M8 9l4-4 4 4"/><path d="M6 14h12"/>',
   infopos:'<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/>',
   antena:'<path d="M12 21V9"/><path d="M5 9h14l-2-4H7z"/><path d="M9 21h6"/>',
   mock:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M12 8a2 2 0 1 1 0 4"/><path d="M11 17h2"/>',
@@ -651,10 +705,10 @@ const TILES={
            ["pontos2","Pontos","pontos","ciano",()=>go("pontos")]],
   ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
            ["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
-           ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
+           ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["rnref","RN - REF","rnref","vermelho",()=>go("rnref")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
 };
 const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};
-const ABA_DE={infopos:"dispositivo",antena:"dispositivo",mock:"dispositivo",codigos:"projeto",painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
+const ABA_DE={rnref:"ferramentas",infopos:"dispositivo",antena:"dispositivo",mock:"dispositivo",codigos:"projeto",painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
 function go(t){S.tela=t;exportTxt="";render()}
 function sub(k){S.sub=k;go("receptor")}
 function calc(k){S.ferr=k;go("calc")}
@@ -664,8 +718,8 @@ function statusStrip(){
   const cor=!c?"var(--muted)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
   const txt=!c?"Sem receptor":G.fix===4?"Fixo":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
   const coord=!c?`<span class="muted small">Toque em Dispositivo › Conexão para conectar o receptor.</span>`
-    :s.proj==="UTM"?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end">h: ${br(G.h,dc())} m</div>`
-    :`<div class="m" style="font-size:15px;line-height:1.5">B: ${gms(G.lat,"N","S")}<br>L: ${gms(G.lon,"E","W")}</div><div class="m" style="font-size:15px;align-self:end">h: ${br(G.h,dc())} m</div>`;
+    :s.proj==="UTM"?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`
+    :`<div class="m" style="font-size:15px;line-height:1.5">B: ${gms(G.lat,"N","S")}<br>L: ${gms(G.lon,"E","W")}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`;
   return `<section class="card" style="gap:8px;padding:12px 14px">
     <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr auto;gap:8px;align-items:center">
       <div style="display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px"><span style="width:14px;height:14px;border-radius:50%;background:${cor};box-shadow:0 0 0 3px rgba(255,255,255,.08)"></span>${txt}</span><span class="muted small">${c&&S.corrLigada?`Idade: ${br(G.idade,1)} s`:"Sem correção"}</span></div>
@@ -1077,7 +1131,7 @@ function vMapa(){
       <g transform="translate(${W-24} 64)"><polygon points="0,-14 7,6 0,2 -7,6" fill="#E8EEF4" stroke="#0B131B" stroke-width="1"/><text x="0" y="20" fill="#E8EEF4" font-size="11" text-anchor="middle" font-family="Barlow, sans-serif" font-weight="700" stroke="#0B131B" stroke-width="2.5" paint-order="stroke">N</text></g>
     </svg>
     <div class="minfo"><span style="display:flex;align-items:center;gap:6px;font-weight:800"><span style="width:11px;height:11px;border-radius:50%;background:${corSol}"></span>${txtSol}</span>
-      ${S.conectado?`<span class="m">H ${br(G.hrms)} · V ${br(G.vrms)}</span><span class="m">${G.sats||0} sat${S.corrLigada?` · idade ${br(G.idade,1)} s`:""}</span>`:""}</div>
+      ${S.conectado?`<span class="m">Cota ${br(cotaTerreno(),3)}${rnAtiva()?" RN":""}</span><span class="m">H ${br(G.hrms)} · V ${br(G.vrms)}</span><span class="m">${G.sats||0} sat${S.corrLigada?` · idade ${br(G.idade,1)} s`:""}</span>`:""}</div>
     <div class="mtools">
       ${tb("mapFundo",ICM.camada,"Fundo: "+({sat:"satélite",ruas:"ruas",grade:"grade"})[fundoAt])}
       ${tb("verTudo",ICM.tudo,"Ver tudo")}
@@ -1166,6 +1220,7 @@ function sNmea(){
     <label class="f">Frequência de saída<select data-bind="hz">${["1","5","10","20"].map(v=>`<option value="${v}" ${S.hz===v?"selected":""}>${v} Hz${v==="5"?" (recomendado p/ ecobatímetro)":""}</option>`).join("")}</select></label></section>
   <section class="card ${S.servidor?"hl":""}"><div class="split"><h3>Servidor TCP no celular</h3><span class="${S.servidor?"st-fix":"muted"} small">${S.servidor?"LIGADO":"DESLIGADO"}</span></div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><div class="f">Endereço deste celular<span class="m" style="height:46px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">${NATIVO?(R.srvIps.map(x=>x.split(" ")[1]).filter(ip=>ip&&!/^192\.0\.0\./.test(ip)).join(" · ")||"—"):"192.168.43.1"}</span></div><label class="f">Porta<input class="m" value="${esc(S.sport)}" data-bind="sport"></label></div>
+    ${S.servidor&&NATIVO&&!R.srvIps.map(x=>x.split(" ")[1]).filter(ip=>ip&&!/^192\.0\.0\./.test(ip)).length?`<span class="small" style="color:var(--float)">Sem rede Wi-Fi no coletor: ligue o <b>roteador Wi-Fi (hotspot)</b> do coletor ou conecte numa rede Wi-Fi junto com o ecobatímetro, depois desligue e ligue o servidor.</span>`:""}
     ${S.servidor?(NATIVO?(R.clientes.length?`<div class="list">${R.clientes.map(ip=>`<div class="row" style="grid-template-columns:1fr auto"><span>Equipamento conectado</span><span class="m muted">${esc(ip)}</span></div>`).join("")}</div>`:`<span class="muted small">Nenhum equipamento conectado ainda. No computador, configure TCP cliente para o IP acima e a porta ${esc(S.sport)}.</span>`):`<div class="list"><div class="row" style="grid-template-columns:1fr auto"><span>Notebook · HYPACK</span><span class="m muted">192.168.43.12</span></div><div class="row" style="grid-template-columns:1fr auto"><span>Ecobatímetro</span><span class="m muted">192.168.43.20</span></div></div>`):""}
     <button class="${S.servidor?"":"pri"}" data-act="servidor">${S.servidor?"Desligar servidor":"Ligar servidor"}</button></section>
   <span class="eyebrow">Monitor de dados ao vivo</span>
@@ -1239,7 +1294,7 @@ function render(full=true){
   if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
-  v.innerHTML=({home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();
+  v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
@@ -1265,6 +1320,7 @@ document.addEventListener("click",e=>{
     if(k==="baixar"&&NATIVO){toast("Baixe o arquivo pelo Survey Master (Estático › Download), pela página Wi-Fi do receptor ou pelo cabo USB. O download direto pelo app vem numa próxima versão.");return}
     if(k==="ppp"&&NATIVO){toast("Converta o CNB para RINEX e envie no site do IBGE-PPP (abrindo…)");window.open("https://www.ibge.gov.br/geociencias/informacoes-sobre-posicionamento-geodesico/servicos-para-posicionamento-geodesico/16334-servico-online-para-pos-processamento-de-dados-gnss-ibge-ppp.html","_blank");return}
     if(k==="baixar"){f.destino="coletora";toast("Arquivo copiado do receptor para o celular")}
+    if(k==="compart"&&NATIVO&&f.caminho){compartilharArquivoCol(f);return}
     if(k==="compart"){toast("No app instalado: abre WhatsApp, e-mail ou Drive com o arquivo")}
     if(k==="ppp"){if(f.destino==="receptor"){toast("Baixe o arquivo para o celular antes de enviar");return}f.ppp=S.semInternet?"fila":"aguardando";f.enviado=Date.now();toast(S.semInternet?"Sem internet: arquivo na fila de envio":(f.formato==="CNB"?"Convertido para RINEX e enviado ao IBGE-PPP":"Enviado ao IBGE-PPP"))}
     if(k==="simppp"){const [E,N]=toUTM(f.lat,f.lon,zonaAtual(),hemiAtual());f.res=[E+(Math.random()-.5)*3,N+(Math.random()-.5)*3,f.h+(Math.random()-.5)*4,f.dur>=3600?0.012:0.045];f.ppp="ok";bip("ok");toast("Resultado do IBGE-PPP recebido")}
@@ -1336,6 +1392,12 @@ document.addEventListener("click",e=>{
   if(a==="testarSom"){const t=b.dataset.som||"ok";const sv=S.cfg.somColeta,sf=S.cfg.somFix;S.cfg.somColeta=true;S.cfg.somFix=true;bip(t);S.cfg.somColeta=sv;S.cfg.somFix=sf}
   if(a==="buscarMounts")buscarMounts();
   if(a==="fecharMounts"){R.mounts=[];render()}
+  if(a==="rnDesligar"){if(proj()?.rn){proj().rn.ativo=false;salvar();bip("ok");toast("RN-REF desligada: cotas voltam ao GNSS");falar("R N desligada")}render();return}
+  if(a==="rnMedir"){const cota=num(S.rnCota);if(isNaN(cota)){toast("Digite a cota da RN");return}if(!proj()){toast("Abra um projeto");return}
+    const am=[];S.rnMedindo=10;render();const iv=setInterval(()=>{am.push(G.h-alturaVertical());S.rnMedindo--;
+      if(S.rnMedindo<=0){clearInterval(iv);const med=am.reduce((x,y)=>x+y,0)/am.length;
+        proj().rn={ativo:true,nome:(S.rnNome||"RN-01").trim(),cota,gnss:med,off:cota-med,quando:Date.now()};salvar();bip("ok");falar("R N ativada");toast(`RN-REF ativa: diferença ${br(cota-med,3)} m`)}
+      render()},1000);return}
   if(a==="wifiDetectar"){detectarWifi(true);return}
   if(a==="fazMedia"){const ps=(S.mediaList||[]).map(getPt).filter(Boolean);if(ps.length<2)return;const m=k=>ps.reduce((x,p)=>x+p[k],0)/ps.length;const nm=(S.mediaNome||proxNome()).trim();
     if(proj().pontos.some(p=>p.nome===nm)){toast("Já existe um ponto "+nm);return}novoPonto(nm,"média",m("E"),m("N"),m("h"));S.mediaNome="";salvar();render();toast("Ponto "+nm+" criado")}
@@ -1364,7 +1426,7 @@ document.addEventListener("click",e=>{
       novoPonto(c[0],c[4]||"PROJETO",E,N,isNaN(h)?0:h);p.pontos[p.pontos.length-1].st="PROJ";n++}
     salvar();S.impTxt="";render();toast(`${n} pontos importados${erro?` · ${erro} linhas ignoradas`:""}`)}
   if(a==="locDigitado"){const E=num(S.lcE),N=num(S.lcN);if(isNaN(E)||isNaN(N)){toast("Preencha E e N");return}
-    const h=isNaN(num(S.lcH))?(G.h-(num(S.altura)||0)):num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
+    const h=isNaN(num(S.lcH))?cotaTerreno():num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
     if(S.lcSalvar!==false&&proj()){if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome} no projeto`);return}novoPonto(nome,(S.lcDesc||"").trim()||"PROJETO",E,N,h);proj().pontos[proj().pontos.length-1].st="PROJ";S.loc={tipo:"ponto",idx:proj().pontos.length-1};salvar()}
     else S.loc={tipo:"coord",E,N,h,nome};
     S.lcNome=incNome(nome);S.lcE="";S.lcN="";chegouAviso=false;render();toast("Locação iniciada")}
@@ -1441,7 +1503,7 @@ function locPainel(){
   const al=alvoEN();if(!al)return "";
   const de=al.E-G.E,dn=al.N-G.N,dist=Math.hypot(de,dn),az=(Math.atan2(de,dn)*180/Math.PI+360)%360;
   const tol=num(S.locTol)||0.03, chegou=dist<=tol, alt=num(S.altura)||0;
-  const dh=(G.h-alt)-al.h; // terreno atual menos cota do alvo
+  const dh=cotaTerreno()-al.h; // terreno atual menos cota do alvo
   let rel="";
   if(G.vel>0.05){const ang=(az-G.course)*Math.PI/180;const fr=dist*Math.cos(ang),di=dist*Math.sin(ang);
     rel=`<div class="grid2"><div class="kv"><span>${fr>=0?"Para frente":"Para trás"}</span><b>${br(Math.abs(fr))} m</b></div><div class="kv"><span>${di>=0?"Para a direita":"Para a esquerda"}</span><b>${br(Math.abs(di))} m</b></div></div>`}
@@ -1498,7 +1560,7 @@ function fromUTM(E,N,zona,hemi){
   return [lat/d,lon/d];
 }
 function getPt(v){
-  if(v==="atual")return {E:G.E,N:G.N,h:G.h-(num(S.altura)||0),nome:"Posição atual"};
+  if(v==="atual")return {E:G.E,N:G.N,h:cotaTerreno(),nome:"Posição atual"};
   const p=proj()?.pontos[+v];if(!p)return null;const [E,N]=ptEN(p);return {E,N,h:p.h,nome:p.nome};
 }
 function ptOpts(sel,comAtual){const pts=proj()?.pontos||[];return (comAtual?`<option value="atual" ${sel==="atual"?"selected":""}>Posição atual</option>`:"")+pts.map((p,i)=>`<option value="${i}" ${String(sel)===String(i)?"selected":""}>${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}
@@ -1683,7 +1745,7 @@ function coletar(){
       const hr=Math.max(...amostras.map(x=>x.hr)), tol=num(S.tolH)||0.02;
       const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
-      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt,h_rms:hr,st,alt,quando:new Date().toISOString()});
+      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:m("E"),N:m("N"),h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,st,alt,quando:new Date().toISOString()});
       S.pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${br(hr)} m`);falar(`Ponto ${nome} armazenado`);
     }else render();
   },1000);
@@ -2013,7 +2075,7 @@ async function compartilharArquivo(){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text)});
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text);if(R.gravCol){R.gravCol.partes.push(d.text)}});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
       if(R.trocandoCanal){render();return}

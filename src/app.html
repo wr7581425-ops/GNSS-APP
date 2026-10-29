@@ -125,7 +125,7 @@ const S={
   cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:2,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:false})}}catch(e){}
 function salvar(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -370,12 +370,8 @@ function vProjetos(){
      <span class="small"><b class="m">${p.pontos.length}</b> pontos</span></button>`).join("")}
   ${proj()?sisCard():""}
   ${proj()?`<section class="card" style="background:var(--panel2)">
-    <span class="eyebrow">Exportar ${esc(proj().nome)}</span>
-    <div class="grid3">
-      <button data-exp="csv">CSV</button><button data-exp="dxf">DXF</button><button data-exp="kml">KML</button>
-    </div>
-    ${exportTxt?`<textarea id="expTxt" readonly aria-label="Arquivo exportado">${esc(exportTxt)}</textarea>${NATIVO?`<button class="pri" data-act="compartilhar">Enviar arquivo (WhatsApp, e-mail, Drive)</button><button data-act="copiar">Copiar texto</button>`:`<button class="pri" data-act="copiar">Copiar arquivo</button>`}`:`<p class="muted small" style="margin:0">Nesta versão de teste o arquivo aparece na tela para copiar. No app instalado, ele vai direto para WhatsApp, e-mail ou Drive.</p>`}
-  </section>`:""}`;
+    <span class="eyebrow">Arquivos de ${esc(proj().nome)}</span>
+    <div class="grid2"><button class="pri" data-go="exportar">Exportar (CSV, TXT, DXF, SHP, PDF…)</button><button data-go="importar">Importar pontos</button></div></section>`:""}`;
 }
 // ---------- Ajustar base (PPP do IBGE + translação) ----------
 const ESPERA_PPP=150; // minutos após o fim do rastreio (processamento GPS com órbitas ultrarrápidas)
@@ -687,7 +683,7 @@ const IC={
 const COR={verde:"#2E9E5B",roxo:"#9B4DCA",violeta:"#6E5BD9",laranja:"#E0702A",teal:"#138A7E",azul:"#2F7FD1",vermelho:"#C9453D",ambar:"#B8860B",rosa:"#C2477A",ciano:"#1D8FAE",cinza:"#55657A"};
 const TILES={
   projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos","pontos","verde",()=>go("pontos")],
-           ["importar","Importar pontos","importar","violeta",()=>go("importar")],["codigos","Códigos","codigos","rosa",()=>go("codigos")],["exportar","Exportar","exportar","laranja",()=>go("projetos")],["config","Configurações","config","cinza",()=>go("config")]],
+           ["importar","Importar pontos","importar","violeta",()=>go("importar")],["codigos","Códigos","codigos","rosa",()=>go("codigos")],["exportar","Exportar","exportar","laranja",()=>go("exportar")],["config","Configurações","config","cinza",()=>go("config")]],
   dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],
            ["correcao","Correção (NTRIP, rádio)","correcao","azul",()=>sub("correcao")],["estatico","Gravar estático","estatico","laranja",()=>sub("estatico")],["ajuste","Ajustar base","ajuste","vermelho",()=>sub("ajuste")],
            ["nmea","Saída NMEA","nmea","teal",()=>sub("nmea")],["info","Info do dispositivo","info","ambar",()=>go("info")],["receptores","Meus receptores","receptores","cinza",()=>sub("aparelhos")],["comandos","Comandos do receptor","nmea","laranja",()=>sub("console")],
@@ -700,7 +696,7 @@ const TILES={
            ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["rnref","RN - REF","rnref","vermelho",()=>go("rnref")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")]],
 };
 const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};
-const ABA_DE={rnref:"ferramentas",infopos:"dispositivo",antena:"dispositivo",mock:"dispositivo",codigos:"projeto",painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
+const ABA_DE={rnref:"ferramentas",infopos:"dispositivo",antena:"dispositivo",mock:"dispositivo",codigos:"projeto",painel:"levantamento",mapa:"levantamento",coleta:"levantamento",locacao:"levantamento",pontos:"projeto",importar:"projeto",exportar:"projeto",projetos:"projeto",config:"projeto",receptor:"dispositivo",info:"dispositivo",calc:"ferramentas"};
 function go(t){S.tela=t;exportTxt="";render()}
 function sub(k){S.sub=k;go("receptor")}
 function calc(k){S.ferr=k;go("calc")}
@@ -810,14 +806,6 @@ function vPontos(){
     <div style="grid-column:1/-1;display:flex;gap:6px"><button style="min-height:36px;font-size:13px" data-locp="${i}">Locar</button><button style="min-height:36px;font-size:13px" data-ptdel="${i}">Apagar</button></div></div>`}).join("")}</div>`
   :`<p class="muted small" style="margin:0">Nenhum ponto${q?" encontrado":" ainda"}.</p>`}`;
 }
-function vImportar(){
-  return `<span class="ttl">Importar pontos</span>
-  <section class="card"><span class="muted small">Cole uma lista de pontos, um por linha, no formato <b class="m">número, E, N, cota, descrição</b> (aceita vírgula, ponto e vírgula ou tabulação). Os pontos entram como pontos de projeto, prontos para locar. Sistema: ${sisTxt()}.</span>
-    <textarea data-bind="impTxt" placeholder="E-01;830650,12;9656660,45;43,20;eixo&#10;E-02;830670,12;9656660,45;43,10;eixo">${esc(S.impTxt||"")}</textarea>
-    <button class="pri" data-act="importar">Importar</button>
-    <span class="muted small">No app instalado também abre arquivos CSV, TXT, DXF e KML direto do WhatsApp, e-mail ou Drive.</span></section>`;
-}
-
 function tileLayer(fundo,X,Y,W,H,mpp){
   const z0=zonaAtual(),h0=hemiAtual();
   const [la1,lo1]=fromUTM(S.mapCE-W/2*mpp,S.mapCN+H/2*mpp,z0,h0),[la2,lo2]=fromUTM(S.mapCE+W/2*mpp,S.mapCN-H/2*mpp,z0,h0);
@@ -891,7 +879,7 @@ function vConfig(){
     <label class="f">Tolerância "no ponto" (m)<input class="m" data-bind="locTol" value="${esc(S.locTol)}"></label>
     <label class="f">Intervalo de estaca (m)${sel("estacaInt",[["10","10 m"],["20","20 m"],["50","50 m"],["100","100 m"]])}</label></div>`)}
   ${sec("Exportação",`<div class="grid2">
-    <label class="f">Formato padrão${sel("formatoPadrao",[["csv","CSV"],["dxf","DXF"],["kml","KML"]])}</label>
+    <label class="f">Formato padrão${sel("formatoPadrao",Object.entries(FORMATOS))}</label>
     <label class="f">Separador do CSV${sel("csvSep",[[",","Vírgula"],[";","Ponto e vírgula"],["tab","Tabulação"]])}</label></div>
     ${ck("cabecalho","Incluir linha com projeto e sistema no topo do arquivo")}`)}
   ${sec("Tela",`<div class="grid2"><label class="f">Tamanho do texto${sel("fonte",[["normal","Normal"],["grande","Grande"],["maior","Maior (sol forte)"]])}</label></div>
@@ -1291,7 +1279,7 @@ function render(full=true){
   if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
-  v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
+  v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,exportar:vExportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
@@ -1307,9 +1295,9 @@ document.addEventListener("click",e=>{
   if(b.dataset.ptdel!==undefined){const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
   if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
   if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&S.corrLigada){S.corrLigada=false;toast("Correção desligada ao trocar a fonte")}salvar();render();return}
-  if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";salvar();render();toast("Projeto aberto");return}
+  if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
   if(b.dataset.usar){S.ativo=+b.dataset.usar;if(S.conectado){S.conectado=false;S.corrLigada=false}salvar();render();toast("Receptor selecionado. Conecte em Receptor › Conexão.");return}
-  if(b.dataset.exp){exportar(b.dataset.exp);render();return}
+  if(acaoExport(b))return;
   manterTela();
   if(b.dataset.estopt){S.est[b.dataset.estopt]=b.dataset.val;salvar();render();return}
   if(b.dataset.arq){const f=S.arquivos.find(x=>x.id===+b.dataset.id);const k=b.dataset.arq;
@@ -1419,11 +1407,11 @@ document.addEventListener("click",e=>{
   if(a==="ptApagar"){const pts=proj().pontos,x=pts[S.ptSel];if(S.loc?.tipo==="ponto")S.loc=null;pts.splice(S.ptSel,1);S.ptSel=null;S.ptDelConf=false;salvar();render();toast(x.nome+" apagado")}
   if(a==="calcVoltar"){S.ferr=null;S.aba="ferramentas";S.tela="home";render()}
   if(a==="voltar"){S.tela="home";S.ferr=null;render()}
-  if(a==="importar"){const p=proj();if(!p){toast("Abra um projeto");return}let n=0,erro=0;
-    for(const l of (S.impTxt||"").split(/\n/)){if(!l.trim())continue;const c=(/[;\t]/.test(l)?l.split(/[;\t]/):l.split(",")).map(x=>x.trim());
-      const E=num(c[1]),N=num(c[2]),h=num(c[3]);if(!c[0]||isNaN(E)||isNaN(N)||p.pontos.some(x=>x.nome===c[0])){erro++;continue}
-      novoPonto(c[0],c[4]||"PROJETO",E,N,isNaN(h)?0:h);p.pontos[p.pontos.length-1].st="PROJ";n++}
-    salvar();S.impTxt="";render();toast(`${n} pontos importados${erro?` · ${erro} linhas ignoradas`:""}`)}
+  if(a==="gerarExp"){gerarExport();render();return}
+  if(a==="impEscolher"){const i=$("impArq");if(i){i.value="";i.click()}return}
+  if(a==="impColado"){if(!(S.impTxt||"").trim()){toast("Cole a lista primeiro");return}const r=lerTexto(S.impTxt,cfgImp().ordem);R.impPrev={pts:r.pts,origem:"lista colada",aviso:r.aviso};render();return}
+  if(a==="impConfirmar"){confirmarImport();return}
+  if(a==="impCancelar"){R.impPrev=null;render();return}
   if(a==="locDigitado"){const E=num(S.lcE),N=num(S.lcN);if(isNaN(E)||isNaN(N)){toast("Preencha E e N");return}
     const h=isNaN(num(S.lcH))?cotaTerreno():num(S.lcH),nome=(S.lcNome||"").trim()||"Ponto digitado";
     if(S.lcSalvar!==false&&proj()){if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe ${nome} no projeto`);return}novoPonto(nome,(S.lcDesc||"").trim()||"PROJETO",E,N,h);proj().pontos[proj().pontos.length-1].st="PROJ";S.loc={tipo:"ponto",idx:proj().pontos.length-1};salvar()}
@@ -1475,6 +1463,10 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind==="se
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
+  if(el.id==="impArq"){lerArquivosImport([...el.files]);return}
+  if(mudaExport(el))return;
+  if(el.dataset.impsel){cfgImp()[el.dataset.impsel]=el.value;salvar();return}
+  if(el.dataset.impck){cfgImp()[el.dataset.impck]=el.checked;salvar();return}
   if(el.id==="selRec"){S.ativo=+el.value;S.conectado=false;S.corrLigada=false;salvar();render()}
   if(el.id==="soFix"){S.soFix=el.checked;salvar();render()}
   if(el.id==="gga"){S.enviaGGA=el.checked;salvar();if(NATIVO)NP.GnssTcp.ntripOptions({gga:S.enviaGGA}).catch(()=>{})}
@@ -1749,16 +1741,420 @@ function coletar(){
     }else render();
   },1000);
 }
-function exportar(tipo){
-  const p=proj();if(!p.pontos.length){exportTxt="";toast("Projeto sem pontos para exportar");return}
-  const P=p.pontos.map(x=>{const [E,N]=ptEN(x);return Object.assign({},x,{E,N,lat:x.lat??(-3.10207+(x.N-9656218.907)/111320),lon:x.lon??(-60.02553+(x.E-165432.184)/111100)})});
-  const cab=S.cfg.cabecalho?`# ${p.nome} · ${sisTxt()}\n`:"";
-  if(tipo==="csv") exportTxt=cab+(sis().proj==="UTM"?"Nome,E,N,Cota,Codigo,PrecisaoH,Status\n"+P.map(x=>[x.nome,x.E.toFixed(3),x.N.toFixed(3),x.h.toFixed(3),x.cod,x.h_rms.toFixed(3),x.st].join(S.cfg.csvSep==="tab"?"\t":S.cfg.csvSep)).join("\n")
-    :"Nome,Latitude,Longitude,AltElipsoidal,Codigo,PrecisaoH,Status\n"+P.map(x=>[x.nome,x.lat.toFixed(9),x.lon.toFixed(9),x.h.toFixed(3),x.cod,x.h_rms.toFixed(3),x.st].join(S.cfg.csvSep==="tab"?"\t":S.cfg.csvSep)).join("\n"));
-  if(tipo==="dxf") exportTxt="999\n"+p.nome+" - "+sisTxt()+"\n0\nSECTION\n2\nENTITIES\n"+P.map(x=>`0\nPOINT\n8\n${x.cod||"PONTOS"}\n10\n${x.E.toFixed(3)}\n20\n${x.N.toFixed(3)}\n30\n${x.h.toFixed(3)}\n0\nTEXT\n8\nNOMES\n10\n${(x.E+0.3).toFixed(3)}\n20\n${(x.N+0.3).toFixed(3)}\n30\n0\n40\n0.5\n1\n${x.nome}`).join("\n")+"\n0\nENDSEC\n0\nEOF";
-  if(tipo==="kml") exportTxt=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${p.nome}</name>\n`+P.map(x=>{const lat=x.lat,lon=x.lon;return `<Placemark><name>${x.nome}</name><description>${x.cod}</description><Point><coordinates>${lon.toFixed(8)},${lat.toFixed(8)},${x.h.toFixed(3)}</coordinates></Point></Placemark>`}).join("\n")+"\n</Document></kml>";
-  toast(tipo.toUpperCase()+" gerado");
+// ================= Exportar e importar =================
+// Campos que a pessoa escolhe (e ordena) para CSV, TXT e o relatório em PDF
+const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod:"Descrição",lat:"Latitude",lon:"Longitude",hgnss:"Altitude GNSS (antena)",
+  prec:"Precisão H (m)",st:"Status (FIX/FLOAT)",ant:"Altura da antena",data:"Data",hora:"Hora",rn:"RN usada",zona:"Fuso UTM"};
+const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",hgnss:"AltGNSS",prec:"PrecH",st:"Status",ant:"AltAntena",data:"Data",hora:"Hora",rn:"RN",zona:"Fuso"};
+const PRESETS={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"],NEZD:["N","E","Z","cod"],ENZD:["E","N","Z","cod"],NEZ:["N","E","Z"],ENZ:["E","N","Z"],
+  geo:["nome","lat","lon","Z","cod"],completo:["nome","E","N","Z","cod","prec","st","ant","data","hora"]};
+const PRESET_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição",ENZD:"E, N, Z, Descrição",NEZ:"N, E, Z",ENZ:"E, N, Z",geo:"Nome, Lat, Lon, Z, Descrição",completo:"Completo (com precisão e data)"};
+const FORMATOS={csv:"CSV",txt:"TXT",dxf:"DXF (CAD)",shp:"Shapefile",kml:"KML (Google Earth)",pdf:"PDF (relatório)",geojson:"GeoJSON",bruto:"Dados brutos (tudo)"};
+function cfgExp(){S.exp=Object.assign({fmt:S.cfg.formatoPadrao||"csv",campos:PRESETS.PNEZD.slice(),sep:S.cfg.csvSep||",",decSep:"ponto",cab:true,geoFmt:"dec",dec:S.cfg.dec||"3",
+  incluirProj:true,soFix:false,filtro:"",dxfNome:true,dxfCota:true,dxfDesc:false,dxfAlt:"0,5",dxfCamadas:true},S.exp||{});return S.exp}
+let R_EXP=null; // último arquivo gerado {nome,ext,txt|bytes,mime}
+
+function pontosExport(){
+  const e=cfgExp(),p=proj();if(!p)return [];
+  let P=p.pontos.map(x=>{const [E,N]=ptEN(x);return Object.assign({},x,{E,N,lat:x.lat??fromUTM(x.E,x.N,zonaAtual(),hemiAtual())[0],lon:x.lon??fromUTM(x.E,x.N,zonaAtual(),hemiAtual())[1]})});
+  if(!e.incluirProj)P=P.filter(x=>!["PROJ","CALC"].includes(x.st));
+  if(e.soFix)P=P.filter(x=>x.st==="FIX"||["PROJ","CALC"].includes(x.st));
+  const f=(e.filtro||"").trim().toLowerCase();if(f)P=P.filter(x=>(x.cod||"").toLowerCase().includes(f)||(x.nome||"").toLowerCase().includes(f));
+  return P;
 }
+function nfx(v,d,decSep){if(v==null||isNaN(v))return "";const s=(+v).toFixed(d);return decSep==="virgula"?s.replace(".",","):s}
+function valCampo(x,k,e){
+  const d=+e.dec||3,ds=e.decSep;
+  switch(k){
+    case "nome":return x.nome||"";case "cod":return x.cod||"";case "N":return nfx(x.N,d,ds);case "E":return nfx(x.E,d,ds);case "Z":return nfx(x.h,d,ds);
+    case "lat":return e.geoFmt==="gms"?gms(x.lat,"N","S"):nfx(x.lat,9,ds);
+    case "lon":return e.geoFmt==="gms"?gms(x.lon,"E","W"):nfx(x.lon,9,ds);
+    case "hgnss":return nfx(x.h+(x.alt||0)-(x.rnOff||0),d,ds);case "prec":return nfx(x.h_rms||0,3,ds);case "st":return x.st||"";case "ant":return nfx(x.alt||0,3,ds);
+    case "data":return x.quando?new Date(x.quando).toLocaleDateString("pt-BR"):"";case "hora":return x.quando?new Date(x.quando).toLocaleTimeString("pt-BR"):"";
+    case "rn":return x.rn||"";case "zona":return zonaAtual()+hemiAtual();
+  }return "";
+}
+function sepReal(e){let s=e.sep==="tab"?"\t":e.sep==="espaco"?" ":e.sep;if(s===","&&e.decSep==="virgula")s=";";return s}
+function linhasTexto(P,campos,e){
+  const s=sepReal(e),q=v=>{v=String(v);return (s!==" "&&v.includes(s))||v.includes('"')?'"'+v.replace(/"/g,'""')+'"':s===" "?v.replace(/\s+/g,"_"):v};
+  const L=[];if(e.cab)L.push(campos.map(k=>CAB_CAMPO[k]).join(s));
+  for(const x of P)L.push(campos.map(k=>q(valCampo(x,k,e))).join(s));return L.join("\r\n")+"\r\n";
+}
+const nomeBase=()=>(proj()?.nome||"projeto").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\-]+/g,"_");
+
+function gerarExport(fmt){
+  const e=cfgExp();fmt=fmt||e.fmt;e.fmt=fmt;salvar();
+  const p=proj();if(!p){toast("Abra um projeto");return}
+  const P=pontosExport();if(!P.length){R_EXP=null;toast("Nenhum ponto para exportar com esses filtros");return}
+  const nb=nomeBase();
+  try{
+    if(fmt==="csv"||fmt==="txt"){R_EXP={nome:nb+"."+fmt,txt:linhasTexto(P,e.campos.length?e.campos:PRESETS.PNEZD,e),mime:"text/plain"}}
+    else if(fmt==="bruto"){const todos=Object.keys(CAMPOS),ee=Object.assign({},e,{cab:true,sep:";",geoFmt:"dec"});
+      R_EXP={nome:nb+"_brutos.csv",txt:"# "+p.nome+" · "+sisTxt()+" · exportado "+new Date().toLocaleString("pt-BR")+"\r\n"+linhasTexto(P,todos,ee),mime:"text/csv"}}
+    else if(fmt==="dxf")R_EXP={nome:nb+".dxf",txt:gerarDXF(P,e),mime:"application/dxf"};
+    else if(fmt==="kml")R_EXP={nome:nb+".kml",txt:gerarKML(P,p),mime:"application/vnd.google-earth.kml+xml"};
+    else if(fmt==="geojson")R_EXP={nome:nb+".geojson",txt:gerarGeoJSON(P),mime:"application/geo+json"};
+    else if(fmt==="shp")R_EXP={nome:nb+"_shp.zip",bytes:gerarSHPzip(P,nb),mime:"application/zip"};
+    else if(fmt==="pdf")R_EXP={nome:nb+".pdf",bytes:gerarPDF(P,p,e),mime:"application/pdf"};
+    R_EXP.n=P.length;exportTxt=R_EXP.txt||"";
+    toast(FORMATOS[fmt]+" gerado · "+P.length+" pontos");
+  }catch(er){R_EXP=null;toast("Erro ao gerar: "+(er.message||er))}
+}
+
+// ---------- DXF (R12, abre em qualquer CAD) ----------
+function gerarDXF(P,e){
+  const camada=x=>e.dxfCamadas?(String(x.cod||"PONTOS").toUpperCase().replace(/[^A-Z0-9_\-]/g,"_").slice(0,31)||"PONTOS"):"PONTOS";
+  const th=num(e.dxfAlt)||0.5,o=[];
+  const xs=P.map(x=>x.E),ys=P.map(x=>x.N);
+  o.push("0","SECTION","2","HEADER","9","$ACADVER","1","AC1009","9","$EXTMIN","10",Math.min(...xs).toFixed(3),"20",Math.min(...ys).toFixed(3),"9","$EXTMAX","10",Math.max(...xs).toFixed(3),"20",Math.max(...ys).toFixed(3),"0","ENDSEC");
+  const cams=[...new Set(P.map(camada)),"NOMES","COTAS","DESCRICAO"];
+  o.push("0","SECTION","2","TABLES","0","TABLE","2","LAYER","70",String(cams.length));
+  cams.forEach((c,i)=>o.push("0","LAYER","2",c,"70","0","62",String(c==="NOMES"?7:c==="COTAS"?3:c==="DESCRICAO"?4:(i%6)+1),"6","CONTINUOUS"));
+  o.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+  for(const x of P){
+    const E=x.E.toFixed(3),N=x.N.toFixed(3),Z=x.h.toFixed(3);
+    o.push("0","POINT","8",camada(x),"10",E,"20",N,"30",Z);
+    const t=(cam,txt,dy)=>o.push("0","TEXT","8",cam,"10",(x.E+th*0.6).toFixed(3),"20",(x.N+dy).toFixed(3),"30",Z,"40",th.toFixed(3),"1",String(txt));
+    if(e.dxfNome)t("NOMES",x.nome,th*0.3);
+    if(e.dxfCota)t("COTAS",nfx(x.h,+e.dec||3,"ponto"),-th*1.1);
+    if(e.dxfDesc&&x.cod)t("DESCRICAO",x.cod,-th*2.5);
+  }
+  o.push("0","ENDSEC","0","EOF");return o.join("\r\n")+"\r\n";
+}
+function gerarKML(P,p){
+  const x2=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${x2(p.nome)}</name>\n`+P.map(x=>`<Placemark><name>${x2(x.nome)}</name><description>${x2(x.cod)} · cota ${x.h.toFixed(3)} · ${x2(x.st)}</description><Point><altitudeMode>absolute</altitudeMode><coordinates>${x.lon.toFixed(9)},${x.lat.toFixed(9)},${x.h.toFixed(3)}</coordinates></Point></Placemark>`).join("\n")+"\n</Document></kml>\n";
+}
+function gerarGeoJSON(P){
+  return JSON.stringify({type:"FeatureCollection",features:P.map(x=>({type:"Feature",properties:{nome:x.nome,descricao:x.cod||"",E:+x.E.toFixed(3),N:+x.N.toFixed(3),cota:+x.h.toFixed(3),precisao:+(x.h_rms||0).toFixed(3),status:x.st,data:x.quando||""},
+    geometry:{type:"Point",coordinates:[+x.lon.toFixed(9),+x.lat.toFixed(9),+x.h.toFixed(3)]}}))},null,1);
+}
+
+// ---------- binários: ZIP, Shapefile, PDF ----------
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function latin1(s){const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);b[i]=c<256?c:63}return b}
+function utf8(s){return new TextEncoder().encode(s)}
+function zipStore(arqs){ // sem compressão: simples e aceito por qualquer programa
+  const partes=[],central=[];let off=0;const d=new Date(),dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  for(const a of arqs){const nm=utf8(a.name),crc=crc32(a.bytes),h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);
+    h.setUint32(14,crc,true);h.setUint32(18,a.bytes.length,true);h.setUint32(22,a.bytes.length,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    partes.push(new Uint8Array(h.buffer),nm,a.bytes);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);
+    c.setUint32(16,crc,true);c.setUint32(20,a.bytes.length,true);c.setUint32(24,a.bytes.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+a.bytes.length}
+  const tamC=central.reduce((s,b)=>s+b.length,0),f=new DataView(new ArrayBuffer(22));
+  f.setUint32(0,0x06054b50,true);f.setUint16(8,arqs.length,true);f.setUint16(10,arqs.length,true);f.setUint32(12,tamC,true);f.setUint32(16,off,true);
+  return juntar([...partes,...central,new Uint8Array(f.buffer)]);
+}
+function juntar(arr){const t=arr.reduce((s,b)=>s+b.length,0),o=new Uint8Array(t);let i=0;for(const b of arr){o.set(b,i);i+=b.length}return o}
+function prjWKT(){
+  const s=sis(),wgs=s.datum==="WGS 84";
+  const geo=wgs?'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]'
+    :'GEOGCS["GCS_SIRGAS_2000",DATUM["D_SIRGAS_2000",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]';
+  if(s.proj!=="UTM")return geo;
+  const z=zonaAtual(),h=hemiAtual();
+  return `PROJCS["${wgs?"WGS_1984":"SIRGAS_2000"}_UTM_Zone_${z}${h}",${geo},PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",${h==="S"?10000000:0}.0],PARAMETER["Central_Meridian",${z*6-183}.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]`;
+}
+function gerarSHPzip(P,nb){
+  const utm=sis().proj==="UTM",X=P.map(x=>utm?x.E:x.lon),Y=P.map(x=>utm?x.N:x.lat),Z=P.map(x=>x.h),n=P.length;
+  const cab=(dv,len)=>{dv.setInt32(0,9994,false);dv.setInt32(24,len/2,false);dv.setInt32(28,1000,true);dv.setInt32(32,11,true);
+    dv.setFloat64(36,Math.min(...X),true);dv.setFloat64(44,Math.min(...Y),true);dv.setFloat64(52,Math.max(...X),true);dv.setFloat64(60,Math.max(...Y),true);
+    dv.setFloat64(68,Math.min(...Z),true);dv.setFloat64(76,Math.max(...Z),true);dv.setFloat64(84,0,true);dv.setFloat64(92,0,true)};
+  const shpLen=100+n*44,shp=new DataView(new ArrayBuffer(shpLen)),shxLen=100+n*8,shx=new DataView(new ArrayBuffer(shxLen));cab(shp,shpLen);cab(shx,shxLen);
+  for(let i=0;i<n;i++){const o=100+i*44;shp.setInt32(o,i+1,false);shp.setInt32(o+4,18,false);shp.setInt32(o+8,11,true);
+    shp.setFloat64(o+12,X[i],true);shp.setFloat64(o+20,Y[i],true);shp.setFloat64(o+28,Z[i],true);shp.setFloat64(o+36,0,true);
+    shx.setInt32(100+i*8,o/2,false);shx.setInt32(104+i*8,18,false)}
+  // tabela de atributos (DBF)
+  const F=[["NOME","C",24,0,x=>x.nome],["DESCR","C",40,0,x=>x.cod||""],["E","N",16,3,x=>x.E],["N","N",16,3,x=>x.N],["COTA","N",12,3,x=>x.h],
+    ["LAT","N",16,9,x=>x.lat],["LON","N",16,9,x=>x.lon],["PREC_H","N",9,3,x=>x.h_rms||0],["STATUS","C",6,0,x=>x.st||""],["ANTENA","N",8,3,x=>x.alt||0],["DATA","C",19,0,x=>(x.quando||"").slice(0,19).replace("T"," ")]];
+  const recLen=1+F.reduce((s,f)=>s+f[2],0),hdLen=32+32*F.length+1,dbf=new Uint8Array(hdLen+n*recLen+1),dv=new DataView(dbf.buffer),d=new Date();
+  dbf[0]=3;dbf[1]=d.getFullYear()-1900;dbf[2]=d.getMonth()+1;dbf[3]=d.getDate();dv.setUint32(4,n,true);dv.setUint16(8,hdLen,true);dv.setUint16(10,recLen,true);
+  F.forEach((f,i)=>{const o=32+i*32;for(let k=0;k<f[0].length;k++)dbf[o+k]=f[0].charCodeAt(k);dbf[o+11]=f[1].charCodeAt(0);dbf[o+16]=f[2];dbf[o+17]=f[3]});
+  dbf[hdLen-1]=0x0D;
+  P.forEach((x,r)=>{let o=hdLen+r*recLen;dbf[o++]=32;for(const f of F){let v=f[4](x);
+    if(f[1]==="N"){v=isNaN(+v)?"":(+v).toFixed(f[3]);v=v.slice(0,f[2]).padStart(f[2]," ")}else v=String(v).slice(0,f[2]).padEnd(f[2]," ");
+    dbf.set(latin1(v),o);o+=f[2]}});
+  dbf[dbf.length-1]=0x1A;
+  return zipStore([{name:nb+".shp",bytes:new Uint8Array(shp.buffer)},{name:nb+".shx",bytes:new Uint8Array(shx.buffer)},{name:nb+".dbf",bytes:dbf},{name:nb+".prj",bytes:latin1(prjWKT())},{name:nb+".cpg",bytes:latin1("ISO-8859-1")}]);
+}
+
+// PDF simples (Helvetica), relatório com croqui e tabela dos pontos
+function gerarPDF(P,p,e){
+  const W=595,H=842,M=36,pgs=[];
+  const esp=s=>String(s??"").replace(/[\\()]/g,c=>"\\"+c).replace(/[^\x20-\x7e]/g,c=>{const k=c.charCodeAt(0);return k<256?"\\"+k.toString(8).padStart(3,"0"):"?"});
+  const T=(x,y,s,txt,b)=>`BT /${b?"F2":"F1"} ${s} Tf ${x.toFixed(1)} ${y.toFixed(1)} Td (${esp(txt)}) Tj ET\n`;
+  const larg=(t,s)=>String(t).length*s*0.58;
+  const CABP={nome:"Ponto",N:"N (m)",E:"E (m)",Z:"Cota (m)",cod:"Descrição",lat:"Latitude",lon:"Longitude",hgnss:"Alt. GNSS",prec:"Prec. H",st:"Status",ant:"Antena",data:"Data",hora:"Hora",rn:"RN"};
+  // página 1: cabeçalho + croqui
+  let c="";
+  c+=T(M,H-M-14,16,p.nome,true);
+  c+=T(M,H-M-32,9,`Cliente: ${p.cliente||"-"}   ·   ${sisTxt()}   ·   ${P.length} pontos   ·   gerado em ${new Date().toLocaleString("pt-BR")} pelo WA Survey`);
+  const bx=M,by=H/2-60,bw=W-2*M,bh=H/2-40;
+  c+="0.6 G 0.5 w "+`${bx} ${by} ${bw} ${bh} re S\n`+T(bx+6,by+bh-14,9,"Croqui dos pontos",true);
+  const xs=P.map(x=>x.E),ys=P.map(x=>x.N),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const esc_=Math.min((bw-60)/Math.max(x1-x0,1e-3),(bh-60)/Math.max(y1-y0,1e-3)),cx=bx+bw/2-(x0+x1)/2*esc_,cy=by+bh/2-(y0+y1)/2*esc_;
+  c+="0 0.35 0.7 rg\n";
+  for(const x of P){const px=cx+x.E*esc_,py=cy+x.N*esc_;c+=`${(px-1.6).toFixed(1)} ${(py-1.6).toFixed(1)} 3.2 3.2 re f\n`;if(P.length<=150)c+="0 g\n"+T(px+3,py+2,6,x.nome)+"0 0.35 0.7 rg\n"}
+  c+="0 g\n";
+  // barra de escala e norte
+  const alvo=bw/5/esc_,pot=10**Math.floor(Math.log10(alvo)),passo=[1,2,5,10].map(k=>k*pot).find(v=>v>=alvo)||pot,bl=passo*esc_;
+  c+=`0 G 1 w ${bx+12} ${by+14} m ${(bx+12+bl).toFixed(1)} ${by+14} l S\n`+T(bx+12,by+18,7,`${passo} m`);
+  c+=`${bx+bw-20} ${by+bh-40} m ${bx+bw-20} ${by+bh-22} l S\n`+T(bx+bw-23,by+bh-18,8,"N",true);
+  // resumo
+  let yy=by-22;c+=T(M,yy,10,"Resumo",true);yy-=14;
+  const nFix=P.filter(x=>x.st==="FIX").length,nFl=P.filter(x=>x.st==="FLOAT").length,hr=P.filter(x=>x.h_rms>0).map(x=>x.h_rms);
+  const linhas=[`Pontos: ${P.length}  (FIX ${nFix} · FLOAT ${nFl} · projeto/calculados ${P.length-nFix-nFl})`,
+    `E: ${x0.toFixed(3)} a ${x1.toFixed(3)}   N: ${y0.toFixed(3)} a ${y1.toFixed(3)}`,
+    `Cota: ${Math.min(...P.map(x=>x.h)).toFixed(3)} a ${Math.max(...P.map(x=>x.h)).toFixed(3)} m`,
+    hr.length?`Precisão horizontal média: ${(hr.reduce((a,b)=>a+b,0)/hr.length).toFixed(3)} m (pior ${Math.max(...hr).toFixed(3)} m)`:"",
+    proj().rn?.ativo?`Cotas referidas à ${proj().rn.nome} (cota ${proj().rn.cota})`:""].filter(Boolean);
+  for(const l of linhas){c+=T(M,yy,9,l);yy-=12}
+  pgs.push(c);
+  // tabela
+  const campos=(e.campos&&e.campos.length?e.campos:PRESETS.completo).filter(k=>k!=="zona");
+  const ee=Object.assign({},e,{geoFmt:e.geoFmt});
+  let fs=8;const wCol=campos.map(k=>Math.max(larg(CABP[k],fs)+10,...P.map(x=>larg(valCampo(x,k,ee),fs)+10)));
+  let tot=wCol.reduce((a,b)=>a+b,0);if(tot>W-2*M){const f=(W-2*M)/tot;fs=Math.max(5,fs*f);for(let i=0;i<wCol.length;i++)wCol[i]*=f;tot=W-2*M}
+  const lh=fs+4,porPg=Math.floor((H-2*M-40)/lh);
+  for(let i0=0;i0<P.length;i0+=porPg){
+    let t=T(M,H-M-12,11,`${p.nome} · pontos ${i0+1} a ${Math.min(P.length,i0+porPg)} de ${P.length}`,true);
+    let y=H-M-34,x=M;t+=`0.9 g ${M} ${y-3} ${tot.toFixed(1)} ${lh} re f 0 g\n`;
+    campos.forEach((k,j)=>{t+=T(x+3,y,fs,CABP[k],true);x+=wCol[j]});
+    for(let i=i0;i<Math.min(P.length,i0+porPg);i++){y-=lh;x=M;if((i-i0)%2)t+=`0.96 g ${M} ${y-3} ${tot.toFixed(1)} ${lh} re f 0 g\n`;
+      campos.forEach((k,j)=>{t+=T(x+3,y,fs,valCampo(P[i],k,ee));x+=wCol[j]})}
+    pgs.push(t);
+  }
+  // rodapé com número da página
+  pgs.forEach((c,i)=>pgs[i]=c+T(W-M-60,20,7,`Página ${i+1} de ${pgs.length}`)+T(M,20,7,"WA Survey"));
+  // monta o arquivo
+  const obj=[];const add=s=>{obj.push(s);return obj.length};
+  add("<< /Type /Catalog /Pages 2 0 R >>");add("");add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  const kids=[];
+  for(const c of pgs){const s=add(`<< /Length ${c.length} >>\nstream\n${c}endstream`);kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${s} 0 R >>`))}
+  obj[1]=`<< /Type /Pages /Kids [${kids.map(k=>k+" 0 R").join(" ")}] /Count ${kids.length} >>`;
+  let out="%PDF-1.4\n%\xe2\xe3\xcf\xd3\n";const offs=[];
+  obj.forEach((o,i)=>{offs.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`});
+  const xr=out.length;out+=`xref\n0 ${obj.length+1}\n0000000000 65535 f \n`+offs.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${obj.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF\n`;
+  return latin1(out);
+}
+function b64(bytes){let s="";for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s)}
+
+async function compartilharArquivo(){
+  const f=R_EXP;if(!f){toast("Gere o arquivo primeiro");return}
+  if(!NATIVO){const blob=new Blob([f.bytes||f.txt],{type:f.mime||"application/octet-stream"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=f.nome;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);return}
+  try{
+    try{await NP.Filesystem.deleteFile({path:f.nome,directory:"CACHE"})}catch(e){}
+    const w=f.bytes?await NP.Filesystem.writeFile({path:f.nome,data:b64(f.bytes),directory:"CACHE"})
+      :await NP.Filesystem.writeFile({path:f.nome,data:f.txt,directory:"CACHE",encoding:"utf8"});
+    await NP.Share.share({title:f.nome,text:f.nome,files:[w.uri],dialogTitle:"Enviar "+f.nome});
+  }catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
+}
+
+// ---------- tela Exportar ----------
+function vExportar(){
+  const p=proj();if(!p)return `<span class="ttl">Exportar</span><section class="card"><p class="muted">Abra um projeto primeiro.</p><button data-go="projetos">Projetos</button></section>`;
+  const e=cfgExp(),P=pontosExport(),txt=["csv","txt"].includes(e.fmt),fora=Object.keys(CAMPOS).filter(k=>!e.campos.includes(k));
+  const ck=(k,t)=>`<label class="ck"><input type="checkbox" data-expck="${k}" ${e[k]?"checked":""}> ${t}</label>`;
+  const sel=(k,ops)=>`<select data-expsel="${k}">${ops.map(([v,n])=>`<option value="${v}" ${String(e[k])===String(v)?"selected":""}>${n}</option>`).join("")}</select>`;
+  const usaCampos=["csv","txt","pdf"].includes(e.fmt);
+  return `<span class="ttl">Exportar · ${esc(p.nome)}</span>
+  <section class="card"><h3>Formato</h3>
+    <div class="grid3">${Object.entries(FORMATOS).map(([k,n])=>`<button data-expfmt="${k}" ${e.fmt===k?'class="pri"':""}>${n}</button>`).join("")}</div>
+    <span class="muted small">${{csv:"Planilha (Excel, LibreOffice). Você escolhe os campos e a ordem.",txt:"Texto para CAD, estação total ou outros softwares. Você escolhe os campos e a ordem.",
+      dxf:"Pontos com nome, cota e descrição em camadas separadas (AutoCAD, Civil 3D, Bricscad, QGIS).",shp:"Pacote .zip com .shp, .shx, .dbf, .prj e .cpg (QGIS, ArcGIS, Global Mapper). Pontos 3D com atributos.",
+      kml:"Abre no Google Earth e no Google Maps.",pdf:"Relatório com croqui, resumo e tabela dos pontos (os campos escolhidos abaixo viram as colunas).",
+      geojson:"Formato web/GIS (QGIS, Mapbox, sites).",bruto:"Tudo o que o app guardou de cada ponto: N, E, cota, lat/lon, altitude GNSS, precisão, status, antena, data, hora, RN."}[e.fmt]}</span></section>
+  ${usaCampos?`<section class="card"><h3>Campos e ordem</h3>
+    <label class="f">Modelo pronto<select data-expsel="preset"><option value="">Personalizado</option>${Object.keys(PRESETS).map(k=>`<option value="${k}" ${PRESETS[k].join()===e.campos.join()?"selected":""}>${PRESET_NOME[k]}</option>`).join("")}</select></label>
+    <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">${e.campos.map((k,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:${i?"1px solid var(--line)":"0"}"><b style="min-width:20px" class="m">${i+1}</b><span style="flex:1">${CAMPOS[k]}</span>
+      <button style="min-height:34px;padding:0 10px" data-campo="up" data-k="${k}" ${i?"":"disabled"} aria-label="Subir">↑</button><button style="min-height:34px;padding:0 10px" data-campo="down" data-k="${k}" ${i<e.campos.length-1?"":"disabled"} aria-label="Descer">↓</button><button style="min-height:34px;padding:0 10px" data-campo="del" data-k="${k}" aria-label="Tirar">✕</button></div>`).join("")}</div>
+    ${fora.length?`<span class="muted small">Adicionar campo:</span><div style="display:flex;flex-wrap:wrap;gap:6px">${fora.map(k=>`<button style="min-height:34px;font-size:13px" data-campo="add" data-k="${k}">+ ${CAMPOS[k]}</button>`).join("")}</div>`:""}
+    <div class="m small" style="background:var(--bg);padding:8px;border-radius:8px;overflow-x:auto;white-space:pre">${esc(P.length?linhasTexto(P.slice(0,3),e.campos,e):"(sem pontos)")}</div></section>`:""}
+  <section class="card"><h3>Opções</h3><div class="grid2">
+    ${txt?`<label class="f">Separador${sel("sep",[[",","Vírgula ,"],[";","Ponto e vírgula ;"],["tab","Tabulação"],["espaco","Espaço"]])}</label>`:""}
+    ${usaCampos?`<label class="f">Decimal${sel("decSep",[["ponto","Ponto (123.456)"],["virgula","Vírgula (123,456)"]])}</label>
+    <label class="f">Casas decimais${sel("dec",[["2","2 (cm)"],["3","3 (mm)"],["4","4"]])}</label>
+    <label class="f">Lat/Lon${sel("geoFmt",[["dec","Graus decimais"],["gms","Graus ° ' \""]])}</label>`:""}
+    ${e.fmt==="dxf"?`<label class="f">Altura do texto (m)<input class="m" data-expinp="dxfAlt" value="${esc(e.dxfAlt)}"></label>`:""}
+    <label class="f">Filtrar por nome ou descrição<input data-expinp="filtro" value="${esc(e.filtro)}" placeholder="ex.: cerca"></label></div>
+    ${txt?ck("cab","Primeira linha com os nomes das colunas"):""}
+    ${ck("incluirProj","Incluir pontos de projeto e calculados")}${ck("soFix","Só pontos FIX")}
+    ${e.fmt==="dxf"?ck("dxfCamadas","Uma camada por descrição")+ck("dxfNome","Texto com o nome")+ck("dxfCota","Texto com a cota")+ck("dxfDesc","Texto com a descrição"):""}
+    <span class="muted small">${P.length} de ${p.pontos.length} pontos · ${sisTxt()}</span></section>
+  <section class="card hl"><button class="pri" data-act="gerarExp">Gerar ${FORMATOS[e.fmt]}</button>
+    ${R_EXP?`<div class="kv"><span>${esc(R_EXP.nome)}</span><b>${R_EXP.n} pontos · ${br(((R_EXP.bytes?.length)||R_EXP.txt.length)/1024,1)} KB</b></div>
+    ${R_EXP.txt&&R_EXP.txt.length<200000?`<textarea id="expTxt" readonly aria-label="Arquivo exportado">${esc(R_EXP.txt.slice(0,20000))}</textarea>`:""}
+    <button class="pri" data-act="compartilhar">${NATIVO?"Enviar arquivo (WhatsApp, e-mail, Drive)":"Baixar arquivo"}</button>${R_EXP.txt?`<button data-act="copiar">Copiar texto</button>`:""}`:""}</section>`;
+}
+function acaoExport(b){
+  const e=cfgExp();
+  if(b.dataset.expfmt){e.fmt=b.dataset.expfmt;R_EXP=null;salvar();render();return true}
+  if(b.dataset.campo){const k=b.dataset.k,c=e.campos,i=c.indexOf(k);
+    if(b.dataset.campo==="add")c.push(k);else if(b.dataset.campo==="del")c.splice(i,1);
+    else if(b.dataset.campo==="up"&&i>0)[c[i-1],c[i]]=[c[i],c[i-1]];else if(b.dataset.campo==="down"&&i<c.length-1)[c[i+1],c[i]]=[c[i],c[i+1]];
+    R_EXP=null;salvar();render();return true}
+  return false;
+}
+function mudaExport(el){
+  const e=cfgExp();
+  if(el.dataset.expck){e[el.dataset.expck]=el.checked;R_EXP=null;salvar();render();return true}
+  if(el.dataset.expsel){if(el.dataset.expsel==="preset"){if(el.value)e.campos=PRESETS[el.value].slice()}else e[el.dataset.expsel]=el.value;R_EXP=null;salvar();render();return true}
+  if(el.dataset.expinp){e[el.dataset.expinp]=el.value;R_EXP=null;salvar();if(el.tagName!=="INPUT")render();return true}
+  return false;
+}
+
+// ---------- tela Importar ----------
+const ORD_IMP={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"],NEZD:["N","E","Z","cod"],ENZD:["E","N","Z","cod"],geo:["nome","lat","lon","Z","cod"],geo2:["nome","lon","lat","Z","cod"]};
+const ORD_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição (sem nome)",ENZD:"E, N, Z, Descrição (sem nome)",geo:"Nome, Latitude, Longitude, Z, Descrição",geo2:"Nome, Longitude, Latitude, Z, Descrição"};
+function cfgImp(){S.impCfg=Object.assign({ordem:"auto",dup:"renomear",vertices:false,tipo:"PROJ"},S.impCfg||{});return S.impCfg}
+function vImportar(){
+  const c=cfgImp(),pv=R.impPrev;
+  return `<span class="ttl">Importar pontos</span>
+  <section class="card"><h3>Arquivo</h3>
+    <span class="muted small">CSV, TXT, DXF, Shapefile (.zip ou .shp + .dbf juntos), KML/KMZ e GeoJSON. Sistema do projeto: ${sisTxt()}.</span>
+    <input type="file" id="impArq" multiple hidden>
+    <button class="pri" data-act="impEscolher">Escolher arquivo(s)</button>
+    <label class="f">Ordem dos campos no CSV/TXT<select data-impsel="ordem"><option value="auto" ${c.ordem==="auto"?"selected":""}>Automático (detectar)</option>${Object.keys(ORD_IMP).map(k=>`<option value="${k}" ${c.ordem===k?"selected":""}>${ORD_NOME[k]}</option>`).join("")}</select></label>
+    <div class="grid2"><label class="f">Nome repetido<select data-impsel="dup"><option value="renomear" ${c.dup==="renomear"?"selected":""}>Renomear (P1_2)</option><option value="ignorar" ${c.dup==="ignorar"?"selected":""}>Ignorar o novo</option><option value="substituir" ${c.dup==="substituir"?"selected":""}>Substituir o antigo</option></select></label>
+    <label class="f">Entrar como<select data-impsel="tipo"><option value="PROJ" ${c.tipo==="PROJ"?"selected":""}>Pontos de projeto (para locar)</option><option value="CALC" ${c.tipo==="CALC"?"selected":""}>Pontos de apoio</option></select></label></div>
+    <label class="ck"><input type="checkbox" data-impck="vertices" ${c.vertices?"checked":""}> Vértices de linhas e polígonos também viram pontos (DXF, Shapefile, KML)</label></section>
+  <section class="card"><h3>Ou cole a lista</h3>
+    <textarea data-bind="impTxt" placeholder="E-01;830650,12;9656660,45;43,20;eixo&#10;E-02;830670,12;9656660,45;43,10;eixo">${esc(S.impTxt||"")}</textarea>
+    <button data-act="impColado">Ler lista colada</button></section>
+  ${pv?`<section class="card hl"><h3>${pv.pts.length} pontos encontrados</h3><span class="muted small">${esc(pv.origem)}${pv.aviso?" · "+esc(pv.aviso):""}</span>
+    <div class="list">${pv.pts.slice(0,8).map(x=>`<div class="row"><b class="m">${esc(x.nome)}</b><span class="m small">E ${br(x.E)} · N ${br(x.N)} · ${br(x.h)}</span><span class="muted small">${esc(x.cod)}</span></div>`).join("")}</div>
+    ${pv.pts.length>8?`<span class="muted small">… e mais ${pv.pts.length-8}</span>`:""}
+    <div class="grid2"><button class="pri" data-act="impConfirmar" ${pv.pts.length?"":"disabled"}>Importar ${pv.pts.length} pontos</button><button data-act="impCancelar">Cancelar</button></div></section>`:""}`;
+}
+function emProjeto(lat,lon){return toUTM(lat,lon,zonaAtual(),hemiAtual())}
+function ehGeo(x,y){return Math.abs(x)<=180&&Math.abs(y)<=90}
+function lerTexto(txt,ordemSel){
+  const L=txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith("#"));if(!L.length)return {pts:[],aviso:"arquivo vazio"};
+  const am=L.slice(0,30).join("\n"),sep=am.includes("\t")?"\t":am.includes(";")?";":am.includes(",")?",":null;
+  const cortar=l=>{if(!sep)return l.split(/\s+/);const r=[];let cur="",q=false;
+    for(const ch of l){if(ch==='"'){q=!q;continue}if(ch===sep&&!q){r.push(cur.trim());cur="";continue}cur+=ch}r.push(cur.trim());return r};
+  const linhas=L.map(cortar),nume=v=>v!=null&&String(v).trim()!==""&&/^[-+]?\d+([.,]\d+)?$/.test(String(v).trim());
+  let ordem=ordemSel==="auto"?null:ORD_IMP[ordemSel],aviso="";
+  if(!ordem){
+    const l=linhas.find(c=>c.filter(nume).length>=2)||[];
+    const coord=v=>nume(v)&&(Math.abs(num(v))>=1000||/[.,]\d{4,}/.test(v)); // coordenada: grande ou com muitas casas
+    const temNome=!coord(l[0])||(nume(l[0])&&coord(l[1])&&coord(l[2]));
+    const i=temNome?1:0,a=num(l[i]),b=num(l[i+1]);
+    if(ehGeo(a,b)){const latPrim=Math.abs(a)<=Math.abs(b);ordem=(temNome?["nome"]:[]).concat(latPrim?["lat","lon"]:["lon","lat"],["Z","cod"]);aviso="lat/lon convertidas para "+sisTxt()}
+    else ordem=(temNome?["nome"]:[]).concat(a>b?["N","E"]:["E","N"],["Z","cod"]);
+    aviso=(aviso?aviso+" · ":"")+"ordem detectada: "+ordem.map(k=>CAB_CAMPO[k]).join(", ");
+  }
+  const pts=[];let ign=0,k=0;
+  for(const c of linhas){const v={};ordem.forEach((f,i)=>v[f]=c[i]);
+    let E,N;if(ordem.includes("lat")){if(!nume(v.lat)||!nume(v.lon)){ign++;continue}[E,N]=emProjeto(num(v.lat),num(v.lon))}
+    else{if(!nume(v.E)||!nume(v.N)){ign++;continue}E=num(v.E);N=num(v.N)}
+    k++;pts.push({nome:String(v.nome||"").trim()||"I-"+k,E,N,h:nume(v.Z)?num(v.Z):0,cod:[v.cod,...c.slice(ordem.length)].filter(Boolean).join(" ").trim()})}
+  if(ign)aviso+=(aviso?" · ":"")+ign+" linhas ignoradas (cabeçalho ou sem coordenadas)";
+  return {pts,aviso};
+}
+function lerDXF(txt,vert){
+  const L=txt.split(/\r?\n/);const ents=[];let cur=null,emEnt=false;
+  for(let i=0;i+1<L.length;i+=2){const g=L[i].trim(),v=L[i+1].trim();
+    if(g==="0"){if(v==="SECTION"){cur=null;continue}if(v==="ENDSEC"){emEnt=false;cur=null;continue}cur={t:v,cod:{},vx:[]};if(emEnt)ents.push(cur);continue}
+    if(g==="2"&&v==="ENTITIES"){emEnt=true;continue}
+    if(!cur)continue;
+    if(g==="10"){if(cur.t==="LWPOLYLINE")cur.vx.push({x:+v});else cur.cod[10]=+v}
+    else if(g==="20"){if(cur.t==="LWPOLYLINE"&&cur.vx.length)cur.vx[cur.vx.length-1].y=+v;else cur.cod[20]=+v}
+    else if(g==="30")cur.cod[30]=+v;else if(g==="38")cur.cod[38]=+v;else if(g==="8")cur.layer=v;else if(g==="1")cur.txt=v;}
+  const textos=ents.filter(e=>(e.t==="TEXT"||e.t==="MTEXT")&&e.txt&&!isNaN(e.cod[10])).map(e=>({x:e.cod[10],y:e.cod[20],t:e.txt.replace(/\\[A-Za-z][^;]*;|[{}]/g,""),layer:e.layer||""}));
+  let pts=[],k=0;
+  const nomeProx=(x,y)=>{let m=null,dm=4;for(const t of textos){if(/^-?\d+[.,]\d+$/.test(t.t))continue;const d=Math.hypot(t.x-x,t.y-y);if(d<dm){dm=d;m=t}}return m?m.t:null};
+  for(const e of ents){
+    if((e.t==="POINT"||e.t==="INSERT")&&!isNaN(e.cod[10])){k++;pts.push({nome:nomeProx(e.cod[10],e.cod[20])||"P"+k,E:e.cod[10],N:e.cod[20],h:e.cod[30]||0,cod:e.layer||""})}
+  }
+  const usarVert=vert||!pts.length;
+  if(usarVert){for(const e of ents){if(e.t==="LWPOLYLINE")for(const p of e.vx){k++;pts.push({nome:"V"+k,E:p.x,N:p.y,h:e.cod[38]||0,cod:e.layer||""})}
+    if(e.t==="VERTEX"&&!isNaN(e.cod[10])){k++;pts.push({nome:"V"+k,E:e.cod[10],N:e.cod[20],h:e.cod[30]||0,cod:e.layer||""})}
+    if(e.t==="LINE"&&!isNaN(e.cod[10])){k++;pts.push({nome:"V"+k,E:e.cod[10],N:e.cod[20],h:e.cod[30]||0,cod:e.layer||""})}}}
+  // DXF em graus (raro): converte
+  let aviso=usarVert&&!vert?"o DXF não tinha pontos: usei os vértices das linhas":"";
+  if(pts.length&&pts.every(p=>ehGeo(p.E,p.N))){pts=pts.map(p=>{const [E,N]=emProjeto(p.N,p.E);return Object.assign(p,{E,N})});aviso="coordenadas em graus convertidas"}
+  return {pts,aviso};
+}
+function lerKML(txt,vert){
+  const d=new DOMParser().parseFromString(txt,"text/xml"),pts=[];let k=0;
+  for(const pm of d.getElementsByTagName("Placemark")){const nome=pm.getElementsByTagName("name")[0]?.textContent?.trim(),desc=pm.getElementsByTagName("description")[0]?.textContent?.trim()||"";
+    const pontos=[...pm.getElementsByTagName("Point")].map(p=>p.getElementsByTagName("coordinates")[0]?.textContent||"");
+    const linhas=vert?[...pm.getElementsByTagName("LineString"),...pm.getElementsByTagName("LinearRing")].map(p=>p.getElementsByTagName("coordinates")[0]?.textContent||""):[];
+    const pegar=(s,nm)=>s.trim().split(/\s+/).forEach((c,i,arr)=>{const [lon,lat,h]=c.split(",").map(Number);if(isNaN(lat)||isNaN(lon))return;k++;const [E,N]=emProjeto(lat,lon);pts.push({nome:nm&&arr.length===1?nm:(nm||"K")+"-"+(i+1),E,N,h:h||0,cod:desc.replace(/<[^>]+>/g,"").slice(0,40)})});
+    pontos.forEach(s=>pegar(s,nome||"K"+(k+1)));linhas.forEach(s=>pegar(s,(nome||"L")+"_v"))}
+  return {pts,aviso:"convertido de lat/lon para "+sisTxt()};
+}
+function lerGeoJSON(txt,vert){
+  const j=JSON.parse(txt),fs=j.type==="FeatureCollection"?j.features:[j],pts=[];let k=0;
+  for(const f of fs){const pr=f.properties||{},g=f.geometry||{},nome=pr.nome||pr.name||pr.id||"";const cod=pr.descricao||pr.desc||pr.cod||pr.description||"";
+    const add=(c,i)=>{k++;let [x,y,z]=c;let E=x,N=y;if(ehGeo(x,y))[E,N]=emProjeto(y,x);pts.push({nome:String(nome||"G"+k)+(i!=null?"_"+(i+1):""),E,N,h:z||+pr.cota||0,cod:String(cod)})};
+    if(g.type==="Point")add(g.coordinates);else if(g.type==="MultiPoint")g.coordinates.forEach(add);
+    else if(vert&&g.type==="LineString")g.coordinates.forEach(add);else if(vert&&g.type==="Polygon")g.coordinates.flat().forEach(add)}
+  return {pts,aviso:""};
+}
+function lerDBF(buf){
+  const dv=new DataView(buf),n=dv.getUint32(4,true),hd=dv.getUint16(8,true),rl=dv.getUint16(10,true),F=[];const u8=new Uint8Array(buf);
+  for(let o=32;o<hd-1&&u8[o]!==0x0D;o+=32){let nm="";for(let i=0;i<11&&u8[o+i];i++)nm+=String.fromCharCode(u8[o+i]);F.push({nm:nm.trim(),t:String.fromCharCode(u8[o+11]),len:u8[o+16]})}
+  const dec=new TextDecoder("latin1"),R=[];
+  for(let r=0;r<n;r++){let o=hd+r*rl+1;const row={};for(const f of F){row[f.nm]=dec.decode(u8.subarray(o,o+f.len)).trim();o+=f.len}R.push(row)}
+  return R;
+}
+function lerSHP(shpBuf,dbfBuf,vert){
+  const dv=new DataView(shpBuf),len=dv.getInt32(24,false)*2,rows=dbfBuf?lerDBF(dbfBuf):[],pts=[];let o=100,r=0,k=0;
+  const campo=(row,re)=>{for(const key in row)if(re.test(key))return row[key];return ""};
+  while(o+12<=Math.min(len,shpBuf.byteLength)){const cl=dv.getInt32(o+4,false)*2,t=dv.getInt32(o+8,true),c=o+8,row=rows[r]||{};
+    const nome=campo(row,/^(nome|name|ponto|pt|id|num|numero|label)$/i)||"",cod=campo(row,/^(desc|descr|descricao|cod|codigo|code|tipo|layer|obs)/i)||"",zDbf=num(campo(row,/^(cota|z|alt|altitude|elev|h)$/i));
+    const add=(x,y,z,i)=>{k++;let E=x,N=y;if(ehGeo(x,y))[E,N]=emProjeto(y,x);pts.push({nome:(nome||"S"+(r+1))+(i!=null?"_"+(i+1):""),E,N,h:!isNaN(z)&&z!==0?z:(isNaN(zDbf)?0:zDbf),cod})};
+    if(t===1||t===11||t===21){add(dv.getFloat64(c+4,true),dv.getFloat64(c+12,true),t===11?dv.getFloat64(c+20,true):NaN)}
+    else if(t===8||t===18||t===28||(vert&&[3,5,13,15,23,25].includes(t))){
+      const multi=t===8||t===18||t===28,np=dv.getInt32(c+(multi?36:40),true),np0=multi?0:dv.getInt32(c+36,true),base=c+(multi?40:44)+np0*4,temZ=t===18||t===13||t===15,zb=base+np*16+16;
+      for(let i=0;i<np;i++)add(dv.getFloat64(base+i*16,true),dv.getFloat64(base+i*16+8,true),temZ?dv.getFloat64(zb+i*8,true):NaN,np>1?i:null)}
+    o+=8+cl;r++}
+  return {pts,aviso:dbfBuf?"":"sem o .dbf: nomes automáticos"};
+}
+async function unzip(buf){ // lê ZIP (guardado ou deflate) usando o descompactador do próprio navegador
+  const u8=new Uint8Array(buf),dv=new DataView(buf),out={};let e=u8.length-22;while(e>0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  const n=dv.getUint16(e+10,true);let o=dv.getUint32(e+16,true);
+  for(let i=0;i<n;i++){const met=dv.getUint16(o+10,true),cs=dv.getUint32(o+20,true),nl=dv.getUint16(o+28,true),el=dv.getUint16(o+30,true),cl=dv.getUint16(o+32,true),lo=dv.getUint32(o+42,true);
+    const nome=new TextDecoder().decode(u8.subarray(o+46,o+46+nl));o+=46+nl+el+cl;
+    const ini=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true),dados=u8.subarray(ini,ini+cs);
+    if(met===0)out[nome]=dados.slice().buffer;
+    else if(met===8){if(typeof DecompressionStream==="undefined")throw new Error("este celular não abre .zip compactado; envie os arquivos .shp e .dbf soltos");const ds=new DecompressionStream("deflate-raw");out[nome]=await new Response(new Blob([dados]).stream().pipeThrough(ds)).arrayBuffer()}}
+  return out;
+}
+function decTexto(buf){let t=new TextDecoder("utf-8").decode(buf);if(t.includes("\ufffd"))t=new TextDecoder("latin1").decode(buf);return t.replace(/^\ufeff/,"")}
+async function lerArquivosImport(files){
+  const c=cfgImp();if(!files||!files.length)return;
+  const mapa={};for(const f of files)mapa[f.name]=await f.arrayBuffer();
+  // abre .zip/.kmz
+  for(const nm of Object.keys(mapa))if(/\.(zip|kmz)$/i.test(nm)){try{const z=await unzip(mapa[nm]);delete mapa[nm];for(const k in z)if(!k.endsWith("/"))mapa[k.split("/").pop()]=z[k]}catch(er){toast("Não consegui abrir "+nm+": "+(er.message||er));return}}
+  let pts=[],avisos=[],origem=[];
+  const ext=n=>(n.split(".").pop()||"").toLowerCase(),base=n=>n.replace(/\.[^.]+$/,"").toLowerCase();
+  try{
+    for(const nm of Object.keys(mapa)){const x=ext(nm);let r=null;
+      if(x==="shp"){const dbf=Object.keys(mapa).find(k=>ext(k)==="dbf"&&base(k)===base(nm));r=lerSHP(mapa[nm],dbf?mapa[dbf]:null,c.vertices)}
+      else if(x==="dxf")r=lerDXF(decTexto(mapa[nm]),c.vertices);
+      else if(x==="kml")r=lerKML(decTexto(mapa[nm]),c.vertices);
+      else if(x==="geojson"||x==="json")r=lerGeoJSON(decTexto(mapa[nm]),c.vertices);
+      else if(["csv","txt","xyz","pnt","dat","prn",""].includes(x))r=lerTexto(decTexto(mapa[nm]),c.ordem);
+      else continue;
+      pts=pts.concat(r.pts);origem.push(nm);if(r.aviso)avisos.push(r.aviso)}
+  }catch(er){toast("Erro ao ler o arquivo: "+(er.message||er));return}
+  if(!origem.length){toast("Formato não reconhecido. Use CSV, TXT, DXF, SHP (com .dbf), KML/KMZ ou GeoJSON.");return}
+  R.impPrev={pts,origem:origem.join(", "),aviso:[...new Set(avisos)].join(" · ")};render();
+  if(!pts.length)toast("Não achei pontos no arquivo");
+}
+function confirmarImport(){
+  const p=proj(),pv=R.impPrev,c=cfgImp();if(!p||!pv)return;let n=0,ig=0,sub=0;
+  for(const x of pv.pts){let nome=x.nome;const i=p.pontos.findIndex(q=>q.nome===nome);
+    if(i>=0){if(c.dup==="ignorar"){ig++;continue}if(c.dup==="substituir"){p.pontos.splice(i,1);sub++}else{let k=2;while(p.pontos.some(q=>q.nome===nome+"_"+k))k++;nome=nome+"_"+k}}
+    novoPonto(nome,x.cod||"PROJETO",x.E,x.N,x.h||0);p.pontos[p.pontos.length-1].st=c.tipo;n++}
+  salvar();R.impPrev=null;S.impTxt="";render();toast(`${n} pontos importados${sub?` · ${sub} substituídos`:""}${ig?` · ${ig} repetidos ignorados`:""}`);
+}
+
 // ================= Camada nativa (app instalado) =================
 // No navegador continua tudo simulado; no app Android usa o receptor de verdade.
 const APP_VERSAO="__VERSAO__".startsWith("__")?"teste":"__VERSAO__",APP_DATA="__DATA__".startsWith("__")?"—":"__DATA__";
@@ -2059,17 +2455,6 @@ async function servidorReal(ligar){
     else{await NP.GnssTcp.stopServer();S.servidor=false;R.clientes=[];toast("Servidor desligado")}
   }catch(e){toast("Servidor: "+(e.message||e))}
   render();
-}
-
-// ---------- exportar e compartilhar ----------
-async function compartilharArquivo(){
-  if(!exportTxt){toast("Gere o arquivo primeiro");return}
-  const ext=exportTxt.startsWith("<?xml")?"kml":exportTxt.includes("SECTION")?"dxf":"csv";
-  const nome=(proj()?.nome||"projeto").replace(/[^\w\-]+/g,"_")+"."+ext;
-  try{
-    const w=await NP.Filesystem.writeFile({path:nome,data:exportTxt,directory:"CACHE",encoding:"utf8"});
-    await NP.Share.share({title:nome,text:nome,files:[w.uri],dialogTitle:"Enviar "+nome});
-  }catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
 }
 
 // ---------- ouvintes ----------

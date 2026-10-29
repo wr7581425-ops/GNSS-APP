@@ -123,13 +123,13 @@ const S={
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2,000",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
-  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"3",cfgVer:3,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:3,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
 try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
-    // v3: pontos começam em 001, coleta rápida com 1 época, antena 2,000 m
-    if(S.cfg.cfgVer<3){if(S.cfg.digitos==="2")S.cfg.digitos="3";if(S.epocas==="5")S.epocas="1";if(S.altura==="1,800")S.altura="2,000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
+    // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
+    if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(S.altura==="1,800")S.altura="2,000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
 // Sem limite de pontos: cada obra também é gravada num arquivo próprio no celular (WASurvey/obras/<id>.json).
 // O localStorage do navegador tem limite (~5 MB); se encher, ele guarda só as configurações e os pontos ficam nos arquivos.
 let tSalvarObras=null;const obrasSujas=new Set();
@@ -322,7 +322,7 @@ function vPainel(){
 function proxNome(){
   const pj=proj();if(pj&&pj.pNum)return pj.pNum;
   const pre=S.cfg.prefixo||"",pts=(proj()?.pontos||[]).filter(p=>p.st!=="CALC"&&p.st!=="PROJ");
-  let max=0,larg=+S.cfg.digitos||3;
+  let max=0,larg=+S.cfg.digitos||2;
   for(const p of pts){const m=String(p.nome).match(/^(.*?)(\d+)$/);if(m&&m[1]===pre){if(+m[2]>max)max=+m[2];larg=Math.max(larg,m[2].length)}}
   return pre+String(max+1).padStart(larg,"0");
 }

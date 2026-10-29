@@ -112,27 +112,30 @@ const S={
   tela:"home", aba:"levantamento", sub:"conexao",
   receptores:[{id:1,marca:"ComNav",modelo:"S6",serie:"S6-2210-48731",nivel:"completo"},{id:2,marca:"CHC",modelo:"i73",serie:"I73-0091-22410",nivel:"completo"},{id:3,marca:"Trimble",modelo:"R10",serie:"",nivel:"leitura"}],
   ativo:1, conexao:"wifi", ip:"192.168.1.1", porta:"9902", conectado:false, conectando:false, desde:0,
-  modo:"rover", mascara:"10", taxa:"1", pdopMax:"4,0",
+  modo:"rover", mascara:"10", taxa:"1", pdopMax:"4.0",
   correcao:"ntrip", caster:"201.75.52.115", cport:"2101", mount:"AMAZT", user:"deny", senha:"", enviaGGA:true, freq:"463.125", canal:"3", proto:"TRIMTALK",
   corrLigada:false, corrDesde:0,
   sent:{GGA:true,RMC:true,VTG:true,GST:true,GSA:false,ZDA:false}, hz:"5", servidor:false, sport:"5017",
   projetos:[{id:1,nome:"Loteamento Tarumã",cliente:"Construtora Rio Negro",pontos:[]}], projAtivo:1,
-  codigo:"MF", altura:"2,000", soFix:true, tolH:"0,020", epocas:"1", coletando:0,
-  baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"2,000", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0,075", antFase:"0,000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
-  zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0,030",
+  codigo:"MF", altura:"2.000", soFix:true, tolH:"0.020", epocas:"1", coletando:0,
+  baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"2.000", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0.075", antFase:"0.000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
+  zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0.030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
-  est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2,000",medida:"Base da rosca",duracao:"60",mascara:"10"},
+  est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2.000",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
-  cfg:{dec:"3",sepDec:"virgula",ang:"gms",prefixo:"",digitos:"2",cfgVer:3,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
-       nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0,040",pdopAlerta:"4,0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
+  cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
+       nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
 try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
-    if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(S.altura==="1,800")S.altura="2,000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
+    if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
 // Sem limite de pontos: cada obra também é gravada num arquivo próprio no celular (WASurvey/obras/<id>.json).
 // O localStorage do navegador tem limite (~5 MB); se encher, ele guarda só as configurações e os pontos ficam nos arquivos.
 let tSalvarObras=null;const obrasSujas=new Set();
+// converte números guardados como "2,000" para "2.000" (o app usa só ponto como separador decimal)
+(function(){const fix=o=>{if(!o||typeof o!=="object")return;for(const k in o){const v=o[k];if(typeof v==="string"&&/^-?\d+,\d+$/.test(v))o[k]=v.replace(",",".")}};
+  fix(S);fix(S.cfg);fix(S.est);fix(S.exp);(S.receptores||[]).forEach(fix);if(S.cfg.cfgVer<4){S.cfg.sepDec="ponto";if(/^1[.,]800$/.test(S.est.altAnt))S.est.altAnt="2.000";S.cfg.cfgVer=4}})();
 function salvar(){
   const pj=proj();if(pj){pj.salvoEm=Date.now();obrasSujas.add(pj.id)}
   try{localStorage.setItem(KEY,JSON.stringify(S));S.pontosNoArquivo=false}
@@ -225,7 +228,7 @@ setInterval(tick,1000);
 
 // ---------- Utilidades ----------
 const $=id=>document.getElementById(id);
-const br=(v,d=3)=>v.toLocaleString(S.cfg.sepDec==="ponto"?"en-US":"pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const br=(v,d=3)=>{const t=(+v).toFixed(d);return S.cfg.sepDec==="virgula"?t.replace(".",","):t}; // sem separador de milhar; decimal com ponto (padrão)
 const dc=()=>+S.cfg.dec||3;
 // ---------- Som e vibração ----------
 let actx=null;
@@ -387,7 +390,7 @@ function vColeta(){
     ${botaoColetar("obs",pode)}</section>`
   :`<section class="card" style="${R.auto?"border:2px solid var(--fix)":""}">
     ${S.colModo==="tempo"?`<label class="f">Coletar um ponto a cada (segundos)<div style="display:flex;gap:6px;flex-wrap:wrap">${["1","2","3","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-colint="${v}" aria-pressed="${String(S.colInt||"1")===v}" ${R.auto?"disabled":""}>${v} s</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colInt" value="${esc(S.colInt||"1")}" ${R.auto?"disabled":""}></div></label>`
-    :`<label class="f">Coletar um ponto a cada (metros)<div style="display:flex;gap:6px;flex-wrap:wrap">${["0,5","1","2","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-coldist="${v}" aria-pressed="${String(S.colDist||"1")===v}" ${R.auto?"disabled":""}>${v} m</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colDist" value="${esc(S.colDist||"1")}" ${R.auto?"disabled":""}></div></label>`}
+    :`<label class="f">Coletar um ponto a cada (metros)<div style="display:flex;gap:6px;flex-wrap:wrap">${["0.5","1","2","5","10"].map(v=>`<button style="min-height:40px;padding:0 14px" data-coldist="${v}" aria-pressed="${String(S.colDist||"1")===v}" ${R.auto?"disabled":""}>${v} m</button>`).join("")}<input class="m" style="width:90px" inputmode="decimal" data-bind="colDist" value="${esc(S.colDist||"1")}" ${R.auto?"disabled":""}></div></label>`}
     <span class="muted small">Cada ponto usa 1 época, com número automático (${esc(proxNome())}, …) e a descrição acima. Respeita "Somente FIX" e a tolerância H; os pontos fora do critério são pulados.</span>
     ${R.auto?`<div class="grid2"><div class="kv"><span>Coletados</span><b style="font-size:24px">${R.auto.n}</b></div><div class="kv"><span>Pulados (critério)</span><b>${R.auto.pulos}</b></div></div>
       <button class="pri big" style="background:var(--bad);border-color:var(--bad)" data-act="autoParar">Parar coleta contínua</button>`
@@ -989,7 +992,7 @@ function vConfig(){
     ${/xiaomi|redmi|poco/i.test(R.bg?.fabricante||"")?`<span class="small" style="color:var(--float)">Xiaomi: em Configurações › Apps › WA Survey, ligue <b>Início automático</b> e em <b>Economia de bateria</b> escolha <b>Sem restrições</b>. Nos recentes, segure o card do app e toque no cadeado.</span>`:`<span class="muted small">Se mesmo assim o celular desligar o app, em Configurações › Apps › WA Survey › Bateria escolha <b>Sem restrições</b>.</span>`}`):""}
   ${sec("Unidades e formato",`<div class="grid2">
     <label class="f">Casas decimais nas coordenadas${sel("dec",[["2","2 (cm)"],["3","3 (mm)"],["4","4"]])}</label>
-    <label class="f">Separador decimal${sel("sepDec",[["virgula","Vírgula (1.234,567)"],["ponto","Ponto (1,234.567)"]])}</label>
+    <label class="f">Separador decimal${sel("sepDec",[["ponto","Ponto (1234.567)"],["virgula","Vírgula (1234,567)"]])}</label>
     <label class="f">Ângulos e azimutes${sel("ang",[["gms","Graus ° ' \""],["dec","Graus decimais"],["grad","Grados (gon)"]])}</label>
     </div>
     <span class="muted small">Sistema de coordenadas e fuso ficam em cada projeto (aba Projetos).</span>`)}
@@ -1076,8 +1079,8 @@ const RADIO_PROTO={SNLonglink:{bt:"11000",mod:"LORA"},Transparente:{bt:"9600",mo
 const DIFF_MSG={"RTCM3.2":["rtcm1074b ontime 3.00","rtcm1084b ontime 3.00 2","rtcm1124b ontime 3.00 1","rtcm1094b ontime 3.00 1","rtcm1005b ontime 3.00 2","rtcm1033b ontime 3.00 2","rtcm1114b ontime 3.00","rtcm1230b ontime 10.00","rtcm4078sm257b ontime 1.00"],
   "RTCM3.2 (MSM5)":["rtcm1075b ontime 3.00","rtcm1085b ontime 3.00 2","rtcm1125b ontime 3.00 1","rtcm1095b ontime 3.00 1","rtcm1005b ontime 3.00 2","rtcm1033b ontime 3.00 2","rtcm1115b ontime 3.00","rtcm1230b ontime 10.00"],
   "RTCM3.0":["rtcm1004b ontime 1.00","rtcm1012b ontime 1.00","rtcm1005b ontime 5.00","rtcm1033b ontime 10.00"]};
-function rd(){S.radio=S.radio||{proto:"SNLonglink",canal:"1",freq:"455,0500",pot:"2.0"};return S.radio}
-function freqCanal(c){return (454.05+(+c||1)).toFixed(4).replace(".",",")}
+function rd(){S.radio=S.radio||{proto:"SNLonglink",canal:"1",freq:"455.0500",pot:"2.0"};return S.radio}
+function freqCanal(c){return (454.05+(+c||1)).toFixed(4)}
 function cs$$(t){let x=0;for(const ch of t)x^=ch.charCodeAt(0);return "$$"+t+"*"+x.toString(16).toUpperCase().padStart(2,"0")}
 function cmdsRadio(modo){
   const r=rd(),f=Math.round(num(r.freq)*10000),pr=RADIO_PROTO[r.proto]||RADIO_PROTO.SNLonglink;
@@ -1213,7 +1216,7 @@ function sBaseCfg(){
   <button class="pri big" data-act="iniciarBase" ${S.conectado?"":"disabled"}>${S.baseLigada?"Reiniciar base":"Iniciar base"}</button>
   ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte a base primeiro (Dispositivo › Conexão).</p>`}`;
 }
-function fmtBR(v){return v.toFixed(3).replace(".",",")}
+function fmtBR(v){return v.toFixed(3)}
 function vMapa(){
   const pts=proj()?.pontos||[];
   if(S.seguir||S.mapCE===null){S.mapCE=G.E;S.mapCN=G.N}
@@ -1363,8 +1366,8 @@ function sAparelhos(){
 function demoNota(){return `<p class="muted small" style="margin:0">Versão de teste: o receptor é simulado. Os dados de posição, status e NMEA imitam um receptor real para você avaliar as telas.</p>`}
 function tempo(t){const s=Math.floor((Date.now()-t)/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,"0")).join(":")}
 
-// ---------- pressionar o mapa por 2 s: digitar ponto para locar (já vem com a coordenada do lugar pressionado) ----------
-const PRESSAO_MS=2000;
+// ---------- pressionar o mapa por 3 s: digitar ponto para locar (já vem com a coordenada do lugar pressionado) ----------
+const PRESSAO_MS=3000;
 function pressaoIniciar(x,y){pressaoCancelar();
   const d=document.createElement("div");d.id="pressAnel";d.style.cssText=`position:fixed;left:${x-34}px;top:${y-34}px;width:68px;height:68px;border-radius:50%;border:4px solid var(--accent);pointer-events:none;z-index:50;opacity:.9;transform:scale(.2);transition:transform ${PRESSAO_MS}ms linear`;
   document.body.appendChild(d);requestAnimationFrame(()=>d.style.transform="scale(1)");
@@ -1373,7 +1376,7 @@ function pressaoIniciar(x,y){pressaoCancelar();
     const E=S.mapCE+((x-r.left)*k-vb.width/2)*mpp,N=S.mapCN-((y-r.top)*k-vb.height/2)*mpp;
     MG.supr=true;setTimeout(()=>MG.supr=false,600);vib(80,true);abrirDigitarPonto(E,N)},PRESSAO_MS)}
 function pressaoCancelar(){clearTimeout(MG.pressT);const d=document.getElementById("pressAnel");if(d)d.remove()}
-function abrirDigitarPonto(E,N){const dc_=+S.cfg.dec||3;R.dig={nome:S.lcNome||"L-01",E:E!=null?E.toFixed(dc_).replace(".",","):"",N:N!=null?N.toFixed(dc_).replace(".",","):"",h:"",desc:"",salvar:S.lcSalvar!==false};render()}
+function abrirDigitarPonto(E,N){const dc_=+S.cfg.dec||3;R.dig={nome:S.lcNome||"L-01",E:E!=null?E.toFixed(dc_):"",N:N!=null?N.toFixed(dc_):"",h:"",desc:"",salvar:S.lcSalvar!==false};render()}
 function vDigitarPonto(){const d=R.dig;if(!d)return "";
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center" data-digfundo="1">
   <section class="card" style="width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px 22px;gap:10px">
@@ -1854,9 +1857,9 @@ function ferrCorpo(){
   if(S.ferr==="offset"){
     body=`<span class="muted small">Cria pontos paralelos à linha A→B, deslocados para o lado escolhido. Útil para offset de meio-fio, cerca ou eixo.</span>
       <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label>
-      <label class="f">Distância do offset (m)<input class="m" inputmode="decimal" value="${esc(S.tD||"2,000")}" data-bind="tD"></label>
+      <label class="f">Distância do offset (m)<input class="m" inputmode="decimal" value="${esc(S.tD||"2.000")}" data-bind="tD"></label>
       <label class="f">Lado (olhando de A para B)<select data-bind="tLado"><option value="D" ${S.tLado!=="E"?"selected":""}>Direita</option><option value="E" ${S.tLado==="E"?"selected":""}>Esquerda</option></select></label>
-      <label class="f">Diferença de cota (m)<input class="m" inputmode="decimal" value="${esc(S.tDh||"0,000")}" data-bind="tDh"></label>
+      <label class="f">Diferença de cota (m)<input class="m" inputmode="decimal" value="${esc(S.tDh||"0.000")}" data-bind="tDh"></label>
       <label class="f">Pontos intermediários a cada (m)<input class="m" inputmode="decimal" value="${esc(S.tPasso||"")}" data-bind="tPasso" placeholder="só A e B"></label></div>
       ${pouco}<button class="pri" data-act="fazOffset" ${pts.length>=2?"":"disabled"}>Criar pontos de offset</button>`;
   }
@@ -1894,7 +1897,7 @@ function ferrCorpo(){
     body=`<span class="muted small">Prolonga a direção A→B e cria um ponto novo na distância escolhida. Também divide o trecho em partes iguais.</span>
       <div class="grid2"><label class="f">Ponto A<select data-bind="tA">${ptOpts(S.tA??"0",false)}</select></label><label class="f">Ponto B<select data-bind="tB">${ptOpts(S.tB??"1",false)}</select></label></div>
       <label class="f">O que fazer<select data-bind="tModo"><option value="alem" ${S.tModo!=="antes"&&S.tModo!=="dividir"?"selected":""}>Estender além de B</option><option value="antes" ${S.tModo==="antes"?"selected":""}>Estender antes de A</option><option value="dividir" ${S.tModo==="dividir"?"selected":""}>Dividir A→B em partes iguais</option></select></label>
-      <label class="f">${S.tModo==="dividir"?"Número de partes":"Distância (m)"}<input class="m" inputmode="decimal" value="${esc(S.tExt||(S.tModo==="dividir"?"4":"5,000"))}" data-bind="tExt"></label>
+      <label class="f">${S.tModo==="dividir"?"Número de partes":"Distância (m)"}<input class="m" inputmode="decimal" value="${esc(S.tExt||(S.tModo==="dividir"?"4":"5.000"))}" data-bind="tExt"></label>
       <span class="muted small">A cota segue a inclinação de A para B.</span>
       ${pouco}<button class="pri" data-act="fazEstender" ${pts.length>=2?"":"disabled"}>Criar ponto(s)</button>`;
   }
@@ -2033,7 +2036,7 @@ function utmKConv(lat,lon){const P=tmPar(zonaAtual(),hemiAtual()),l0=P.lam0*Math
 function geoc(lat,lon,h){const a=6378137,e2=0.00669438002290,f=lat*Math.PI/180,l=lon*Math.PI/180,N=a/Math.sqrt(1-e2*Math.sin(f)**2);return [(N+h)*Math.cos(f)*Math.cos(l),(N+h)*Math.cos(f)*Math.sin(l),(N*(1-e2)+h)*Math.sin(f)]}
 const FORMATOS={csv:"CSV",txt:"TXT",dxf:"DXF (CAD)",shp:"Shapefile",kml:"KML (Google Earth)",pdf:"PDF (relatório)",geojson:"GeoJSON",bruto:"Dados brutos (tudo)"};
 function cfgExp(){S.exp=Object.assign({fmt:S.cfg.formatoPadrao||"csv",campos:PRESETS.PNEZD.slice(),sep:S.cfg.csvSep||",",decSep:"ponto",cab:true,dec:S.cfg.dec||"3",
-  incluirProj:true,soFix:false,filtro:"",dxfNome:true,dxfCota:true,dxfDesc:false,dxfAlt:"0,5",dxfCamadas:true},S.exp||{});return S.exp}
+  incluirProj:true,soFix:false,filtro:"",dxfNome:true,dxfCota:true,dxfDesc:false,dxfAlt:"0.5",dxfCamadas:true},S.exp||{});return S.exp}
 let R_EXP=null; // último arquivo gerado {nome,ext,txt|bytes,mime}
 
 function pontosExport(){
@@ -2516,7 +2519,7 @@ function lerBinario(txt){
       const n=u(0);for(let k=0;k<n&&1+k*3+2<ml;k++){const key=u(1+k*3),v=u(2+k*3)|(u(3+k*3)<<8);
         if(key===0x2f&&v<=100){const ant=R.bateria;R.bateria=v;if(ant!==v&&S.tela==="home")render(false)}}
     }
-    if(id===37&&ml>=40){const str=(a,n)=>pl.slice(a,a+n).replace(/[\x00 ]+$/,"").trim();R.serie=str(24,16);R.versao=str(40,16)||R.versao;R.placa=str(8,16);if(!S.antFaseManual&&R.serie){const f=/^S6/i.test(R.serie)?"0,078":/^T7/i.test(R.serie)?"0,057":null;if(f&&S.antFase!==f){S.antFase=f;salvar()}}}
+    if(id===37&&ml>=40){const str=(a,n)=>pl.slice(a,a+n).replace(/[\x00 ]+$/,"").trim();R.serie=str(24,16);R.versao=str(40,16)||R.versao;R.placa=str(8,16);if(!S.antFaseManual&&R.serie){const f=/^S6/i.test(R.serie)?"0.078":/^T7/i.test(R.serie)?"0.057":null;if(f&&S.antFase!==f){S.antFase=f;salvar()}}}
   }
   if(R.bbuf.length>4096)R.bbuf=R.bbuf.slice(-16);
 }

@@ -413,18 +413,23 @@ function pontosDesde(t){return (proj()?.pontos||[]).filter(p=>new Date(p.quando)
 function nomeArq(n){return (n||"EST").replace(/[^A-Za-z0-9_-]/g,"").slice(0,16)||"EST"}
 function antenaModelo(){const sr=R.serie||S.btNome||"";return /^T7/i.test(sr)?"T70(NGS)":/^S6/i.test(sr)?"S6(NGS)":""}
 async function iniciarEstaticoCN(){
-  const e=S.est;e.formato="CNB";e.destino="receptor";
+  const e=S.est;e.formato="CNB";e.destino="receptor";e.arqRx="";
   const n=nomeArq(e.nome),taxa=(num(e.taxa)||1).toFixed(6),h=num(e.altAnt)||0;
-  if(receptorReal()){
+  if(receptorReal()&&marcaRx()==="spectra"){
+    const sit=n.replace(/[^A-Za-z0-9]/g,"").slice(-4).padStart(4,"0").toUpperCase();
+    await enviarLista([`$PASHS,ANH,${h.toFixed(4)},V`,`$PASHS,DRI,${(num(e.taxa)||1).toFixed(2)}`,`$PASHS,SIT,${sit}`,"$PASHS,REC,Y","$PASHS,NME,RCS,C,ON,1"],"Gravar estático (Spectra)",250);
+    e.formato="ATOM (Spectra)";e.arqRx="site "+sit;
+  }else if(receptorReal()){
     R.estOk=false;
     const mod=antenaModelo();
     await enviarLista([...(mod?[`set antenna ${h.toFixed(6)} 1 ${mod}`]:[]),`set datarecord ${n} ${n}.cnb ${taxa} 0 1 0 7000.000000 0`,`set datarecord start ${n}.cnb`,"log datarecord"],"Gravar estático",250);
     setTimeout(()=>{if(S.est.gravando)toast(R.estOk?"O receptor confirmou: gravando "+n+".cnb":"Comandos enviados. Se o LED de gravação do receptor não acender, confira em Comandos do receptor.")},2500);
   }
-  e.gravando=true;e.inicio=Date.now();e.arqRx=n+".cnb";salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada: "+n+".cnb no receptor");
+  if(!e.arqRx||marcaRx()!=="spectra")e.arqRx=n+".cnb";
+  e.gravando=true;e.inicio=Date.now();salvar();render();falar("Gravação estática iniciada");toast("Gravação estática iniciada no receptor ("+e.arqRx+")");
 }
 async function pararEstaticoCN(auto){
-  if(receptorReal())await enviarLista(["set datarecord stop","log recordfile "+dataRx()+"-"+dataRx()],"Parar estático",250);
+  if(receptorReal())await enviarLista(marcaRx()==="spectra"?["$PASHS,REC,N"]:["set datarecord stop","log recordfile "+dataRx()+"-"+dataRx()],"Parar estático",250);
   pararEstatico(auto);falar("Gravação estática encerrada");
 }
 function dataRx(){const d=new Date();return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getDate()).padStart(2,"0")}
@@ -899,7 +904,9 @@ function cmdsRoverRadio(){
   const m=num(S.mascara)||10;
   return ["ecutoff "+m,"gloecutoff "+m,"interfacemode radio compass compass on","unlogall","fix none","set pvtobsmode single","rtkobsmode 0","interfacemode radio auto auto on","tst setcors disconn","interfacemode gprs compass compass on","set hotspodrtcmmode caster1 off","saveconfig",...nmeaLogs()];
 }
+const CMDS_ROVER_SPECTRA=["$PASHS,CPD,MOD,ROV","$PASHS,ANR,PC1","$PASHS,RTK,STI,AUT","$PASHS,CPD,RST"];
 function cmdsRoverPDA(){
+  if(marcaRx()==="spectra")return [...CMDS_ROVER_SPECTRA,...NMEA_ON.spectra];
   const m=num(S.mascara)||10;
   return ["set rtcmforward off","findcm disconn","ecutoff "+m,"gloecutoff "+m,...(S.conexao==="bt"?["interfacemode bluetooth compass compass on"]:[]),"unlogall","fix none","set pvtobsmode single","rtkobsmode 0",
     "interfacemode gprs compass compass on","interfacemode radio compass compass on","tst setcors disconn","set datalink radio off","set pdacors sinoluowang off","set hotspodrtcmmode caster1 off","saveconfig",...nmeaLogs()];
@@ -947,7 +954,7 @@ async function iniciarRoverCN(){
   passos("Iniciar rover",pda?["Config parâmetros do receptor","Ligar NTRIP pelo celular"]:["Config rádio interno","Config parâmetros do receptor"]);
   const real=receptorReal();
   if(pda){
-    passo(0,"run");if(real&&!modoSimples())await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",80);else await espera(500);passo(0,"ok");
+    passo(0,"run");if(real&&(!modoSimples()||marcaRx()==="spectra"))await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",120);else await espera(500);passo(0,"ok");
     passo(1,"run");S.correcao="ntrip";
     if(NATIVO){try{if(S.corrLigada)await NP.GnssTcp.ntripDisconnect();R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;const ok=await ntripLigar();if(ok){S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}else passo(1,"erro")}catch(e){passo(1,"erro")}}
     else{S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}
@@ -1117,7 +1124,7 @@ function sCorr(){
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
 function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
-const CMDS_SPECTRA=[["$PASHS,NME,GGA,C,ON,1","Spectra: ligar GGA no Bluetooth","Porta C = Bluetooth nos receptores Spectra/Ashtech."],["$PASHQ,PAR","Spectra: ver configuração",""],["$PASHQ,RID","Spectra: identificação do receptor",""]];
+const CMDS_SPECTRA=[["$PASHQ,RID","Identificação do receptor","Testa se o receptor responde ($PASHR,RID)."],["$PASHS,NME,GGA,C,ON,1","Ligar GGA no Bluetooth","Porta C = Bluetooth nos receptores Spectra."],["$PASHS,CPD,MOD,ROV","Modo rover",""],["$PASHS,CPD,RST","Reiniciar RTK",""],["$PASHS,NME,PWR,C,ON,10","Ligar bateria",""],["$PASHQ,FIL,STS,0","Memória livre",""]];
 const CMDS_COMNAV=[
   ["log version","Ver versão da placa","Testa se o receptor responde a comandos por esta conexão."],
   ["log comconfig","Ver configuração das portas","Mostra cada porta (COM1, COM2, COM3…) e o que ela aceita. Mande o print disso."],
@@ -1722,6 +1729,7 @@ async function enviarComando(txt,silencioso){
 // confirmações em texto que podem vir no meio dos dados binários
 function textoRx(txt){
   R.rawTail=((R.rawTail||"")+txt).slice(-3000);
+  if(/\$PASHR,ACK/.test(txt))R.respondeu=true;
   if(/Command accepted|command \w+ ok|OK!/i.test(txt)){R.respondeu=true;const m=txt.match(/Command accepted[^\r\n]*|command \w+ ok/gi);if(m)m.forEach(x=>R.cons.push("← "+x))}
   if(/command datarecord ok/i.test(txt))R.estOk=true;
   const f=R.rawTail.match(/[A-Za-z0-9_-]+\.cnb/gi);if(f){R.arqsRx=[...new Set([...(R.arqsRx||[]),...f])].slice(-40)}
@@ -1768,20 +1776,25 @@ async function buscarCanal(){
 }
 // receptor conectado mas sem NMEA: liga a saída NMEA com os comandos da marca (só saída de posição, não mexe na configuração)
 const NMEA_ON={
-  spectra:["$PASHS,NME,GGA,C,ON,1","$PASHS,NME,GST,C,ON,1","$PASHS,NME,RMC,C,ON,1","$PASHS,NME,GSA,C,ON,1","$PASHS,NME,GSV,C,ON,5","$PASHS,NME,ZDA,C,ON,1"],
+  spectra:["$PASHS,NME,GGA,C,ON,1","$PASHS,NME,GST,C,ON,1","$PASHS,NME,RMC,C,ON,1","$PASHS,NME,GSA,C,ON,1","$PASHS,NME,GSV,C,ON,5","$PASHS,NME,ZDA,C,ON,60","$PASHS,NME,PWR,C,ON,10","$PASHQ,RID"],
   comnav:["log gpgga ontime 1","log gpgst ontime 1","log gprmc ontime 1","log gpgsa ontime 1","log gpgsv ontime 5"],
   unicore:["GPGGA 1","GPGST 1","GPRMC 1","GPGSA 1","GPGSV 5"],
   hemisphere:["$JASC,GPGGA,1","$JASC,GPGST,1","$JASC,GPRMC,1","$JASC,GPGSA,1"]
 };
-function marcaRx(){const m=(rec()?.marca||"").toLowerCase(),n=(S.btNome||"").toUpperCase();
-  if(/^SP\d|^SP60|^SP80|^SP90|PROMARK/.test(n)||m==="spectra")return "spectra";
-  if(/^(S6|T7|T3|N3|M6)/.test(n)||m==="comnav")return "comnav";return ""}
+function marcaRx(){const m=(rec()?.marca||"").toLowerCase(),n=(S.conexao==="bt"?(S.btNome||""):"").toUpperCase(),sr=(R.serie||"").toUpperCase();
+  if(/^SP\d|PROMARK/.test(n))return "spectra";
+  if(/^(S6|T7|T3|N3|M6)/.test(n)||/^(S6|T7)/.test(sr))return "comnav";
+  if(m==="spectra")return "spectra";if(m==="comnav")return "comnav";return ""}
 async function ligarNmea(){
   if(!receptorReal()||R.ultGGA)return;
   const mk=marcaRx(),lista=mk?NMEA_ON[mk]:[...NMEA_ON.spectra,...NMEA_ON.comnav,...NMEA_ON.unicore,...NMEA_ON.hemisphere];
   toast("O receptor não está mandando NMEA. Ligando a saída de posição"+(mk?" ("+mk+")":"")+"…");
   await enviarLista(lista,"Ligar NMEA",200);
   setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Ainda sem NMEA. Ligue a saída NMEA (GGA) no app do fabricante ou grave os dados brutos em Comandos e me mande.")},6000);
+}
+async function iniciarSpectra(){
+  if(!receptorReal()||marcaRx()!=="spectra")return;
+  await espera(500);await enviarLista(NMEA_ON.spectra,"Spectra: ligar NMEA",150);
 }
 async function iniciarComNav(){
   if(!receptorReal()||modoSimples()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
@@ -1799,6 +1812,10 @@ function nmea(l){
   const star=l.indexOf("*"),body=l.slice(1,star>0?star:undefined);
   if(star>0){let c=0;for(const ch of body)c^=ch.charCodeAt(0);if(c!==parseInt(l.slice(star+1,star+3),16))return}
   const f=body.split(","),tal=f[0].slice(0,2),t=f[0].slice(2);
+  if(f[0]==="PASHR"){R.respondeu=true;
+    if(f[1]==="PWR"&&f[5]!==""&&+f[5]<=100){R.bateria=+f[5]}
+    if(f[1]==="RID"){R.serie=(f[8]||"").trim();R.versao="Spectra "+(f[2]||"")+" fw "+(f[3]||"")}
+    return}
   R.ultimo=Date.now();G.nmea.push(l);if(G.nmea.length>60)G.nmea.splice(0,G.nmea.length-40);
   if(t==="GGA"){
     const q=+f[6];G.fix=q===4?4:q===5?5:q>0?1:0;G.sats=+f[7]||0;const hdop=+f[8];
@@ -1826,6 +1843,7 @@ async function conectarReal(silencioso){
     if(S.conexao==="bt"){S.btCanais=S.btCanais||{};const ch=R.canalTeste??(S.btCanais[S.btAddr]||0);R.canalAtual=ch;await NP.GnssTcp.btConnect({address:S.btAddr,channel:ch})}
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
+    iniciarSpectra();
     iniciarComNav().then(ok=>{if(ok===false&&!R.emLoop&&S.conexao==="bt")buscarCanal()});
     if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
     bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");
@@ -1927,7 +1945,7 @@ async function desconectarReal(){
 // ---------- NTRIP ----------
 // formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
 function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
-function envAtual(){S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];if(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6)/i.test(R.serie||S.btNome||""))return "vd";return S.cnEnv||"raw"}
+function envAtual(){S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];const mk=marcaRx();if(mk==="spectra")return "raw";if(mk==="comnav")return "vd";return "raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}

@@ -1114,6 +1114,7 @@ function sCorr(){
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
 function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
+const CMDS_SPECTRA=[["$PASHS,NME,GGA,C,ON,1","Spectra: ligar GGA no Bluetooth","Porta C = Bluetooth nos receptores Spectra/Ashtech."],["$PASHQ,PAR","Spectra: ver configuração",""],["$PASHQ,RID","Spectra: identificação do receptor",""]];
 const CMDS_COMNAV=[
   ["log version","Ver versão da placa","Testa se o receptor responde a comandos por esta conexão."],
   ["log comconfig","Ver configuração das portas","Mostra cada porta (COM1, COM2, COM3…) e o que ela aceita. Mande o print disso."],
@@ -1129,7 +1130,7 @@ function sCons(){
     <span class="muted small">Envia texto direto ao receptor pela conexão atual (Wi-Fi ou Bluetooth) e mostra as respostas. Comandos para receptores ComNav (placa K8/SinoGNSS).</span>
     <div class="grid2" style="grid-template-columns:1fr auto"><input class="m" id="cmdTxt" placeholder="ex.: log version" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="pri" data-act="cmdEnviar">Enviar</button></div>
     ${S.conectado&&S.fonte==="tcp"?"":`<span class="small" style="color:var(--float)">Conecte o receptor primeiro.</span>`}</section>
-  <section class="card"><h3>Atalhos ComNav</h3><div class="list">${CMDS_COMNAV.map(([c,n,d],i)=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-cmd="${i}"><span><b>${n}</b><br><span class="m small muted">${esc(c)}</span>${d?`<br><span class="small muted">${d}</span>`:""}</span><span class="muted">›</span></button>`).join("")}</div>
+  <section class="card"><h3>Atalhos ${marcaRx()==="spectra"?"Spectra":"ComNav"}</h3><div class="list">${(marcaRx()==="spectra"?CMDS_SPECTRA:CMDS_COMNAV).map(([c,n,d],i)=>`<button class="row" style="grid-template-columns:1fr auto;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line)" data-cmd="${i}"><span><b>${n}</b><br><span class="m small muted">${esc(c)}</span>${d?`<br><span class="small muted">${d}</span>`:""}</span><span class="muted">›</span></button>`).join("")}</div>
     <button data-act="brutoGravar" style="margin-top:8px">Gravar dados brutos (60 s) e enviar</button>
     <span class="muted small">Grava tudo o que o receptor manda (inclusive o formato próprio da ComNav) e abre o compartilhar. Mande o arquivo para o Claude descobrir onde vem a bateria. Deixe o app da ComNav fechado.</span>
     <span class="muted small">Ordem sugerida: 1) Ver versão → se responder, 2) Ver configuração das portas → me mande o print. Não use "Gravar" antes de confirmar que fixou.</span></section>
@@ -1259,7 +1260,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.medrm){S.medList.splice(+b.dataset.medrm,1);render();return}
   if(b.dataset.linrm){S.linhaPts.splice(+b.dataset.linrm,1);render();return}
   if(b.dataset.lindel){proj().linhas.splice(+b.dataset.lindel,1);salvar();render();toast("Linha apagada");return}
-  if(b.dataset.cmd!=null){const c=CMDS_COMNAV[+b.dataset.cmd];if(c)enviarComando(c[0]);return}
+  if(b.dataset.cmd!=null){const c=(marcaRx()==="spectra"?CMDS_SPECTRA:CMDS_COMNAV)[+b.dataset.cmd];if(c)enviarComando(c[0]);return}
   const a=b.dataset.act;
   if(a==="irConexao"){S.tela="receptor";S.sub="conexao";render()}
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
@@ -1752,6 +1753,23 @@ async function buscarCanal(){
     S.corrLigada=corrAntes;ativarSimples();
   }finally{R.emLoop=false;R.trocandoCanal=false}
 }
+// receptor conectado mas sem NMEA: liga a saída NMEA com os comandos da marca (só saída de posição, não mexe na configuração)
+const NMEA_ON={
+  spectra:["$PASHS,NME,GGA,C,ON,1","$PASHS,NME,GST,C,ON,1","$PASHS,NME,RMC,C,ON,1","$PASHS,NME,GSA,C,ON,1","$PASHS,NME,GSV,C,ON,5","$PASHS,NME,ZDA,C,ON,1"],
+  comnav:["log gpgga ontime 1","log gpgst ontime 1","log gprmc ontime 1","log gpgsa ontime 1","log gpgsv ontime 5"],
+  unicore:["GPGGA 1","GPGST 1","GPRMC 1","GPGSA 1","GPGSV 5"],
+  hemisphere:["$JASC,GPGGA,1","$JASC,GPGST,1","$JASC,GPRMC,1","$JASC,GPGSA,1"]
+};
+function marcaRx(){const m=(rec()?.marca||"").toLowerCase(),n=(S.btNome||"").toUpperCase();
+  if(/^SP\d|^SP60|^SP80|^SP90|PROMARK/.test(n)||m==="spectra")return "spectra";
+  if(/^(S6|T7|T3|N3|M6)/.test(n)||m==="comnav")return "comnav";return ""}
+async function ligarNmea(){
+  if(!receptorReal()||R.ultGGA)return;
+  const mk=marcaRx(),lista=mk?NMEA_ON[mk]:[...NMEA_ON.spectra,...NMEA_ON.comnav,...NMEA_ON.unicore,...NMEA_ON.hemisphere];
+  toast("O receptor não está mandando NMEA. Ligando a saída de posição"+(mk?" ("+mk+")":"")+"…");
+  await enviarLista(lista,"Ligar NMEA",200);
+  setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Ainda sem NMEA. Ligue a saída NMEA (GGA) no app do fabricante ou grave os dados brutos em Comandos e me mande.")},6000);
+}
 async function iniciarComNav(){
   if(!receptorReal()||modoSimples()||!(rec()?.marca==="ComNav"||/^(S6|T7|T3|N3|M6|SinoGNSS)/i.test(S.btNome||"")))return;
   await espera(600);
@@ -1791,14 +1809,14 @@ async function conectarReal(silencioso){
   if(S.conexao==="bt"&&!S.btAddr){toast("Toque em Buscar aparelhos pareados e escolha o receptor");return}
   S.conectando=true;render();
   try{
-    R.buf="";R.bbuf="";R.serie="";R.bateria=null;R.versao="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
+    R.buf="";R.bbuf="";R.ultGGA="";R.serie="";R.bateria=null;R.versao="";R.temGST=false;R.temGSA=false;G.nmea=[];G.const={GPS:0,GLONASS:0,Galileo:0,BeiDou:0};
     if(S.conexao==="bt"){S.btCanais=S.btCanais||{};const ch=R.canalTeste??(S.btCanais[S.btAddr]||0);R.canalAtual=ch;await NP.GnssTcp.btConnect({address:S.btAddr,channel:ch})}
     else await NP.GnssTcp.connect({host:S.ip.trim(),port:parseInt(S.porta)||9902,wifi:S.conexao==="wifi"});
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
     iniciarComNav().then(ok=>{if(ok===false&&!R.emLoop&&S.conexao==="bt")buscarCanal()});
     if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
     bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");
-    setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Conectado, mas sem NMEA. Confira a porta e se a saída NMEA (GGA) está ligada no receptor.")},6000);
+    setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)ligarNmea()},5000);
   }catch(e){S.conectando=false;if(silencioso){render();return false}
     if(S.conexao==="wifi"&&!R.autoDetect&&/EHOSTUNREACH|ECONNREFUSED|timed out|failed to connect/i.test(String(e.message||e))){R.autoDetect=true;toast("Não achei o receptor em "+S.ip+":"+S.porta+". Procurando na rede Wi-Fi…");
       const ok=await detectarWifi(false);R.autoDetect=false;if(ok){return conectarReal()}}

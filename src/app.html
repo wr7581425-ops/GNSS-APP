@@ -311,7 +311,7 @@ function header(){
   $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
   $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(nomeRx()?`${nomeRx()} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
-  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?(G.dgps?"DGPS (correção só de código)":"Autônomo (sem correção)"):"Buscando satélites";
+  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.rtx&&G.fix>=4?`RTX · ${br(G.hrms)} m`:G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?(G.dgps?"DGPS (correção só de código)":"Autônomo (sem correção)"):"Buscando satélites";
   if(S.tela!=="home"&&ABA_DE[S.tela])S.aba=ABA_DE[S.tela];
   $("hBack").hidden=S.tela==="home";
   document.querySelectorAll("[data-aba]").forEach(b=>b.setAttribute("aria-current",b.dataset.aba===S.aba?"page":"false"));
@@ -2557,9 +2557,9 @@ function trimbleRegistros(s){
     if(t===2&&l>=24){T.lat=f64(o)*180/Math.PI;T.lon=f64(o+8)*180/Math.PI;T.h=f64(o+16);T.novo=true}
     if(t===9&&l>=16){T.pdop=f32(o);T.hdop=f32(o+4);T.vdop=f32(o+8)}
     if(t===12&&l>=36){T.se=f32(o+4);T.sn=f32(o+8);T.su=f32(o+16)}
-    if(t===38&&l>=10){T.idade=f32(o+6);T.sol=by(o+4);T.rtk=by(o+5);T.net=by(o+10);T.net2=by(o+11);T.tipo38=l>=26?by(o+25):null;T.raw38=Array.from({length:l},(_,k)=>by(o+k).toString(16).padStart(2,"0")).join("")}
+    if(t===38&&l>=10){T.idade=f32(o+6);T.sol=by(o+4);T.rtk=by(o+5);T.net=by(o+10);T.net2=by(o+11);T.tipo38=l>=26?by(o+25):null;T.rtx=!!(by(o+10)&0x40)||T.tipo38===0x1b;T.raw38=Array.from({length:l},(_,k)=>by(o+k).toString(16).padStart(2,"0")).join("")}
     j=o+l}
-  R.tsol=T;if(!T.novo||T.lat==null)return;T.novo=false;
+  R.tsol=T;if(!T.novo||T.lat==null)return;T.novo=false;G.rtx=!!T.rtx&&(T.f2&3)===3;
   // monta NMEA a partir do GSOF
   const d=new Date(),hh=d.toISOString().slice(11,19).replace(/:/g,"")+".00";
   const dm=(v,g)=>{const a=Math.abs(v),gg=Math.floor(a),m=(a-gg)*60;return String(gg).padStart(g,"0")+m.toFixed(7).padStart(10,"0")};

@@ -36,6 +36,11 @@ jobs:
           VERSION_CODE=${{ github.run_number }} bash scripts/patch-android.sh
           npx cap sync android
 
+      - name: Chave fixa de assinatura (permite atualizar por cima)
+        run: |
+          mkdir -p ~/.android
+          cp assinatura/wasurvey.keystore ~/.android/debug.keystore
+
       - name: Compilar APK
         working-directory: android
         run: |

@@ -877,7 +877,7 @@ function statusStrip(){
 }
 function vHome(){
   const t=TILES[S.aba]||[];
-  return `${statusStrip()}
+  return `${statusStrip()}${bannerAtualizacao()}
   <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ttl">${ABA_NOME[S.aba]}</span><span class="muted small">${esc(proj()?.nome||"")}</span></div>
   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px;padding:6px 0 18px">
     ${t.map(([id,n,ic,cor])=>`<button data-tile="${id}" style="background:transparent;border:0;min-height:0;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:600;font-size:14px;line-height:1.2;text-align:center">${icone(ic,cor)}<span>${n}</span></button>`).join("")}
@@ -1023,6 +1023,11 @@ function vConfig(){
   const ck=(k,t)=>`<label class="ck"><input type="checkbox" data-cfg="${k}" ${c[k]?"checked":""}> ${t}</label>`;
   const sec=(t,body)=>`<section class="card"><h3>${t}</h3>${body}</section>`;
   return `<span class="ttl">Configurações</span>
+  ${bannerAtualizacao()}
+  ${sec("Versão e backup",`<div class="kv"><span>Versão instalada</span><b>${esc(APP_VERSAO)}</b></div>
+    <div class="grid2"><button data-act="verAtualiz">Procurar atualização</button><button data-act="backup">Fazer backup das obras</button></div>
+    <button data-act="restaurar">Restaurar backup</button>
+    <span class="muted small">O backup salva todas as obras e pontos num arquivo em Download/WASurvey. Faça antes de trocar de celular ou desinstalar o app.</span>`)}
   ${NATIVO?sec("Funcionar com o app fechado",`<span class="muted small">Com o receptor conectado, o WA Survey continua trabalhando em segundo plano: correção NTRIP, gravação estática, servidor NMEA e local fictício seguem ligados mesmo com a tela apagada, com outro app aberto ou tirando o app dos recentes. Fica um aviso fixo na barra de notificações com o status e o botão <b>Desligar tudo</b>.</span>
     <div class="kv"><span>Economia de bateria</span><b style="color:${R.bg?.semEconomia?"var(--fix)":"var(--float)"}">${R.bg?(R.bg.semEconomia?"Liberado":"Restrito"):"—"}</b></div>
     <div class="kv"><span>Aviso na barra</span><b style="color:${R.bg?.notificacao?"var(--fix)":"var(--float)"}">${R.bg?(R.bg.notificacao?"Permitido":"Bloqueado"):"—"}</b></div>
@@ -1556,6 +1561,10 @@ document.addEventListener("click",e=>{
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
+  if(a==="atualizar"){instalarAtualizacao();return}
+  if(a==="verAtualiz"){verificarAtualizacao(true);return}
+  if(a==="backup"){fazerBackup();return}
+  if(a==="restaurar"){restaurarBackup();return}
   if(a==="bgBateria"){NP.GnssTcp.askBattery().then(()=>setTimeout(lerSegundoPlano,4000)).catch(e=>toast(""+(e.message||e)));return}
   if(a==="bgNotif"){NP.GnssTcp.askNotifications().then(lerSegundoPlano).catch(()=>{});return}
   if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
@@ -2838,6 +2847,46 @@ async function sincronizarNativo(){
   if(st.servidor){S.servidor=true}
   if(avisos.length){toast("Continuou ligado com o app fechado: "+avisos.join(", "));render()}
 }
+// ---------- atualização: confere a última versão no GitHub e instala por cima ----------
+const REPO_API="https://api.github.com/repos/wr7581425-ops/GNSS-APP/releases/latest";
+function numVersao(v){const m=String(v||"").match(/(\d+)\.(\d+)\.(\d+)/);return m?(+m[1])*1e6+(+m[2])*1e3+(+m[3]):0}
+async function verificarAtualizacao(manual){
+  if(!NATIVO){if(manual)toast("Só no app instalado");return}
+  try{const r=await fetch(REPO_API,{headers:{Accept:"application/vnd.github+json"}});if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();
+    const ap=(j.assets||[]).find(a=>/\.apk$/i.test(a.name));const nova=String(j.tag_name||"").replace(/^v/,"");
+    R.atualiz={versao:nova,url:ap&&ap.browser_download_url,mb:ap?ap.size/1048576:0,checado:Date.now()};
+    if(numVersao(nova)>numVersao(APP_VERSAO)&&ap){R.atualiz.tem=true;if(manual||S.tela==="home")toast("Nova versão "+nova+" disponível")}
+    else if(manual)toast("Você já está na versão mais nova ("+APP_VERSAO+")");
+    render()}
+  catch(e){if(manual)toast("Sem conexão para verificar ("+(e.message||e)+")")}
+}
+async function instalarAtualizacao(){
+  const a=R.atualiz;if(!a?.url)return;R.baixando={bytes:0,total:0};render();
+  try{await NP.GnssTcp.installUpdate({url:a.url});R.baixando=null;render()}
+  catch(e){R.baixando=null;render();const m=String(e.message||e);
+    if(m.includes("PERMISSAO"))toast("Permita “Instalar apps desconhecidos” para o WA Survey e toque em Atualizar de novo");
+    else toast("Não consegui baixar: "+m)}
+}
+function bannerAtualizacao(){const a=R.atualiz;if(!a?.tem)return "";
+  return `<section class="card" style="border:2px solid var(--fix);background:var(--fix-bg)"><div class="split"><b style="color:var(--fix)">Nova versão ${esc(a.versao)} disponível</b><span class="muted small">você está na ${esc(APP_VERSAO)}</span></div>
+    ${R.baixando?`<span class="small">Baixando… ${R.baixando.total?Math.round(R.baixando.bytes/R.baixando.total*100)+"%":br(R.baixando.bytes/1048576,1)+" MB"}</span>`:`<button class="pri" data-act="atualizar">Atualizar agora (${br(a.mb,1)} MB)</button><span class="muted small">Instala por cima: obras, pontos e configurações continuam.</span>`}</section>`}
+// ---------- backup das obras ----------
+async function fazerBackup(){
+  const nome="WASurvey_backup_"+new Date().toISOString().slice(0,16).replace(/[-:T]/g,"")+".json";
+  const dados=JSON.stringify({app:"WA Survey",versao:APP_VERSAO,quando:new Date().toISOString(),projetos:S.projetos,arquivos:S.arquivos,codigos:S.codigos});
+  try{await NP.Filesystem.writeFile({path:"WASurvey/backup/"+nome,data:dados,directory:"DATA",encoding:"utf8",recursive:true});
+    const r=await NP.GnssTcp.saveToDownloads({path:"WASurvey/backup/"+nome,mime:"application/json"});bip("ok");toast("Backup salvo em "+r.where)}
+  catch(e){toast("Não consegui salvar o backup: "+(e.message||e))}
+}
+async function restaurarBackup(){
+  let a;try{a=await NP.GnssTcp.pickFile()}catch(e){return}
+  try{const r=await NP.Filesystem.readFile({path:a.path,directory:"DATA",encoding:"utf8"});const j=JSON.parse(r.data);if(!Array.isArray(j.projetos))throw new Error("arquivo não é um backup do WA Survey");
+    let n=0,np=0;for(const p of j.projetos){const ex=S.projetos.find(x=>x.id===p.id);if(!ex){S.projetos.push(p);n++;np+=p.pontos.length}
+      else{for(const pt of p.pontos)if(!ex.pontos.some(q=>q.nome===pt.nome)){ex.pontos.push(pt);np++}}}
+    if(Array.isArray(j.arquivos))for(const f of j.arquivos)if(!S.arquivos.some(x=>x.id===f.id))S.arquivos.push(f);
+    S.projetos.forEach(p=>obrasSujas.add(p.id));salvar();bip("ok");toast(`Backup restaurado: ${n} obras novas · ${np} pontos`);render()}
+  catch(e){toast("Não consegui restaurar: "+(e.message||e))}
+}
 // pede, uma vez, o aviso na barra e a liberação da economia de bateria (sem isso o Android pode desligar o app em segundo plano)
 async function prepararSegundoPlano(forcar){
   if(!NATIVO||!NP.GnssTcp?.backgroundInfo)return;
@@ -2850,6 +2899,8 @@ async function prepararSegundoPlano(forcar){
 async function lerSegundoPlano(){try{R.bg=await NP.GnssTcp.backgroundInfo();render()}catch(e){}}
 if(NATIVO&&NP.GnssTcp)setTimeout(()=>{sincronizarNativo();lerSegundoPlano()},300);
 if(NATIVO&&NP.Filesystem)carregarObras();else R.obrasCarregadas=true;
+if(NATIVO)setTimeout(()=>verificarAtualizacao(false),4000);
+if(NATIVO&&NP.GnssTcp)NP.GnssTcp.addListener("update",u=>{R.baixando={bytes:u.bytes,total:u.total};render(false)});
 // envia a posição (GGA) ao caster a cada 10 s, exigido em redes VRS
 setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ultGGA&&Date.now()-R.ggaEnv>10000){R.ggaEnv=Date.now();NP.GnssTcp.ntripGGA({line:R.ultGGA}).catch(()=>{})}},2000);
 

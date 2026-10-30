@@ -510,6 +510,59 @@ public class GnssTcpPlugin extends Plugin {
         }
     }
 
+    // ---------- atualização do app ----------
+    /** Baixa o APK novo e abre o instalador do Android (instala por cima, mantendo os dados). */
+    @PluginMethod
+    public void installUpdate(final PluginCall call) {
+        final String url = call.getString("url", "");
+        if (Build.VERSION.SDK_INT >= 26 && !ctx().getPackageManager().canRequestPackageInstalls()) {
+            try {
+                android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + ctx().getPackageName()));
+                i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx().startActivity(i);
+            } catch (Exception ignored) { }
+            call.reject("PERMISSAO");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                java.io.File dir = new java.io.File(ctx().getCacheDir(), "compartilhar");
+                dir.mkdirs();
+                java.io.File apk = new java.io.File(dir, "WASurvey-atualizacao.apk");
+                String atual = url;
+                java.net.HttpURLConnection c = null;
+                for (int r = 0; r < 6; r++) {
+                    c = (java.net.HttpURLConnection) new java.net.URL(atual).openConnection();
+                    c.setInstanceFollowRedirects(false);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    c.setRequestProperty("User-Agent", "WASurvey");
+                    int code = c.getResponseCode();
+                    if (code >= 300 && code < 400) { atual = c.getHeaderField("Location"); c.disconnect(); continue; }
+                    if (code != 200) throw new Exception("HTTP " + code);
+                    break;
+                }
+                long total = c.getContentLengthLong(), lido = 0, ultimo = 0;
+                try (InputStream in = c.getInputStream(); java.io.FileOutputStream out = new java.io.FileOutputStream(apk)) {
+                    byte[] buf = new byte[65536]; int n;
+                    while ((n = in.read(buf)) > 0) {
+                        out.write(buf, 0, n); lido += n;
+                        long agora = System.currentTimeMillis();
+                        if (agora - ultimo > 400) { ultimo = agora; JSObject o = new JSObject(); o.put("bytes", lido); o.put("total", total); emitir("update", o); }
+                    }
+                }
+                android.net.Uri u = androidx.core.content.FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
+                android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                i.setDataAndType(u, "application/vnd.android.package-archive");
+                i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx().startActivity(i);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+        }).start();
+    }
+
     // ---------- permissões para o segundo plano ----------
     @PluginMethod
     public void backgroundInfo(PluginCall call) {

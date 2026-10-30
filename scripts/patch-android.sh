@@ -42,6 +42,25 @@ if [ -n "${VERSION_CODE:-}" ]; then
   sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
   sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${VERSION_CODE}\"/" android/app/build.gradle
 fi
+# assinatura fixa: toda versão com a mesma chave, para instalar por cima sem desinstalar
+if ! grep -q "wasurvey.keystore" android/app/build.gradle; then
+cat >> android/app/build.gradle <<'GRADLE'
+
+android {
+    signingConfigs {
+        debug {
+            storeFile file('../../assinatura/wasurvey.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.debug }
+    }
+}
+GRADLE
+fi
 # nome e ícone do app (WA Survey)
 RES="android/app/src/main/res"
 sed -i 's#<string name="app_name">[^<]*</string>#<string name="app_name">WA Survey</string>#; s#<string name="title_activity_main">[^<]*</string>#<string name="title_activity_main">WA Survey</string>#' "$RES/values/strings.xml"

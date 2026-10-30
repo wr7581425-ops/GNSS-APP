@@ -149,6 +149,7 @@ try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of [
 let tSalvarObras=null;const obrasSujas=new Set();
 // converte números guardados como "2,000" para "2.000" (o app usa só ponto como separador decimal)
 (function(){const fix=o=>{if(!o||typeof o!=="object")return;for(const k in o){const v=o[k];if(typeof v==="string"&&/^-?\d+,\d+$/.test(v))o[k]=v.replace(",",".")}};
+  (S.projetos||[]).forEach(p=>{if(!p.sis||!p.sis.cota){const antigos=(p.pontos||[]).some(x=>!["PROJ","CALC"].includes(x.st)&&!x.cotaTipo);p.sis=Object.assign({},p.sis||{},{cota:antigos||p.nPontos?"elip":"hnor"})}});
   fix(S);fix(S.cfg);fix(S.est);fix(S.exp);(S.receptores||[]).forEach(fix);if(S.cfg.cfgVer<4){S.cfg.sepDec="ponto";if(/^1[.,]800$/.test(S.est.altAnt))S.est.altAnt="2.000";S.cfg.cfgVer=4}})();
 function salvar(){
   const pj=proj();if(pj){pj.salvoEm=Date.now();obrasSujas.add(pj.id)}
@@ -172,7 +173,29 @@ async function carregarObras(){
 // ---------- Simulador do receptor ----------
 const G={fix:0,sats:0,pdop:9.9,hrms:9,vrms:9,lat:-3.10207,lon:-60.02553,E:0,N:0,h:42.316,idade:0,course:35,vel:0,const:{GPS:9,GLONASS:6,Galileo:5,BeiDou:4},nmea:[]};
 // ---------- Sistema de coordenadas (por projeto) ----------
-const SIS_PADRAO={datum:"SIRGAS 2000",proj:"UTM",zona:"auto",hemi:"S"};
+const SIS_PADRAO={datum:"SIRGAS 2000",proj:"UTM",zona:"auto",hemi:"S",cota:"hnor"};
+// ---------- Cota: normal-ortométrica (hgeoHNOR2020 do IBGE, padrão), elipsoidal ou geoide do receptor ----------
+const COTAS={hnor:"Ortométrica – IBGE hgeoHNOR2020 (Imbituba)",receptor:"Ortométrica – geoide do receptor (EGM)",elip:"Elipsoidal (GNSS, sem geoide)"};
+const COTA_CURTA={hnor:"HNOR2020",receptor:"geoide receptor",elip:"elipsoidal"};
+const GEOIDE={dv:null,erro:""};
+function carregarGeoide(){try{fetch("hgeoHNOR2020.gtx").then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.arrayBuffer()}).then(b=>{const d=new DataView(b);
+  GEOIDE.lat0=d.getFloat64(0),GEOIDE.lon0=d.getFloat64(8),GEOIDE.dlat=d.getFloat64(16),GEOIDE.dlon=d.getFloat64(24),GEOIDE.nl=d.getInt32(32),GEOIDE.nc=d.getInt32(36);GEOIDE.dv=d;
+  try{if(S.conectado)render(false)}catch(e){}}).catch(e=>GEOIDE.erro=String(e.message||e))}catch(e){GEOIDE.erro=String(e)}}
+carregarGeoide();
+// ondulação geoidal N (m) do hgeoHNOR2020 por interpolação bilinear; null fora da grade ou antes de carregar
+function ondHnor(lat,lon){const g=GEOIDE;if(!g.dv||lat==null||isNaN(lat))return null;let lo=lon;if(g.lon0>=0&&lo<0)lo+=360;
+  const y=(lat-g.lat0)/g.dlat,x=(lo-g.lon0)/g.dlon,i=Math.floor(y),j=Math.floor(x);if(i<0||j<0||i>=g.nl-1||j>=g.nc-1)return null;
+  const v=(a,b)=>g.dv.getFloat32(40+(a*g.nc+b)*4),fy=y-i,fx=x-j,q=[v(i,j),v(i,j+1),v(i+1,j),v(i+1,j+1)];if(q.some(t=>t<-80))return null;
+  return q[0]*(1-fx)*(1-fy)+q[1]*fx*(1-fy)+q[2]*(1-fx)*fy+q[3]*fx*fy}
+function tipoCota(){return sis().cota||"hnor"}
+// valor a subtrair da altura elipsoidal para chegar na cota do projeto
+function ondCota(lat,lon,sep,tipo){tipo=tipo||tipoCota();if(tipo==="elip")return 0;if(tipo==="hnor"){const n=ondHnor(lat,lon);if(n!=null)return n}return sep!=null?sep:(R.sep||0)}
+function hBase(){return G.h-alturaVertical()-ondCota(G.lat,G.lon,R.sep)}
+// muda o tipo de cota do projeto e recalcula os pontos coletados (os de projeto/importados ficam como estão)
+function mudarCota(novo){const p=proj();if(!p)return;if(rnAtiva()){toast("Desligue a RN-REF antes de trocar o tipo de cota");render();return}
+  if(novo==="hnor"&&!GEOIDE.dv){toast("O modelo hgeoHNOR2020 ainda não carregou. Tente de novo.");render();return}
+  let n=0;for(const x of p.pontos){if(x.hElip==null||["PROJ","CALC"].includes(x.st)||x.rn)continue;x.h=x.hElip-ondCota(x.lat,x.lon,x.sep,novo);x.cotaTipo=novo;n++}
+  p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{cota:novo});salvar();render();toast(`Cota: ${COTA_CURTA[novo]}${n?` · ${n} pontos recalculados`:""}`)}
 function sis(){const p=S.projetos.find(p=>p.id===S.projAtivo);return Object.assign({},SIS_PADRAO,p?.sis||{})}
 function zonaDe(lon){return Math.floor((lon+180)/6)+1}
 function zonaAtual(){const s=sis();if(s.proj==="RTM")return "RTM";return s.zona==="auto"?zonaDe(G.lon):+s.zona}
@@ -195,9 +218,9 @@ function sisTxt(){const s=sis();return s.proj==="RTM"?`${s.datum} · ${zonaTxt()
 function gms(v,pos,neg){const a=Math.abs(v),g=Math.floor(a),m=Math.floor((a-g)*60),s=((a-g)*60-m)*60;return `${g}°${String(m).padStart(2,"0")}'${s.toFixed(4).padStart(7,"0").replace(".",",")}" ${v<0?neg:pos}`}
 function coordsHTML(lat,lon,E,N,h){
   const s=sis();
-  if(planar(s))return `<i>E</i><span>${br(E,dc())}</span><i>N</i><span>${br(N,dc())}</span><i>h</i><span>${br(h,dc())} m</span>`;
-  if(s.proj==="GMS")return `<i>φ</i><span style="font-size:17px">${gms(lat,"N","S")}</span><i>λ</i><span style="font-size:17px">${gms(lon,"E","W")}</span><i>h</i><span>${br(h)} m</span>`;
-  return `<i>φ</i><span>${br(lat,8)}°</span><i>λ</i><span>${br(lon,8)}°</span><i>h</i><span>${br(h)} m</span>`;
+  if(planar(s))return `<i>E</i><span>${br(E,dc())}</span><i>N</i><span>${br(N,dc())}</span><i>Z</i><span>${br(h,dc())} m</span>`;
+  if(s.proj==="GMS")return `<i>φ</i><span style="font-size:17px">${gms(lat,"N","S")}</span><i>λ</i><span style="font-size:17px">${gms(lon,"E","W")}</span><i>Z</i><span>${br(h)} m</span>`;
+  return `<i>φ</i><span>${br(lat,8)}°</span><i>λ</i><span>${br(lon,8)}°</span><i>Z</i><span>${br(h)} m</span>`;
 }
 atualizaEN();
 const FIXNOME=["SEM SINAL","AUTÔNOMO","DGPS","","RTK FIX","RTK FLOAT"];
@@ -324,7 +347,7 @@ function vPainel(){
   </section>
   <section class="card">
     <div class="split"><span class="eyebrow">Posição atual</span><button class="small" style="min-height:32px;font-size:13px;padding:0 10px" data-go="projetos">${sisTxt()} ›</button></div>
-    <div class="coords">${coordsHTML(G.lat,G.lon,G.E,G.N,G.h)}</div>
+    <div class="coords">${coordsHTML(G.lat,G.lon,G.E,G.N,cotaTerreno())}</div>
   </section>
   <section class="grid3">
     <div class="card" style="padding:10px;gap:2px"><span class="muted small">Correção</span><b>${S.corrLigada?S.correcao.toUpperCase():"Desligada"}</b><span class="muted small">${S.corrLigada&&S.correcao==="ntrip"?esc(S.mount):S.corrLigada&&S.correcao==="radio"?esc(S.freq)+" MHz":"—"}</span></div>
@@ -354,7 +377,7 @@ function alturaVertical(){
 }
 function rnAtiva(){const r=proj()?.rn;return !!(r&&r.ativo)}
 function rnOff(){const r=proj()?.rn;return r&&r.ativo?(+r.off||0):0}
-function cotaTerreno(){return G.h-alturaVertical()+rnOff()}
+function cotaTerreno(){return hBase()+rnOff()}
 function rnBanner(){const r=proj()?.rn;if(!r||!r.ativo)return "";
   return `<div role="alert" style="position:sticky;top:0;z-index:20;margin:-6px 0 4px;padding:10px 12px;border-radius:10px;background:repeating-linear-gradient(45deg,#7A1F1F,#7A1F1F 10px,#962626 10px,#962626 20px);border:2px solid #FF6B5E;color:#fff;font-weight:800;font-size:14px;line-height:1.35">⚠ RN-REF ATIVA · cotas relativas à RN <span class="m">${esc(r.nome||"")}</span> (${r.off>=0?"+":""}${br(r.off,3)} m). As coordenadas E/N não mudam. <button style="min-height:30px;font-size:12px;padding:0 10px;margin-left:6px;background:#fff;color:#7A1F1F;border:0" data-go="rnref">Ver</button></div>`}
 function vRnRef(){
@@ -368,7 +391,7 @@ function vRnRef(){
   <section class="card"><h3>${r.ativo?"Redefinir a RN":"Definir a RN"}</h3>
     <div class="grid2"><label class="f">Nome da RN<input data-bind="rnNome" value="${esc(S.rnNome||r.nome||"RN-01")}"></label>
     <label class="f">Cota da RN na obra (m)<input class="m" inputmode="decimal" data-bind="rnCota" value="${esc(S.rnCota||"")}" placeholder="ex.: 100,000"></label></div>
-    <div class="grid2"><div class="kv"><span>Cota GNSS no bastão agora</span><b class="m">${c?br(G.h-alturaVertical(),3)+" m":"—"}</b></div><div class="kv"><span>Bastão</span><b class="m">${br(alturaVertical(),3)} m</b></div></div>
+    <div class="grid2"><div class="kv"><span>Cota GNSS no bastão agora (${COTA_CURTA[tipoCota()]})</span><b class="m">${c?br(hBase(),3)+" m":"—"}</b></div><div class="kv"><span>Bastão</span><b class="m">${br(alturaVertical(),3)} m</b></div></div>
     <button class="pri big" data-act="rnMedir" ${c&&!S.rnMedindo?"":"disabled"}>${S.rnMedindo?`Medindo… ${S.rnMedindo} s`:"Bastão sobre a RN: medir e aplicar (média de 10 s)"}</button>
     ${c&&G.fix!==4?`<span class="small" style="color:var(--float)">Atenção: receptor sem FIX. Para definir a RN use FIX.</span>`:""}</section>`;
 }
@@ -1049,6 +1072,8 @@ function sisCard(){
   return `<section class="card hl">
     <div class="split"><h3>Sistema de coordenadas</h3><span class="muted small">${esc(proj().nome)}</span></div>
     <div class="grid2">
+      <label class="f" style="grid-column:1/-1">Cota (altitude)<select data-sis="cota">${Object.entries(COTAS).map(([k,t])=>`<option value="${k}" ${(s.cota||"hnor")===k?"selected":""}>${t}${k==="hnor"?" · padrão":""}</option>`).join("")}</select>
+        <span class="muted small" style="font-weight:400">${(s.cota||"hnor")==="hnor"?(GEOIDE.dv?`Ondulação aqui: N = ${br(ondHnor(G.lat,G.lon)??0,3)} m (cota = h elipsoidal − N). Padrão do IBGE para topografia e engenharia.`:"Carregando o modelo do IBGE…"):(s.cota==="receptor"?`Usa o geoide que o receptor manda na NMEA (N = ${br(R.sep||0,3)} m). Menos preciso que o hgeoHNOR2020.`:"Altura sobre o elipsoide GRS80, direto do GNSS. Use só quando o cliente pedir.")}</span></label>
       <label class="f">Datum<select data-sis="datum">${["SIRGAS 2000","WGS 84"].map(v=>`<option ${s.datum===v?"selected":""}>${v}</option>`).join("")}<option disabled>SAD 69 (no app instalado)</option></select></label>
       <label class="f">Projeção<select data-sis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="RTM" ${s.proj==="RTM"?"selected":""}>RTM Manaus (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
       ${s.proj==="RTM"?`<label class="f">Meridiano central RTM (°)<input class="m" data-sismc="1" inputmode="decimal" value="${esc(s.mcRtm??"-60")}"></label>
@@ -1585,7 +1610,7 @@ document.addEventListener("click",e=>{
   if(a==="fecharMounts"){R.mounts=[];render()}
   if(a==="rnDesligar"){if(proj()?.rn){proj().rn.ativo=false;salvar();bip("ok");toast("RN-REF desligada: cotas voltam ao GNSS");falar("R N desligada")}render();return}
   if(a==="rnMedir"){const cota=num(S.rnCota);if(isNaN(cota)){toast("Digite a cota da RN");return}if(!proj()){toast("Abra um projeto");return}
-    const am=[];S.rnMedindo=10;render();const iv=setInterval(()=>{am.push(G.h-alturaVertical());S.rnMedindo--;
+    const am=[];S.rnMedindo=10;render();const iv=setInterval(()=>{am.push(hBase());S.rnMedindo--;
       if(S.rnMedindo<=0){clearInterval(iv);const med=am.reduce((x,y)=>x+y,0)/am.length;
         proj().rn={ativo:true,nome:(S.rnNome||"RN-01").trim(),cota,gnss:med,off:cota-med,quando:Date.now()};salvar();bip("ok");falar("R N ativada");toast(`RN-REF ativa: diferença ${br(cota-med,3)} m`)}
       render()},1000);return}
@@ -1698,6 +1723,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.dataset.cfg){S.cfg[el.dataset.cfg]=el.type==="checkbox"?el.checked:el.value;salvar();if(el.tagName==="SELECT"||el.type==="checkbox")render()}
   if(el.dataset.est&&el.tagName==="SELECT"){S.est[el.dataset.est]=el.value;salvar()}
   if(el.dataset.sismc){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{mcRtm:el.value});atualizaEN();salvar();render();toast("RTM: meridiano central "+el.value+"°");return}
+  if(el.dataset.sis==="cota"){mudarCota(el.value);return}
   if(el.dataset.sis){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{[el.dataset.sis]:el.value});atualizaEN();salvar();render();toast("Sistema do projeto: "+sisTxt())}
   if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
   if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
@@ -1981,7 +2007,7 @@ function ferrCorpo(){
 function salvarPontoUnico(){
   const p=proj();if(!p)return;let nome=String(proxNome()).trim();while(p.pontos.some(x=>x.nome===nome))nome=incNome(nome);
   const alt=alturaVertical();
-  p.pontos.push({nome,cod:(S.codigo||"").trim(),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h-alt+rnOff(),...(rnAtiva()?{rn:p.rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,v_rms:G.vrms||G.hrms*1.7,
+  p.pontos.push({nome,cod:(S.codigo||"").trim(),lat:G.lat,lon:G.lon,E:G.E,N:G.N,h:G.h-alt-ondCota(G.lat,G.lon,R.sep)+rnOff(),cotaTipo:tipoCota(),...(rnAtiva()?{rn:p.rn.nome,rnOff:rnOff()}:{}),h_rms:G.hrms,v_rms:G.vrms||G.hrms*1.7,
     pdop:G.pdop||0,hdop:G.hdop||0,vdop:G.vdop||0,sats:G.sats||0,idade:G.idade||0,epocas:1,sep:R.sep||0,hElip:G.h-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),
     st:S.fonte==="celular"?"CEL":G.fix===4?"FIX":G.fix===5?"FLOAT":"AUT",alt,quando:new Date().toISOString(),auto:R.auto?.modo});
   proj().pNum=incNome(nome);
@@ -2010,7 +2036,7 @@ function coletar(obsSeg){
       const E0=m("E"),N0=m("N"),disp=Math.sqrt(amostras.reduce((a,x)=>a+(x.E-E0)**2+(x.N-N0)**2,0)/amostras.length);
       const st=S.fonte==="celular"?"CEL":amostras.every(x=>x.fix===4)?"FIX":"FLOAT";
       if(hr>tol&&S.fonte!=="celular"){bip("erro");toast(`Ponto rejeitado: precisão ${br(hr)} m acima da tolerância`);render();return}
-      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:E0,N:N0,h:m("h")-alt+rnOff(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
+      proj().pontos.push({nome,cod,lat:m("lat"),lon:m("lon"),E:E0,N:N0,h:m("h")-alt-ondCota(m("lat"),m("lon"),R.sep)+rnOff(),cotaTipo:tipoCota(),...(rnAtiva()?{rn:proj().rn.nome,rnOff:rnOff()}:{}),h_rms:hr,v_rms:Math.max(...amostras.map(x=>x.vr)),pdop:+m("pd").toFixed(2),hdop:+m("hd").toFixed(2),vdop:+m("vd").toFixed(2),sats:Math.round(m("sv")),idade:+m("id").toFixed(1),epocas:amostras.length,
         disp:+disp.toFixed(4),obs:obsSeg?amostras.length:undefined,sep:R.sep||0,hElip:m("h")-alt,altTipo:S.altTipo||"vertical",receptor:nomeRx(),st,alt,quando:new Date().toISOString()});
       proj().pNum=incNome(nome);salvar();render();bip("ok");toast(`${nome} salvo · ${amostras.length} épocas · ${br(hr)} m`);falar("Ponto coletado")};
   const iv=setInterval(()=>{amostra();S.coletando--;if(S.coletando<=0)fim();else render()},1000);
@@ -2031,16 +2057,16 @@ function botaoColetar(rotulo,pode){
 // Campos que a pessoa escolhe (e ordena) para CSV, TXT e o relatório em PDF
 const CAMPOS={nome:"Nome / número",N:"N (Norte)",E:"E (Leste)",Z:"Cota (Z)",cod:"Descrição",
   lat:"Latitude (° ' \")",lon:"Longitude (° ' \")",latd:"Latitude (graus decimais)",lond:"Longitude (graus decimais)",
-  hel:"Altitude elipsoidal (m)",horto:"Altitude ortométrica (geoide do receptor)",ondul:"Ondulação geoidal N (m)",hgnss:"Altitude GNSS na antena",
+  hel:"Altitude elipsoidal (m)",hn:"Altitude normal-ortométrica (hgeoHNOR2020)",nhnor:"Ondulação hgeoHNOR2020 (m)",cotaTipo:"Tipo de cota",horto:"Altitude ortométrica (geoide do receptor)",ondul:"Ondulação geoidal N (m)",hgnss:"Altitude GNSS na antena",
   prec:"Sigma H (m)",sigv:"Sigma V (m)",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Satélites",idade:"Idade da correção (s)",epocas:"Épocas",disp:"Dispersão das épocas (m)",
   st:"Solução (FIX/FLOAT)",ant:"Altura da antena (m)",antTipo:"Tipo de medida da antena",X:"X geocêntrico (m)",Y:"Y geocêntrico (m)",Zg:"Z geocêntrico (m)",
   kesc:"Fator de escala (k)",conv:"Convergência meridiana",zona:"Fuso UTM",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN usada",estaq:"Estaqueado de / erro"};
-const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",latd:"LatDec",lond:"LonDec",hel:"AltElips",horto:"AltOrto",ondul:"OndulN",hgnss:"AltGNSS",
+const CAB_CAMPO={nome:"Nome",N:"N",E:"E",Z:"Cota",cod:"Descricao",lat:"Latitude",lon:"Longitude",latd:"LatDec",lond:"LonDec",hel:"AltElips",hn:"AltHNOR2020",nhnor:"N_HNOR2020",cotaTipo:"TipoCota",horto:"AltOrto",ondul:"OndulN",hgnss:"AltGNSS",
   prec:"SigmaH",sigv:"SigmaV",pdop:"PDOP",hdop:"HDOP",vdop:"VDOP",sats:"Sats",idade:"IdadeCorr",epocas:"Epocas",disp:"Dispersao",st:"Solucao",ant:"AltAntena",antTipo:"MedidaAntena",X:"X",Y:"Y",Zg:"Z_geoc",
   kesc:"FatorEscala",conv:"Convergencia",zona:"Fuso",datum:"Datum",receptor:"Receptor",data:"Data",hora:"Hora",rn:"RN",estaq:"Estaqueamento"};
 const PRESETS={PNEZD:["nome","N","E","Z","cod"],PENZD:["nome","E","N","Z","cod"],NEZD:["N","E","Z","cod"],ENZD:["E","N","Z","cod"],NEZ:["N","E","Z"],ENZ:["E","N","Z"],
   geo:["nome","lat","lon","hel","cod"],
-  topografia:["nome","N","E","Z","cod","lat","lon","hel","horto","prec","sigv","pdop","hdop","vdop","sats","idade","st","ant","data","hora"],
+  topografia:["nome","N","E","Z","cod","lat","lon","hel","hn","prec","sigv","pdop","hdop","vdop","sats","idade","st","ant","data","hora"],
   completo:Object.keys(CAMPOS)};
 const PRESET_NOME={PNEZD:"Nome, N, E, Z, Descrição",PENZD:"Nome, E, N, Z, Descrição",NEZD:"N, E, Z, Descrição",ENZD:"E, N, Z, Descrição",NEZ:"N, E, Z",ENZ:"E, N, Z",
   geo:"Nome, Lat, Lon (° ' \"), Alt. elipsoidal, Descrição",topografia:"Topografia (coordenadas, lat/lon, altitudes, sigmas, DOPs, satélites)",completo:"Tudo (todos os campos)"};
@@ -2068,7 +2094,8 @@ function valCampo(x,k,e){
     case "nome":return x.nome||"";case "cod":return x.cod||"";case "N":return nfx(x.N,d,ds);case "E":return nfx(x.E,d,ds);case "Z":return nfx(x.h,d,ds);
     case "lat":return gmsTxt(x.lat,"N","S",ds);case "lon":return gmsTxt(x.lon,"E","W",ds);
     case "latd":return nfx(x.lat,9,ds);case "lond":return nfx(x.lon,9,ds);
-    case "hel":return nfx(hel,d,ds);case "horto":return sep?nfx(hel-sep,d,ds):"";case "ondul":return sep?nfx(sep,3,ds):"";
+    case "hel":return nfx(hel,d,ds);case "hn":{const n=ondHnor(x.lat,x.lon);return n==null?"":nfx(hel-n,d,ds)}case "nhnor":{const n=ondHnor(x.lat,x.lon);return n==null?"":nfx(n,3,ds)}
+    case "cotaTipo":return x.rn?"RN "+x.rn:COTA_CURTA[x.cotaTipo||(["PROJ","CALC"].includes(x.st)?"":"elip")]||"projeto";case "horto":return sep?nfx(hel-sep,d,ds):"";case "ondul":return sep?nfx(sep,3,ds):"";
     case "hgnss":return nfx(hel+(x.alt||0),d,ds);
     case "prec":return x.h_rms!=null?nfx(x.h_rms,3,ds):"";case "sigv":return x.v_rms!=null?nfx(x.v_rms,3,ds):"";
     case "pdop":return x.pdop?nfx(x.pdop,1,ds):"";case "hdop":return x.hdop?nfx(x.hdop,1,ds):"";case "vdop":return x.vdop?nfx(x.vdop,1,ds):"";

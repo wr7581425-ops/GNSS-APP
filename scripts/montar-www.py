@@ -21,4 +21,7 @@ img{max-width:100%}
 """
 (raiz / "www").mkdir(exist_ok=True)
 (raiz / "www" / "index.html").write_text(cabeca + corpo + "\n</body>\n</html>\n", encoding="utf-8")
+import shutil
+# modelo geoidal do IBGE (hgeoHNOR2020) usado para a cota normal-ortométrica
+shutil.copy(raiz / "src" / "hgeoHNOR2020.gtx", raiz / "www" / "hgeoHNOR2020.gtx")
 print("www/index.html montado")

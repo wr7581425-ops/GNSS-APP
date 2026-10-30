@@ -1060,10 +1060,23 @@ public class GnssTcpPlugin extends Plugin {
             new Thread(() -> {
                 while (srv != null && !srv.isClosed()) {
                     try {
-                        Socket c = srv.accept();
+                        final Socket c = srv.accept();
                         c.setTcpNoDelay(true);
                         clientes.add(c);
                         avisarClientes();
+                        // lê o que o equipamento (ecobatímetro) mandar de volta pela mesma conexão (ex.: profundidade NMEA)
+                        new Thread(() -> {
+                            try {
+                                InputStream in = c.getInputStream();
+                                byte[] buf = new byte[1024];
+                                int n;
+                                while (!c.isClosed() && (n = in.read(buf)) > 0) {
+                                    JSObject o = new JSObject();
+                                    o.put("text", new String(buf, 0, n, StandardCharsets.ISO_8859_1));
+                                    emitir("srvdata", o);
+                                }
+                            } catch (Exception ignored) { }
+                        }).start();
                     } catch (Exception e) {
                         break;
                     }

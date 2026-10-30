@@ -1388,6 +1388,11 @@ function sNmea(){
     ${S.servidor&&NATIVO&&!R.srvIps.map(x=>x.split(" ")[1]).filter(ip=>ip&&!/^192\.0\.0\./.test(ip)).length?`<span class="small" style="color:var(--float)">Sem rede Wi-Fi no coletor: ligue o <b>roteador Wi-Fi (hotspot)</b> do coletor ou conecte numa rede Wi-Fi junto com o ecobatímetro, depois desligue e ligue o servidor.</span>`:""}
     ${S.servidor?(NATIVO?(R.clientes.length?`<div class="list">${R.clientes.map(ip=>`<div class="row" style="grid-template-columns:1fr auto"><span>Equipamento conectado</span><span class="m muted">${esc(ip)}</span></div>`).join("")}</div>`:`<span class="muted small">Nenhum equipamento conectado ainda. No computador, configure TCP cliente para o IP acima e a porta ${esc(S.sport)}.</span>`):`<div class="list"><div class="row" style="grid-template-columns:1fr auto"><span>Notebook · HYPACK</span><span class="m muted">192.168.43.12</span></div><div class="row" style="grid-template-columns:1fr auto"><span>Ecobatímetro</span><span class="m muted">192.168.43.20</span></div></div>`):""}
     <button class="${S.servidor?"":"pri"}" data-act="servidor">${S.servidor?"Desligar servidor":"Ligar servidor"}</button></section>
+  <section class="card ${R.nmeaGrav?"hl":""}"><div class="split"><h3>Registro de dados (NMEA)</h3><span class="${R.nmeaGrav?"st-fix":"muted"} small">${R.nmeaGrav?"● GRAVANDO":"parado"}</span></div>
+    <span class="muted small">Grava a posição corrigida a cada 1 s (hora, N/E, cota, solução e precisão) para cruzar com os pontos do ecobatímetro pela hora.${R.ultProf!=null?` O ecobatímetro está devolvendo a profundidade (${br(R.ultProf,2)} m); ela entra no registro.`:" Se o ecobatímetro devolver a profundidade por esta conexão, ela entra junto."}</span>
+    <div class="grid2"><div class="kv"><span>Linhas gravadas</span><b class="m">${(R.nmeaLog||[]).length}</b></div><div class="kv"><span>Agora</span><b class="m">${S.conectado?solucaoTxt()+" · "+br(G.hrms)+" m":"—"}</b></div></div>
+    <button class="${R.nmeaGrav?"":"pri"}" data-act="nmeaGrav">${R.nmeaGrav?"Parar gravação":"Iniciar gravação"}</button>
+    ${(R.nmeaLog||[]).length?`<div class="grid3"><button data-act="nmeaEnviar">Compartilhar CSV</button><button data-act="nmeaBaixar">Salvar em Downloads</button><button data-act="nmeaLimpar">Limpar</button></div>`:""}</section>
   <span class="eyebrow">Monitor de dados ao vivo</span>
   <div class="monitor" id="mon">${S.conectado?esc(G.nmea.join("\n")):"Conecte o receptor para ver as sentenças."}</div>`;
 }
@@ -1506,7 +1511,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.tile){const t=Object.values(TILES).flat().find(x=>x[0]===b.dataset.tile);if(t)t[4]();return}
   if(b.dataset.ptdel!==undefined){S.ptAberto=null;S.ptApagar=null;const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
   if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
-  if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&b.dataset.val!==S.correcaoAtiva&&(S.corrLigada||R.ntripSt==="recebendo")){desligarCorrecao();toast("Correção anterior desligada ao trocar a fonte")}salvar();render();return}
+  if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;salvar();render();return}
   if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
   if(b.dataset.usar){S.ativo=+b.dataset.usar;if(S.conectado){S.conectado=false;S.corrLigada=false}salvar();render();toast("Receptor selecionado. Conecte em Receptor › Conexão.");return}
   if(acaoExport(b))return;
@@ -1552,7 +1557,7 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.correcaoAtiva="rtx";S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if((S.corrLigada||R.ntripSt==="recebendo")&&S.correcaoAtiva&&S.correcaoAtiva!==S.correcao){toast("Desligando "+(S.correcaoAtiva==="rtx"?"RTX":S.correcaoAtiva==="ntrip"?"NTRIP":"correção anterior")+"…");desligarCorrecao()}if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.correcaoAtiva="rtx";S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
 if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     const ligarNtrip=()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.correcaoAtiva="ntrip";S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}})};
     if(marcaRx()==="trimble"){toast("Colocando o R980 em modo RTK…");trimbleNtripIniciar().then(ligarNtrip);return}
@@ -1585,6 +1590,10 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
     const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
+  if(a==="nmeaGrav"){R.nmeaGrav=!R.nmeaGrav;if(R.nmeaGrav){R.nmeaUlt=0;falar("Gravação de dados iniciada");toast("Gravando o registro NMEA")}else{falar("Gravação encerrada");toast((R.nmeaLog||[]).length+" linhas gravadas")}render();return}
+  if(a==="nmeaEnviar"){salvarLogNmea(false);return}
+  if(a==="nmeaBaixar"){salvarLogNmea(true);return}
+  if(a==="nmeaLimpar"){R.nmeaLog=[];render();toast("Registro apagado");return}
   if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
   if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
   if(a==="ptMais"){R.ptLim=(R.ptLim||200)+500;render();return}
@@ -2922,6 +2931,8 @@ if(NATIVO&&NP.GnssTcp){
     else if(n.status==="recebendo"&&ant!=="recebendo")toast("NTRIP recebendo correção de "+n.msg);
   });
   NP.GnssTcp.addListener("clients",c=>{R.clientes=c.list||[];render(false)});
+  // o ecobatímetro pode devolver a profundidade pela mesma conexão (NMEA DBT/DPT)
+  NP.GnssTcp.addListener("srvdata",d=>{lerProfundidade(d.text||"")});
 }
 // ---------- segundo plano ----------
 // ao abrir o app de novo (depois de fechar a tela ou tirar dos recentes), reencontra o que ficou ligado no serviço
@@ -2997,6 +3008,43 @@ setInterval(()=>{if(NATIVO&&S.corrLigada&&S.correcao==="ntrip"&&S.enviaGGA&&R.ul
 
 function podeColetar(){return S.conectado&&!S.coletando&&(S.fonte==="celular"||!S.soFix||G.fix===4)}
 // NMEA gerado a partir do GPS do celular (para o monitor e para o servidor TCP)
+// ---------- registro de dados da saída NMEA (para cruzar com os pontos do ecobatímetro pela hora) ----------
+// lê a profundidade que o ecobatímetro devolver (DBT/DPT), se ele mandar algo de volta
+function lerProfundidade(txt){
+  R.srvBuf=((R.srvBuf||"")+txt).slice(-2000);let m;
+  const re=/\$[A-Z]{2}(DBT|DPT),([^*\r\n]*)/g;
+  while((m=re.exec(R.srvBuf))){const f=m[2].split(",");
+    if(m[1]==="DBT"){const met=parseFloat(f[2]);if(!isNaN(met))R.ultProf=met}       // metros no campo 3
+    else{const d=parseFloat(f[0]),off=parseFloat(f[1])||0;if(!isNaN(d))R.ultProf=d+off}} // DPT: profundidade + offset
+  if(/\$[A-Z]{2}(DBT|DPT)/.test(txt))R.ultProfT=Date.now();
+}
+function gravarLinhaNmea(){
+  if(!R.nmeaGrav)return;const g=G;if(!(g.fix>0)||isNaN(g.lat))return;
+  const prof=(R.ultProf!=null&&Date.now()-(R.ultProfT||0)<4000)?R.ultProf:null;
+  R.nmeaLog=R.nmeaLog||[];
+  R.nmeaLog.push({t:Date.now(),lat:g.lat,lon:g.lon,E:g.E,N:g.N,cota:cotaTerreno(),st:solucaoTxt(),hrms:g.hrms,vrms:g.vrms||0,sats:g.sats||0,idade:g.idade||0,prof});
+  if(R.nmeaLog.length>200000)R.nmeaLog.splice(0,50000); // segurança: ~55 h a 1 Hz
+}
+function solucaoTxt(){return G.rtx?"RTX":G.fix===4?"FIX":G.fix===5?"FLOAT":G.dgps?"DGPS":G.fix>0?"AUTONOMO":"-"}
+function exportarLogNmea(){
+  const L=R.nmeaLog||[];if(!L.length){toast("Nenhum dado gravado ainda");return}
+  const d=+S.cfg.dec||3,v=x=>x==null?"":(+x).toFixed(d),temProf=L.some(x=>x.prof!=null);
+  const cab="Data;Hora;Latitude;Longitude;N;E;Cota;Solucao;PrecH;PrecV;Sats;IdadeCorr"+(temProf?";Profundidade;CotaFundo":"");
+  const lin=L.map(x=>{const dt=new Date(x.t);
+    return [dt.toLocaleDateString("pt-BR"),dt.toLocaleTimeString("pt-BR")+"."+String(dt.getMilliseconds()).padStart(3,"0"),
+      x.lat.toFixed(9),x.lon.toFixed(9),v(x.N),v(x.E),v(x.cota),x.st,v(x.hrms),v(x.vrms),x.sats,(x.idade||0).toFixed(1)]
+      .concat(temProf?[x.prof!=null?x.prof.toFixed(3):"",x.prof!=null?v(x.cota-x.prof):""]:[]).join(";")});
+  return "# Registro NMEA · "+(proj()?.nome||"")+" · "+sisTxt()+"\r\n"+cab+"\r\n"+lin.join("\r\n")+"\r\n";
+}
+async function salvarLogNmea(baixar){
+  const txt=exportarLogNmea();if(!txt)return;
+  const nome="NMEA_"+new Date().toISOString().slice(0,16).replace(/[-:T]/g,"")+".csv";
+  if(!NATIVO){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/csv"}));a.download=nome;a.click();return}
+  try{await NP.Filesystem.writeFile({path:"WASurvey/nmea/"+nome,data:txt,directory:"DATA",encoding:"utf8",recursive:true});
+    if(baixar){const r=await NP.GnssTcp.saveToDownloads({path:"WASurvey/nmea/"+nome,mime:"text/csv"});bip("ok");toast("Salvo em "+r.where)}
+    else{await NP.GnssTcp.shareFiles({files:[{path:"WASurvey/nmea/"+nome,dir:"data"}],mime:"text/csv",title:"Enviar "+nome})}}
+  catch(e){toast("Não consegui salvar: "+(e.message||e))}
+}
 function nmeaCelular(){
   const hh=new Date().toISOString().slice(11,19).replace(/:/g,"")+".00",dt=new Date().toISOString();
   const dm=(v,d)=>{const a=Math.abs(v),g=Math.floor(a),m=(a-g)*60;return String(g).padStart(d,"0")+m.toFixed(5).padStart(8,"0")};
@@ -3019,6 +3067,7 @@ function tickReal(now){
   if(semUsoCorrecao()&&marcaRx()!=="trimble"&&(R.envTrocas||0)<6&&Date.now()-S.corrDesde>20000){R.envTrocas=(R.envTrocas||0)+1;S.cnEnv=(R.envUsado||envAtual())==="raw"?"vd":"raw";R.envUsado=S.cnEnv;
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
+  if(R.nmeaGrav&&now-(R.nmeaUlt||0)>=950){R.nmeaUlt=now;gravarLinhaNmea()}
   avisoSolucao();
   if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao&&(S.est.destino!=="receptor"||noReceptorGravando()))pararEstaticoCN(true);
   render(false);

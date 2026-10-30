@@ -200,7 +200,8 @@ function toUTM(lat,lon,zona,hemi){ // GRS80 (SIRGAS 2000) ~ WGS 84
 }
 function atualizaEN(){[G.E,G.N]=toUTM(G.lat,G.lon,zonaAtual(),hemiAtual())}
 function ptEN(p){if(p.lat===undefined)return [p.E,p.N];return toUTM(p.lat,p.lon,zonaAtual(),hemiAtual())}
-function sisTxt(){const s=sis();return s.proj==="RTM"?`${s.datum} · ${zonaTxt()}`:s.proj==="UTM"?`${s.datum} · UTM ${zonaAtual()}${hemiAtual()}${s.zona==="auto"?" (auto)":""}`:`${s.datum} · Geográficas`}
+function sisTxt(){return sisTxt0()+" · cota "+COTA_CURTA[tipoCota()]}
+function sisTxt0(){const s=sis();return s.proj==="RTM"?`${s.datum} · ${zonaTxt()}`:s.proj==="UTM"?`${s.datum} · UTM ${zonaAtual()}${hemiAtual()}${s.zona==="auto"?" (auto)":""}`:`${s.datum} · Geográficas`}
 function gms(v,pos,neg){const a=Math.abs(v),g=Math.floor(a),m=Math.floor((a-g)*60),s=((a-g)*60-m)*60;return `${g}°${String(m).padStart(2,"0")}'${s.toFixed(4).padStart(7,"0").replace(".",",")}" ${v<0?neg:pos}`}
 function coordsHTML(lat,lon,E,N,h){
   const s=sis();

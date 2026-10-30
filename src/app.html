@@ -1348,7 +1348,7 @@ function sCorr(){
   <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
-function semUsoCorrecao(){return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
+function semUsoCorrecao(){if(marcaRx()==="trimble"&&!R.ultGGA)return false;return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
 const CMDS_SPECTRA=[["$PASHQ,RID","Identificação do receptor","Testa se o receptor responde ($PASHR,RID)."],["$PASHS,NME,GGA,C,ON,1","Ligar GGA no Bluetooth","Porta C = Bluetooth nos receptores Spectra."],["$PASHS,CPD,MOD,ROV","Modo rover",""],["$PASHS,CPD,RST","Reiniciar RTK",""],["$PASHS,NME,PWR,C,ON,10","Ligar bateria",""],["$PASHQ,FIL,STS,0","Memória livre",""]];
 const CMDS_COMNAV=[
   ["log version","Ver versão da placa","Testa se o receptor responde a comandos por esta conexão."],
@@ -1544,7 +1544,7 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"&&marcaRx()==="trimble"){toast("No R980 o RTX roda dentro do receptor: deixe-o configurado como rover RTX no app da Trimble. O WA Survey mostra a solução RTX que ele calcular.");return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
   if(a==="atualizar"){instalarAtualizacao();return}
@@ -2520,7 +2520,7 @@ function onDados(txt){
 // e converte em NMEA (GGA/GST/GSA) para o resto do app e para a saída NMEA (ecobatímetro).
 function dcol(tipo,dados){const b=[0x02,0x00,tipo,dados.length,...dados];let cs=0;for(let i=1;i<b.length;i++)cs=(cs+b[i])&255;b.push(cs,0x03);return String.fromCharCode(...b)}
 async function trimbleIniciar(){
-  if(!receptorReal()||modoSimples())return;R.tb="";R.tgs="";R.tPorta=R.tPorta||18;R.tTrans=(R.tTrans||0x30);
+  if(!receptorReal())return;R.tb="";R.tgs=""; // pedir GSOF não muda a configuração do receptor: vale mesmo no modo simplesR.tPorta=R.tPorta||18;R.tTrans=(R.tTrans||0x30);
   try{await NP.GnssTcp.setRawRelay({on:false})}catch(e){}
   try{await NP.GnssTcp.write({data:dcol(0x6f,[])})}catch(e){} // pede produto/porta/serial
   await espera(900);trimbleGsof();
@@ -2814,7 +2814,7 @@ async function desconectarReal(){
 // ---------- NTRIP ----------
 // formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
 function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
-function envAtual(){S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];const mk=marcaRx();if(mk==="spectra")return "raw";if(mk==="comnav")return "vd";return "raw"}
+function envAtual(){if(marcaRx()==="trimble")return "raw";S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];const mk=marcaRx();if(mk==="spectra")return "raw";if(mk==="comnav")return "vd";return "raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}
@@ -2973,7 +2973,7 @@ function tickReal(now){
   if(S.fonte==="celular"&&now-R.ultimo<5000)nmeaCelular();
   mockTick();
   if(NATIVO&&S.corrLigada&&(G.fix===4||G.fix===5)&&S.fonte==="tcp"){S.envRx=S.envRx||{};const k=chaveRx(),e=R.envUsado||envAtual();if(S.envRx[k]!==e){S.envRx[k]=e;salvar()}}
-  if(semUsoCorrecao()&&(R.envTrocas||0)<6&&Date.now()-S.corrDesde>20000){R.envTrocas=(R.envTrocas||0)+1;S.cnEnv=(R.envUsado||envAtual())==="raw"?"vd":"raw";R.envUsado=S.cnEnv;
+  if(semUsoCorrecao()&&marcaRx()!=="trimble"&&(R.envTrocas||0)<6&&Date.now()-S.corrDesde>20000){R.envTrocas=(R.envTrocas||0)+1;S.cnEnv=(R.envUsado||envAtual())==="raw"?"vd":"raw";R.envUsado=S.cnEnv;
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
   avisoSolucao();

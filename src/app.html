@@ -1340,6 +1340,7 @@ function sCorr(){
     <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6, T70 e outros SinoGNSS)</option><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (outras marcas)</option></select></label>
     ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:R.ntripSt==="reconectando"?`<b style="color:var(--float)">Reconectando ao caster…</b> (tentativa ${R.reconN||1})`:"Desligado"}</div>`:""}
     ${NATIVO&&S.corrLigada&&R.ntripUlt?`<div class="grid3"><div class="kv"><span>Última correção</span><b class="m" style="font-size:15px;color:${Date.now()-R.ntripUlt>3000?"var(--float)":"var(--fix)"}">há ${Math.max(0,Math.round((Date.now()-R.ntripUlt)/1000))} s</b></div><div class="kv"><span>Chegando</span><b class="m" style="font-size:15px">${R.ntripTaxa||0} B/s</b></div><div class="kv"><span>Quedas</span><b class="m" style="font-size:15px">${R.ntripRecons||0}${R.reconTot?" + "+R.reconTot+" rx":""}</b></div></div>`:""}
+    ${marcaRx()==="trimble"&&R.tsol?`<span class="small m muted" style="word-break:break-all">Diagnóstico Trimble: f1=${(R.tsol.f1??0).toString(16)} f2=${(R.tsol.f2??0).toString(16)} sol=${(R.tsol.sol??0).toString(16)} rtk=${(R.tsol.rtk??0).toString(16)} net=${(R.tsol.net??0).toString(16)}/${(R.tsol.net2??0).toString(16)} tipo=${R.tsol.tipo38??"-"} idade=${R.tsol.idade!=null?R.tsol.idade.toFixed(1):"-"}<br>38: ${R.tsol.raw38||""}</span>`:""}
     ${NATIVO&&R.ntripSt==="recebendo"&&S.fonte==="tcp"?`<span class="small muted">Repassado ao receptor: <b class="m" style="color:var(--fg)">${br(R.enviados/1024,1)} KB</b>${R.erroEnvio?` · <b style="color:var(--bad)">erro ao enviar: ${esc(R.erroEnvio)}</b>`:""}</span>`:""}
     ${semUsoCorrecao()?`<div class="small" style="padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--float)"><b style="color:var(--float)">A correção chega, mas o receptor não está usando.</b> Ele continua autônomo (idade ${br(G.idade,1)} s). Normalmente é a porta do receptor que não aceita RTCM. Abra os comandos do receptor para verificar e configurar.<button style="margin-top:8px;width:100%" data-sub="console">Abrir comandos do receptor</button></div>`:""}
     <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
@@ -2552,11 +2553,11 @@ function trimbleRegistros(s){
   let j=0,T=R.tsol||{};
   while(j+2<=s.length){const t=by(j),l=by(j+1),o=j+2;
     if(t===1&&l>=10){T.ms=((by(o)<<24)>>>0)+(by(o+1)<<16)+(by(o+2)<<8)+by(o+3);T.sv=by(o+6);const f1=by(o+7),f2=by(o+8);
-      T.fix=!(f1&4)?0:(f2&7)===7?4:(f2&3)===3?5:(f2&1)?2:1;}
+      T.fix=!(f1&4)?0:(f2&7)===7?4:(f2&3)===3?5:(f2&1)?2:1;T.f1=f1;T.f2=f2;}
     if(t===2&&l>=24){T.lat=f64(o)*180/Math.PI;T.lon=f64(o+8)*180/Math.PI;T.h=f64(o+16);T.novo=true}
     if(t===9&&l>=16){T.pdop=f32(o);T.hdop=f32(o+4);T.vdop=f32(o+8)}
     if(t===12&&l>=36){T.se=f32(o+4);T.sn=f32(o+8);T.su=f32(o+16)}
-    if(t===38&&l>=10){T.idade=f32(o+6)}
+    if(t===38&&l>=10){T.idade=f32(o+6);T.sol=by(o+4);T.rtk=by(o+5);T.net=by(o+10);T.net2=by(o+11);T.tipo38=l>=26?by(o+25):null;T.raw38=Array.from({length:l},(_,k)=>by(o+k).toString(16).padStart(2,"0")).join("")}
     j=o+l}
   R.tsol=T;if(!T.novo||T.lat==null)return;T.novo=false;
   // monta NMEA a partir do GSOF

@@ -778,7 +778,7 @@ public class GnssTcpPlugin extends Plugin {
         byte[] buf = new byte[4096];
         int n;
         while (rxRun && (n = in.read(buf)) > 0) {
-            repassarClientes(buf, n);
+            if (repasseBruto) repassarClientes(buf, n);
             gravarBrutos(buf, n);
             String t = new String(buf, 0, n, StandardCharsets.ISO_8859_1);
             procurarGGA(t);
@@ -978,6 +978,7 @@ public class GnssTcpPlugin extends Plugin {
     }
 
     private void fecharReceptor() {
+        repasseBruto = true;
         rxRun = false;
         try { if (rx != null) rx.close(); } catch (Exception ignored) { }
         try { if (bt != null) bt.close(); } catch (Exception ignored) { }
@@ -987,6 +988,15 @@ public class GnssTcpPlugin extends Plugin {
     }
 
     // ---------- servidor NMEA ----------
+    private static volatile boolean repasseBruto = true;
+
+    /** Trimble manda binário (GSOF): o app converte em NMEA e envia pelo serverSend; então desliga o repasse bruto. */
+    @PluginMethod
+    public void setRawRelay(PluginCall call) {
+        repasseBruto = call.getBoolean("on", true);
+        call.resolve();
+    }
+
     private void repassarClientes(byte[] buf, int n) {
         for (Socket c : clientes) {
             try {

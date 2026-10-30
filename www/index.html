@@ -2528,6 +2528,62 @@ function onDados(txt){
   while((i=R.buf.indexOf("\n"))>=0){const l=R.buf.slice(0,i).trim();R.buf=R.buf.slice(i+1);const k=l.indexOf("$");if(k>=0)nmea(l.slice(k));capturaResposta(k>=0?l.slice(k):l)}
   if(R.buf.length>16000)R.buf="";
 }
+// ================= Trimble (R980, R12…): protocolo DCOL + saída GSOF =================
+// Visto na captura do app da Trimble: ele pede GSOF (binário) na porta Bluetooth (porta 18 no R980), não NMEA.
+// O WA Survey pede GSOF 1 (tempo/flags), 2 (lat/lon/h), 9 (DOP), 12 (sigmas) e 38 (tipo de solução) a 1 Hz
+// e converte em NMEA (GGA/GST/GSA) para o resto do app e para a saída NMEA (ecobatímetro).
+function dcol(tipo,dados){const b=[0x02,0x00,tipo,dados.length,...dados];let cs=0;for(let i=1;i<b.length;i++)cs=(cs+b[i])&255;b.push(cs,0x03);return String.fromCharCode(...b)}
+async function trimbleIniciar(){
+  if(!receptorReal()||modoSimples())return;R.tb="";R.tgs="";R.tPorta=R.tPorta||18;R.tTrans=(R.tTrans||0x30);
+  try{await NP.GnssTcp.setRawRelay({on:false})}catch(e){}
+  try{await NP.GnssTcp.write({data:dcol(0x6f,[])})}catch(e){} // pede produto/porta/serial
+  await espera(900);trimbleGsof();
+  clearInterval(R.tHb);R.tHb=setInterval(()=>{if(receptorReal()&&marcaRx()==="trimble")NP.GnssTcp.write({data:dcol(0x6f,[])}).catch(()=>{});else clearInterval(R.tHb)},15000);
+}
+async function trimbleGsof(){
+  const p=R.tPorta||18,app=recs=>{R.tTrans=(R.tTrans+1)&255;return dcol(0x64,[R.tTrans,0,0,0x03,0x00,0x01,0x00,...recs])};
+  const reg=t=>[0x07,0x06,0x0a,p,0x03,0x00,t,0x00]; // registro de saída: GSOF, porta, 1 Hz, tipo
+  try{await NP.GnssTcp.write({data:app([0x07,0x06,0xff,p,0,0,0,0])});await espera(300);
+    await NP.GnssTcp.write({data:app([...reg(1),...reg(2),...reg(9),...reg(12),...reg(38)])});R.cons.push("→ Trimble: GSOF 1/2/9/12/38 a 1 Hz na porta "+p)}catch(e){}
+}
+function trimbleDados(txt){
+  R.tb=(R.tb||"")+txt;if(R.tb.length>200000)R.tb=R.tb.slice(-20000);
+  let i=0;const b=R.tb;
+  while(i<b.length-5){
+    if(b.charCodeAt(i)!==2){i++;continue}
+    const tp=b.charCodeAt(i+2),ln=b.charCodeAt(i+3);if(i+6+ln>b.length)break;
+    if(b.charCodeAt(i+5+ln)!==3){i++;continue}
+    const d=b.slice(i+4,i+4+ln);i+=6+ln;R.respondeu=true;
+    if(tp===0x6e){const t=d.replace(/[^\x20-\x7e]/g,"");const pt=t.match(/PORT,(\d+)/),sr=t.match(/SERIAL,(\w+)/),pr=t.match(/PRODUCT,([^;]+)/);
+      if(sr)R.serie=sr[1];if(pr)R.produto=pr[1];if(pt&&+pt[1]!==R.tPorta){R.tPorta=+pt[1];trimbleGsof()}}
+    else if(tp===0x40){const pg=d.charCodeAt(1),mx=d.charCodeAt(2);if(pg===0)R.tgs="";R.tgs+=d.slice(3);if(pg===mx)trimbleRegistros(R.tgs)}
+  }
+  R.tb=b.slice(i);
+}
+function trimbleRegistros(s){
+  const by=k=>s.charCodeAt(k)&255,dv=n=>{const a=new DataView(new ArrayBuffer(n));return a};
+  const f32=k=>{const v=dv(4);for(let j=0;j<4;j++)v.setUint8(j,by(k+j));return v.getFloat32(0)},f64=k=>{const v=dv(8);for(let j=0;j<8;j++)v.setUint8(j,by(k+j));return v.getFloat64(0)};
+  let j=0,T=R.tsol||{};
+  while(j+2<=s.length){const t=by(j),l=by(j+1),o=j+2;
+    if(t===1&&l>=10){T.ms=((by(o)<<24)>>>0)+(by(o+1)<<16)+(by(o+2)<<8)+by(o+3);T.sv=by(o+6);const f1=by(o+7),f2=by(o+8);
+      T.fix=!(f1&4)?0:(f2&7)===7?4:(f2&3)===3?5:(f2&1)?2:1;}
+    if(t===2&&l>=24){T.lat=f64(o)*180/Math.PI;T.lon=f64(o+8)*180/Math.PI;T.h=f64(o+16);T.novo=true}
+    if(t===9&&l>=16){T.pdop=f32(o);T.hdop=f32(o+4);T.vdop=f32(o+8)}
+    if(t===12&&l>=36){T.se=f32(o+4);T.sn=f32(o+8);T.su=f32(o+16)}
+    if(t===38&&l>=10){T.idade=f32(o+6)}
+    j=o+l}
+  R.tsol=T;if(!T.novo||T.lat==null)return;T.novo=false;
+  // monta NMEA a partir do GSOF
+  const d=new Date(),hh=d.toISOString().slice(11,19).replace(/:/g,"")+".00";
+  const dm=(v,g)=>{const a=Math.abs(v),gg=Math.floor(a),m=(a-gg)*60;return String(gg).padStart(g,"0")+m.toFixed(7).padStart(10,"0")};
+  const cs=x=>{let c=0;for(const ch of x)c^=ch.charCodeAt(0);return "$"+x+"*"+c.toString(16).toUpperCase().padStart(2,"0")};
+  const q=T.fix||0,L=[];
+  L.push(cs(`GPGGA,${hh},${dm(T.lat,2)},${T.lat<0?"S":"N"},${dm(T.lon,3)},${T.lon<0?"W":"E"},${q},${String(T.sv||0).padStart(2,"0")},${(T.hdop||0).toFixed(1)},${T.h.toFixed(3)},M,0.000,M,${q>=2&&T.idade!=null?T.idade.toFixed(1):""},`));
+  if(T.se!=null)L.push(cs(`GPGST,${hh},,,,,${T.sn.toFixed(3)},${T.se.toFixed(3)},${T.su.toFixed(3)}`));
+  if(T.pdop!=null)L.push(cs(`GPGSA,A,3,,,,,,,,,,,,,${T.pdop.toFixed(1)},${T.hdop.toFixed(1)},${T.vdop.toFixed(1)}`));
+  const txt=L.join("\r\n")+"\r\n";onDados(txt);
+  if(S.servidor)NP.GnssTcp.serverSend({data:txt}).catch(()=>{});
+}
 // guarda tudo que não é NMEA de posição (respostas de comandos, mensagens próprias do fabricante)
 function capturaResposta(l){
   if(!l||l.length<2||l.length>400)return;
@@ -2604,7 +2660,8 @@ const NMEA_ON={
 };
 function marcaRx(){const m=(rec()?.marca||"").toLowerCase(),n=(S.conexao==="bt"?(S.btNome||""):"").toUpperCase(),sr=(R.serie||"").toUpperCase();
   if(/^SP\d|PROMARK/.test(n))return "spectra";
-  if(/^(R\d{1,3}\b|R\d{1,3}[ ,_-]|SPS\d|TRIMBLE|DA2|CATALYST)/.test(n)||/R980|R12I|R10/.test(n))return "trimble";
+  if(/^(R\d{1,3}\b|R\d{1,3}[ ,_-]|SPS\d|TRIMBLE|DA2|CATALYST)/.test(n)||/R980|R12I|R10/.test(n)||/^\d{10}$/.test(n))return "trimble";
+  if(m==="trimble")return "trimble";
   if(/^(S6|T7|T3|N3|M6)/.test(n)||/^(S6|T7)/.test(sr))return "comnav";
   if(m==="spectra")return "spectra";if(m==="comnav")return "comnav";return ""}
 async function ligarNmea(){
@@ -2670,7 +2727,7 @@ async function conectarReal(silencioso){
     S.conectando=false;S.conectado=true;S.fonte="tcp";S.desde=Date.now();R.ultimo=Date.now();R.reconRx=0;render();
     iniciarSpectra();
     iniciarComNav().then(ok=>{if(ok===false&&!R.emLoop&&S.conexao==="bt"&&marcaRx()==="comnav")buscarCanal()});
-    if(marcaRx()==="trimble")setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Trimble conectado, mas sem NMEA. Ligue a saída NMEA (GGA) na porta Bluetooth pelo app da Trimble; o WA Survey só escuta.")},7000);
+    if(marcaRx()==="trimble"){trimbleIniciar();setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)toast("Trimble conectado, mas ainda sem posição. Confira se o app da Trimble está fechado (só um app por vez no Bluetooth).")},9000)}
     if(silencioso){toast("Receptor reconectado");falar("Dispositivo reconectado");return true}
     bip("ok");toast("Receptor conectado. Aguardando dados NMEA…");falar("Dispositivo conectado");setTimeout(prepararSegundoPlano,2500);
     setTimeout(()=>{if(S.conectado&&S.fonte==="tcp"&&!R.ultGGA)ligarNmea()},5000);
@@ -2814,7 +2871,7 @@ async function servidorReal(ligar){
 
 // ---------- ouvintes ----------
 if(NATIVO&&NP.GnssTcp){
-  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);onDados(d.text);lerBinario(d.text);textoRx(d.text)});
+  NP.GnssTcp.addListener("data",d=>{if(R.bruto&&Date.now()<R.brutoAte)R.bruto.push(d.text);if(marcaRx()==="trimble"){trimbleDados(d.text);return}onDados(d.text);lerBinario(d.text);textoRx(d.text)});
   NP.GnssTcp.addListener("status",s=>{
     if(s.kind==="desconectado"&&S.fonte==="tcp"&&S.conectado){S.conectado=false;bip("erro");falar("Dispositivo desconectado");
       if(R.trocandoCanal){render();return}

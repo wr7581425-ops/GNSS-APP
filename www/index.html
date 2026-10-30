@@ -1351,7 +1351,7 @@ function sCorr(){
     <button data-act="fecharMounts">Fechar lista</button>`:""}
     <div class="grid2"><label class="f">Usuário<input value="${esc(S.user)}" data-bind="user" placeholder="seu usuário"></label><label class="f">Senha<input type="password" value="${esc(S.senha)}" data-bind="senha" placeholder="••••••"></label></div>
     <label class="ck"><input type="checkbox" id="gga" ${S.enviaGGA?"checked":""}> Enviar GGA ao caster</label>
-    <label class="f">Formato do envio ao receptor<select id="cnEnv"><option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6, T70 e outros SinoGNSS)</option><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (outras marcas)</option></select></label>
+    <label class="f">Formato do envio ao receptor<select id="cnEnv">${marcaRx()==="trimble"?`<option value="tr" selected>Trimble (DCOL, automático)</option>`:""}<option value="vd" ${envAtual()==="vd"?"selected":""}>ComNav $$VD (S6, T70 e outros SinoGNSS)</option><option value="raw" ${envAtual()==="raw"?"selected":""}>RTCM direto (outras marcas)</option></select></label>
     ${NATIVO&&R.ntripSt?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid ${R.ntripSt==="recebendo"?"var(--fix)":R.ntripSt==="erro"?"var(--bad)":"var(--line)"}">${R.ntripSt==="recebendo"?`<b class="st-fix">Correção chegando</b> · ${br(R.ntripBytes/1024,1)} KB de ${esc(R.ntripMsg)}`:R.ntripSt==="erro"?`<b style="color:var(--bad)">Não conectou:</b> ${esc(R.ntripMsg)}`:R.ntripSt==="conectando"?`Conectando a ${esc(R.ntripMsg)}…`:R.ntripSt==="reconectando"?`<b style="color:var(--float)">Reconectando ao caster…</b> (tentativa ${R.reconN||1})`:"Desligado"}</div>`:""}
     ${NATIVO&&S.corrLigada&&R.ntripUlt?`<div class="grid3"><div class="kv"><span>Última correção</span><b class="m" style="font-size:15px;color:${Date.now()-R.ntripUlt>3000?"var(--float)":"var(--fix)"}">há ${Math.max(0,Math.round((Date.now()-R.ntripUlt)/1000))} s</b></div><div class="kv"><span>Chegando</span><b class="m" style="font-size:15px">${R.ntripTaxa||0} B/s</b></div><div class="kv"><span>Quedas</span><b class="m" style="font-size:15px">${R.ntripRecons||0}${R.reconTot?" + "+R.reconTot+" rx":""}</b></div></div>`:""}
     ${marcaRx()==="trimble"&&R.tsol?`<span class="small m muted" style="word-break:break-all">Diagnóstico Trimble: f1=${(R.tsol.f1??0).toString(16)} f2=${(R.tsol.f2??0).toString(16)} sol=${(R.tsol.sol??0).toString(16)} rtk=${(R.tsol.rtk??0).toString(16)} net=${(R.tsol.net??0).toString(16)}/${(R.tsol.net2??0).toString(16)} tipo=${R.tsol.tipo38??"-"} idade=${R.tsol.idade!=null?R.tsol.idade.toFixed(1):"-"}<br>38: ${R.tsol.raw38||""}</span>`:""}
@@ -2553,8 +2553,8 @@ function trRec08(serial){return [0x08,0x2c,...TR_HEX("000000000000000002d000ff")
 const TR_COMUM=[[0x64,"0706ff1300000000"],[0x77,"1600"],[0x77,"1601"],[0x77,"170000"],[0x77,"170100"],[0xa4,"28"],[0x64,"0706ff0300000000"],[0x77,"1600"],[0x77,"1601"],[0xa4,"28"],[0xa4,"0e14"],[0x77,"24"],[0x64,"421d"+"00".repeat(29)]];
 async function trEnviar(lista,rot){for(const [t,h] of lista){const d=Array.isArray(h)?h:TR_HEX(h);const pk=t===0x64?trApp(d):dcol(t,d);try{await NP.GnssTcp.write({data:pk})}catch(e){}await espera(110)}R.cons.push("→ Trimble: "+rot)}
 // RTK por NTRIP: a correção vai pelo próprio Bluetooth (pacotes 0x99)
-async function trimbleNtripIniciar(){
-  await trEnviar([[0x64,trRec08(false)],[0x4e,"0105000a0400ff0002d006"],...TR_COMUM,[0x64,trRec08(false)],[0x30,"0940"],[0x53,"844019c001000013"],[0x4f,"000a0a0030ff00000000000000000000"],[0xa4,"301100"],[0x49,"130105000100"],[0x24,""],[0x34,"0400"],[0x64,trRec08(false)],[0x30,"0940"],[0xd1,"13"]],"modo RTK por NTRIP");
+async function trimbleNtripIniciar(){R.tBasePed=0;R.tBaseOk=0;
+  await trEnviar([[0x64,trRec08(false)],[0x4e,"0105000a0400ff0002d006"],...TR_COMUM,[0x84,"939301"],[0x64,trRec08(false)],[0x30,"0940"],[0x53,"844019c001000013"],[0x4f,"000a0a0030ff00000000000000000000"],[0xa4,"301100"],[0x49,"130105000100"],[0x24,""],[0x34,"0400"],[0x64,trRec08(false)],[0x30,"0940"],[0xd1,"13"]],"modo RTK por NTRIP");
   trimbleGsof();
 }
 // RTX via satélite (licença no receptor)
@@ -2562,6 +2562,11 @@ async function trimbleRtxIniciar(){
   await trEnviar([[0x64,trRec08(true)],...TR_COMUM,[0x64,trRec08(true)],[0xad,"00"],[0x52,"0102000201ff000002d00101000000"],[0x30,"0940"],[0x53,"c44c19c001000013"],[0x4f,"000a0a0030ff00000000000000000000"],[0xa4,"301100"],[0x48,"010001c2000800010000"],[0x49,"010205000100"],[0xd1,"13"]],"RTX");
   trimbleGsof();
 }
+setInterval(()=>{if(!(NATIVO&&marcaRx()==="trimble"&&receptorReal()&&S.corrLigada&&S.correcao==="ntrip"))return;
+  if(R.ntripSt!=="recebendo"||!R.ntripBytes)return;
+  const desde=Date.now()-(S.corrDesde||0);if(desde<8000)return;
+  if(!R.tBasePed||(!R.tBaseOk&&Date.now()-R.tBasePed>20000)||(R.tBaseOk&&G.fix!==4&&Date.now()-R.tBasePed>90000)){R.tBasePed=Date.now();NP.GnssTcp.write({data:dcol(0x34,[0x04,0x00])}).catch(()=>{})}
+},2000);
 async function trimbleCorrecaoParar(){await trEnviar([[0xa4,"301100"],[0x49,"130205000100"]],"parar levantamento")}
 async function trimbleGsof(){
   const p=R.tPorta||18,app=recs=>{R.tTrans=(R.tTrans+1)&255;return dcol(0x64,[R.tTrans,0,0,0x03,0x00,0x01,0x00,...recs])};
@@ -2579,6 +2584,9 @@ function trimbleDados(txt){
     const d=b.slice(i+4,i+4+ln);i+=6+ln;R.respondeu=true;
     if(tp===0x6e){const t=d.replace(/[^\x20-\x7e]/g,"");const pt=t.match(/PORT,(\d+)/),sr=t.match(/SERIAL,(\w+)/),pr=t.match(/PRODUCT,([^;]+)/);
       if(sr)R.serie=sr[1];if(pr)R.produto=pr[1];if(pt&&+pt[1]!==R.tPorta){R.tPorta=+pt[1];trimbleGsof()}}
+    else if(tp===0x35&&d.length>=112){const cod=k=>d.charCodeAt(k)&255,nome=[],bloco=[];for(let k=1;k<9;k++)nome.push(cod(k));for(let k=76;k<112;k++)bloco.push(cod(k));
+      const b=[...nome,...bloco];NP.GnssTcp.write({data:dcol(0x36,[0x02,0x00,...b,0x01,...b,0x00])}).catch(()=>{});R.tBaseOk=Date.now();
+      R.cons.push("→ Trimble: base "+String.fromCharCode(...nome).trim()+" confirmada")}
     else if(tp===0x40){const pg=d.charCodeAt(1),mx=d.charCodeAt(2);if(pg===0)R.tgs="";R.tgs+=d.slice(3);if(pg===mx)trimbleRegistros(R.tgs)}
   }
   R.tb=b.slice(i);

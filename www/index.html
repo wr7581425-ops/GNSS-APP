@@ -325,7 +325,7 @@ function header(){
   $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
   $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(nomeRx()?`${nomeRx()} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
-  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?"Autônomo (sem correção)":"Buscando satélites";
+  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?(G.dgps?"DGPS (correção só de código)":"Autônomo (sem correção)"):"Buscando satélites";
   if(S.tela!=="home"&&ABA_DE[S.tela])S.aba=ABA_DE[S.tela];
   $("hBack").hidden=S.tela==="home";
   document.querySelectorAll("[data-aba]").forEach(b=>b.setAttribute("aria-current",b.dataset.aba===S.aba?"page":"false"));
@@ -2701,7 +2701,7 @@ function nmea(l){
     return}
   R.ultimo=Date.now();G.nmea.push(l);if(G.nmea.length>60)G.nmea.splice(0,G.nmea.length-40);
   if(t==="GGA"){
-    const q=+f[6];G.fix=q===4?4:q===5?5:q>0?1:0;G.sats=+f[7]||0;const hdop=+f[8];
+    const q=+f[6];G.fix=q===4?4:q===5?5:q>0?1:0;G.dgps=q===2||q===9;G.sats=+f[7]||0;const hdop=+f[8];
     if(q>0&&f[2]){G.lat=dm2deg(f[2],f[3]);G.lon=dm2deg(f[4],f[5]);G.h=(+f[9]||0)+(+f[11]||0);R.sep=+f[11]||0;atualizaEN()}
     G.idade=f[13]?+f[13]:0;R.ultGGA=l;if(!isNaN(hdop)&&hdop>0)G.hdop=hdop;
     if(!R.temGST&&!isNaN(hdop)){G.hrms=G.fix===4?0.01*Math.max(1,hdop):G.fix===5?0.25*hdop:1.5*hdop;G.vrms=G.hrms*1.7}

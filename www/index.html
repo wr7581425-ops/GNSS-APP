@@ -1359,7 +1359,7 @@ function sCorr(){
     ${semUsoCorrecao()?`<div class="small" style="padding:10px;border-radius:8px;background:var(--bg);border:1px solid var(--float)"><b style="color:var(--float)">A correção chega, mas o receptor não está usando.</b> Ele continua autônomo (idade ${br(G.idade,1)} s). Normalmente é a porta do receptor que não aceita RTCM. Abra os comandos do receptor para verificar e configurar.<button style="margin-top:8px;width:100%" data-sub="console">Abrir comandos do receptor</button></div>`:""}
     <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
   :c==="radio"?`<section class="card hl"><h3>Rádio interno</h3>${radioCampos(false)}<span class="muted small">Ligar a correção configura o rover para ouvir a base neste rádio.</span></section>`
-  :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">Correção via satélite (exige assinatura do serviço e receptor compatível). Convergência típica de alguns minutos.</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
+  :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">${marcaRx()==="trimble"?"Trimble RTX pelo satélite, com a licença gravada no receptor. O app liga o RTX no R980 do mesmo jeito que o app da Trimble; a precisão vai melhorando durante a convergência (alguns minutos)."+(S.corrLigada&&S.correcao==="rtx"?`<br><b style="color:var(--fix)">RTX ligado há ${tempo(R.rtxDesde||S.corrDesde)} · ${G.rtx?"usando RTX · ±"+br(G.hrms)+" m":"aguardando o sinal RTX…"}</b>`:""):"Correção via satélite. Por enquanto funciona no Trimble com licença RTX; nos outros receptores ainda não."}</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
   <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
@@ -1559,8 +1559,11 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao!=="ntrip"&&marcaRx()==="trimble"){toast("No R980 o RTX roda dentro do receptor: deixe-o configurado como rover RTX no app da Trimble. O WA Survey mostra a solução RTX que ele calcular.");return}if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
-    R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
+if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
+    const ligarNtrip=()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}})};
+    if(marcaRx()==="trimble"){toast("Colocando o R980 em modo RTK…");trimbleNtripIniciar().then(ligarNtrip);return}
+    ligarNtrip();return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
   if(a==="atualizar"){instalarAtualizacao();return}
   if(a==="verAtualiz"){verificarAtualizacao(true);return}
@@ -1568,6 +1571,7 @@ document.addEventListener("click",e=>{
   if(a==="restaurar"){restaurarBackup();return}
   if(a==="bgBateria"){NP.GnssTcp.askBattery().then(()=>setTimeout(lerSegundoPlano,4000)).catch(e=>toast(""+(e.message||e)));return}
   if(a==="bgNotif"){NP.GnssTcp.askNotifications().then(lerSegundoPlano).catch(()=>{});return}
+  if(a==="corrOff"&&marcaRx()==="trimble"&&receptorReal())trimbleCorrecaoParar();
   if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
@@ -2541,6 +2545,24 @@ async function trimbleIniciar(){
   await espera(900);trimbleGsof();
   clearInterval(R.tHb);R.tHb=setInterval(()=>{if(receptorReal()&&marcaRx()==="trimble")NP.GnssTcp.write({data:dcol(0x6f,[])}).catch(()=>{});else clearInterval(R.tHb)},15000);
 }
+// sequências copiadas do app da Trimble (capturas de 30/10/2026, R980 fw 6.63). Hex de cada pacote: [tipo, dados]
+const TR_HEX=h=>Array.from({length:h.length/2},(_,i)=>parseInt(h.substr(i*2,2),16));
+function trSerial32(){const s=(R.serie||"").slice(0,32);const a=[];for(let i=0;i<32;i++)a.push(i<s.length?s.charCodeAt(i):0);return a}
+function trApp(recs){R.tTrans=((R.tTrans||0x30)+1)&255;return dcol(0x64,[R.tTrans,0,0,0x03,0x00,0x01,0x00,...recs])}
+function trRec08(serial){return [0x08,0x2c,...TR_HEX("000000000000000002d000ff"),...(serial?trSerial32():new Array(32).fill(0))]}
+const TR_COMUM=[[0x64,"0706ff1300000000"],[0x77,"1600"],[0x77,"1601"],[0x77,"170000"],[0x77,"170100"],[0xa4,"28"],[0x64,"0706ff0300000000"],[0x77,"1600"],[0x77,"1601"],[0xa4,"28"],[0xa4,"0e14"],[0x77,"24"],[0x64,"421d"+"00".repeat(29)]];
+async function trEnviar(lista,rot){for(const [t,h] of lista){const d=Array.isArray(h)?h:TR_HEX(h);const pk=t===0x64?trApp(d):dcol(t,d);try{await NP.GnssTcp.write({data:pk})}catch(e){}await espera(110)}R.cons.push("→ Trimble: "+rot)}
+// RTK por NTRIP: a correção vai pelo próprio Bluetooth (pacotes 0x99)
+async function trimbleNtripIniciar(){
+  await trEnviar([[0x64,trRec08(false)],[0x4e,"0105000a0400ff0002d006"],...TR_COMUM,[0x64,trRec08(false)],[0x30,"0940"],[0x53,"844019c001000013"],[0x4f,"000a0a0030ff00000000000000000000"],[0xa4,"301100"],[0x49,"130105000100"],[0x24,""],[0x34,"0400"],[0x64,trRec08(false)],[0x30,"0940"],[0xd1,"13"]],"modo RTK por NTRIP");
+  trimbleGsof();
+}
+// RTX via satélite (licença no receptor)
+async function trimbleRtxIniciar(){
+  await trEnviar([[0x64,trRec08(true)],...TR_COMUM,[0x64,trRec08(true)],[0xad,"00"],[0x52,"0102000201ff000002d00101000000"],[0x30,"0940"],[0x53,"c44c19c001000013"],[0x4f,"000a0a0030ff00000000000000000000"],[0xa4,"301100"],[0x48,"010001c2000800010000"],[0x49,"010205000100"],[0xd1,"13"]],"RTX");
+  trimbleGsof();
+}
+async function trimbleCorrecaoParar(){await trEnviar([[0xa4,"301100"],[0x49,"130205000100"]],"parar levantamento")}
 async function trimbleGsof(){
   const p=R.tPorta||18,app=recs=>{R.tTrans=(R.tTrans+1)&255;return dcol(0x64,[R.tTrans,0,0,0x03,0x00,0x01,0x00,...recs])};
   const reg=t=>[0x07,0x06,0x0a,p,0x03,0x00,t,0x00]; // registro de saída: GSOF, porta, 1 Hz, tipo
@@ -2829,7 +2851,7 @@ async function desconectarReal(){
 // ---------- NTRIP ----------
 // formato da correção por receptor: S6 usa o envelope $$VD, T70 usa RTCM direto (visto na gravação do Survey Master)
 function chaveRx(){return R.serie||S.btNome||S.ip||"x"}
-function envAtual(){if(marcaRx()==="trimble")return "raw";S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];const mk=marcaRx();if(mk==="spectra")return "raw";if(mk==="comnav")return "vd";return "raw"}
+function envAtual(){if(marcaRx()==="trimble")return "tr";S.envRx=S.envRx||{};if(!S.envFix2){S.envRx={};S.envFix2=true;salvar()}const k=chaveRx();if(S.envRx[k])return S.envRx[k];const mk=marcaRx();if(mk==="spectra")return "raw";if(mk==="comnav")return "vd";return "raw"}
 async function ntripLigar(){
   if(S.fonte!=="tcp")toast("Sem receptor: vou só testar o acesso ao caster. A correção não é aplicada.");
   if(!S.caster||!S.mount){toast("Preencha o caster e o ponto de montagem");return false}

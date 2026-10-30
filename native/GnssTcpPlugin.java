@@ -643,6 +643,19 @@ public class GnssTcpPlugin extends Plugin {
         return o.toByteArray();
     }
 
+    /** Trimble: a correção vai em pacotes DCOL 0x99 = [0x0b + RTCM com os bits invertidos], até 253 bytes cada (visto no app da Trimble). */
+    private static byte[] envelopeTrimble(byte[] b) {
+        ByteArrayOutputStream o = new ByteArrayOutputStream(b.length + b.length / 253 * 7 + 16);
+        for (int i = 0; i < b.length; i += 253) {
+            int n = Math.min(253, b.length - i), len = n + 1;
+            int cs = 0x00 + 0x99 + len + 0x0b;
+            o.write(0x02); o.write(0x00); o.write(0x99); o.write(len); o.write(0x0b);
+            for (int k = 0; k < n; k++) { int v = (~b[i + k]) & 0xff; o.write(v); cs += v; }
+            o.write(cs & 0xff); o.write(0x03);
+        }
+        return o.toByteArray();
+    }
+
     @PluginMethod
     public void setEnvelope(PluginCall call) {
         envelope = call.getString("mode", "raw");
@@ -660,7 +673,7 @@ public class GnssTcpPlugin extends Plugin {
                     filaBytes -= b.length;
                     OutputStream o = rxOut;
                     if (o == null) { rxErroEnvio = "receptor não conectado"; continue; }
-                    byte[] w = "vd".equals(envelope) ? envelopeVD(b) : b;
+                    byte[] w = "vd".equals(envelope) ? envelopeVD(b) : "tr".equals(envelope) ? envelopeTrimble(b) : b;
                     synchronized (o) { o.write(w); o.flush(); }
                     rxEnviados += b.length;
                     rxErroEnvio = "";

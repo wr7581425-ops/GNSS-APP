@@ -140,7 +140,7 @@ const S={
   cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
     if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
@@ -325,7 +325,7 @@ function header(){
   $("hEyebrow").textContent=["coleta","locacao","calc"].includes(S.tela)?"Projeto":S.tela==="config"?"WA Survey":"Receptor ativo";
   $("hTitle").textContent=["coleta","locacao","calc"].includes(S.tela)?(proj()?.nome||"Sem projeto"):(nomeRx()?`${nomeRx()} · ${S.modo==="rover"?"Rover":"Base"}`:"Nenhum");
   const c=$("hChip");c.className="chip "+stCls();
-  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.rtx&&G.fix>=4?`RTX · ${br(G.hrms)} m`:G.fix===4?`FIX · ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?(G.dgps?"DGPS (correção só de código)":"Autônomo (sem correção)"):"Buscando satélites";
+  c.textContent=S.conectado&&S.fonte==="celular"?`GPS celular · ±${br(G.hrms,1)} m`:!S.conectado?(S.conectando?"Conectando…":"Desconectado"):G.rtx&&G.fix>=4?`RTX · ${br(G.hrms)} m`:G.fix===4?`FIX ${fonteSolucao().startsWith("RTK")?"RTK ":""}· ${br(G.hrms)} m`:G.fix===5?`FLOAT · ${br(G.hrms)} m`:G.fix===1?(G.dgps?"DGPS (correção só de código)":"Autônomo (sem correção)"):"Buscando satélites";
   if(S.tela!=="home"&&ABA_DE[S.tela])S.aba=ABA_DE[S.tela];
   $("hBack").hidden=S.tela==="home";
   document.querySelectorAll("[data-aba]").forEach(b=>b.setAttribute("aria-current",b.dataset.aba===S.aba?"page":"false"));
@@ -1340,7 +1340,14 @@ function usarCaster(id){const c=CASTERS.find(x=>x.id===id);if(!c)return;
   toast(S.senha?c.nome+" pronto":c.nome+": digite a senha uma vez, o app guarda")}
 function sCorr(){
   const c=S.correcao;
-  return `<div class="grid3">${opt("correcao","radio",c,"Rádio","base local")}${opt("correcao","ntrip",c,"NTRIP","CORS / RBMC")}${opt("correcao","rtx",c,"RTX / PPP","satélite")}</div>
+  const ativa=S.corrLigada?(S.correcaoAtiva||c):(R.ntripSt==="recebendo"?"ntrip":G.rtx?"rtx":null);
+  const nomeF={ntrip:"NTRIP "+(S.mount||""),rtx:"RTX (satélite)",radio:"Rádio"}[ativa]||"";
+  const sol=G.rtx?(G.fix>=4?"RTX · ±"+br(G.hrms)+" m":"RTX convergindo"):G.fix===4?"FIX":G.fix===5?"FLOAT":G.dgps?"DGPS":S.conectado?"Autônomo":"sem receptor";
+  return `${ativa?`<section class="card" style="border:2px solid ${G.fix===4||G.rtx?"var(--fix)":"var(--float)"};background:${G.fix===4||G.rtx?"var(--fix-bg)":"var(--float-bg)"}">
+    <div class="split"><b>Correção ativa: ${esc(nomeF)}</b><b style="color:${G.fix===4||G.rtx?"var(--fix)":"var(--float)"}">${sol}</b></div>
+    <span class="small muted">${ativa==="rtx"?`Ligado há ${tempo(R.rtxDesde||S.corrDesde||Date.now())}. Solução calculada pelo RTX dentro do receptor.`:ativa==="ntrip"?`Recebendo ${br((R.ntripBytes||0)/1024,1)} KB · solução RTK com a base do caster.`:"Correção pelo rádio."}${!S.corrLigada?" (ligada no receptor)":""}</span>
+    <button data-act="corrOff">Desligar ${ativa==="rtx"?"RTX":ativa==="ntrip"?"NTRIP":"correção"}</button></section>`:""}
+  <div class="grid3">${opt("correcao","radio",c,"Rádio","base local")}${opt("correcao","ntrip",c,"NTRIP","CORS / RBMC")}${opt("correcao","rtx",c,"RTX / PPP","satélite")}</div>
   ${c==="ntrip"?`<section class="card hl"><div class="split"><h3>NTRIP</h3>${S.corrLigada?`<span class="st-fix small">${NATIVO?(R.ntripSt==="recebendo"?`Recebendo · ${br(R.ntripBytes/1024,1)} KB${S.fonte!=="tcp"?" (teste)":""}`:"Conectando…"):`Recebendo · ${br(G.idade,1)} s`}</span>`:""}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${CASTERS.map(c=>`<button style="min-height:36px;font-size:13px;padding:0 12px" data-caster="${c.id}" aria-pressed="${S.caster===c.ip&&S.mount===c.mount}" class="${S.caster===c.ip?"pri":""}">${c.nome}</button>`).join("")}</div>
     <div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Caster<input class="m" value="${esc(S.caster)}" data-bind="caster"></label><label class="f">Porta<input class="m" value="${esc(S.cport)}" data-bind="cport"></label></div>
@@ -1360,7 +1367,7 @@ function sCorr(){
     <span class="muted small">${NATIVO&&S.fonte!=="tcp"?"Sem receptor conectado: aqui dá para testar usuário, senha e ponto de montagem. A correção só é aplicada com o receptor ligado pelo Wi-Fi.":"Internet do celular, repassada ao receptor."}</span></section>`
   :c==="radio"?`<section class="card hl"><h3>Rádio interno</h3>${radioCampos(false)}<span class="muted small">Ligar a correção configura o rover para ouvir a base neste rádio.</span></section>`
   :`<section class="card hl"><h3>RTX / PPP</h3><span class="muted small">${marcaRx()==="trimble"?"Trimble RTX pelo satélite, com a licença gravada no receptor. O app liga o RTX no R980 do mesmo jeito que o app da Trimble; a precisão vai melhorando durante a convergência (alguns minutos)."+(S.corrLigada&&S.correcao==="rtx"?`<br><b style="color:var(--fix)">RTX ligado há ${tempo(R.rtxDesde||S.corrDesde)} · ${G.rtx?"usando RTX · ±"+br(G.hrms)+" m":"aguardando o sinal RTX…"}</b>`:""):"Correção via satélite. Por enquanto funciona no Trimble com licença RTX; nos outros receptores ainda não."}</span><label class="f">Serviço<select><option>Trimble RTX (CenterPoint)</option><option>Atlas (Hemisphere)</option><option>PPP do fabricante</option></select></label></section>`}
-  <button class="pri" data-act="${S.corrLigada?"corrOff":"corrOn"}" ${S.conectado?"":"disabled"}>${S.corrLigada?"Desligar correção":"Ligar correção"}</button>
+  ${(S.corrLigada&&(S.correcaoAtiva||S.correcao)===S.correcao)?`<button class="pri" data-act="corrOff">Desligar correção</button>`:`<button class="pri" data-act="corrOn" ${S.conectado?"":"disabled"}>Ligar ${S.correcao==="rtx"?"RTX":S.correcao==="ntrip"?"NTRIP":"correção"}</button>`}
   ${S.conectado?"":`<p class="muted small" style="margin:0">${S.reconectando?`<b style="color:var(--float)">Reconectando ao receptor… (tentativa ${R.reconRx||1})</b> A correção continua ligada.`:"Conecte o receptor primeiro."}</p>`}`;
 }
 function semUsoCorrecao(){if(marcaRx()==="trimble"&&!R.ultGGA)return false;return NATIVO&&S.corrLigada&&S.fonte==="tcp"&&R.ntripSt==="recebendo"&&R.ntripBytes>8000&&S.corrDesde&&Date.now()-S.corrDesde>20000&&G.fix<=1&&(G.idade===0||G.idade>=30)}
@@ -1513,7 +1520,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.tile){const t=Object.values(TILES).flat().find(x=>x[0]===b.dataset.tile);if(t)t[4]();return}
   if(b.dataset.ptdel!==undefined){S.ptAberto=null;S.ptApagar=null;const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
   if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
-  if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&S.corrLigada){S.corrLigada=false;toast("Correção desligada ao trocar a fonte")}salvar();render();return}
+  if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;if(b.dataset.opt==="correcao"&&b.dataset.val!==S.correcaoAtiva&&(S.corrLigada||R.ntripSt==="recebendo")){desligarCorrecao();toast("Correção anterior desligada ao trocar a fonte")}salvar();render();return}
   if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
   if(b.dataset.usar){S.ativo=+b.dataset.usar;if(S.conectado){S.conectado=false;S.corrLigada=false}salvar();render();toast("Receptor selecionado. Conecte em Receptor › Conexão.");return}
   if(acaoExport(b))return;
@@ -1559,9 +1566,9 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
+  if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.correcaoAtiva="rtx";S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
 if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
-    const ligarNtrip=()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}})};
+    const ligarNtrip=()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.correcaoAtiva="ntrip";S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}})};
     if(marcaRx()==="trimble"){toast("Colocando o R980 em modo RTK…");trimbleNtripIniciar().then(ligarNtrip);return}
     ligarNtrip();return}
   if(a==="corrOn"){S.corrLigada=true;S.corrDesde=Date.now();render();toast(S.correcao==="ntrip"?"Conectando ao caster NTRIP…":"Correção ligada")}
@@ -1571,8 +1578,8 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="restaurar"){restaurarBackup();return}
   if(a==="bgBateria"){NP.GnssTcp.askBattery().then(()=>setTimeout(lerSegundoPlano,4000)).catch(e=>toast(""+(e.message||e)));return}
   if(a==="bgNotif"){NP.GnssTcp.askNotifications().then(lerSegundoPlano).catch(()=>{});return}
-  if(a==="corrOff"&&marcaRx()==="trimble"&&receptorReal())trimbleCorrecaoParar();
-  if(a==="corrOff"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
+  if(a==="corrOff"){desligarCorrecao();render();toast("Correção desligada");return}
+  if(a==="corrOffAntigo"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
     const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
       if(S.baseMedindo<=0){clearInterval(iv);const m=i=>am.reduce((s,x)=>s+x[i],0)/am.length;
@@ -2545,6 +2552,11 @@ async function trimbleIniciar(){
   await espera(900);trimbleGsof();
   clearInterval(R.tHb);R.tHb=setInterval(()=>{if(receptorReal()&&marcaRx()==="trimble")NP.GnssTcp.write({data:dcol(0x6f,[])}).catch(()=>{});else clearInterval(R.tHb)},15000);
 }
+function desligarCorrecao(){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO){NP.GnssTcp.ntripDisconnect().catch(()=>{});if(marcaRx()==="trimble"&&receptorReal())trimbleCorrecaoParar()}
+  S.corrLigada=false;S.correcaoAtiva=null;R.ntripSt="desligado";salvar()}
+// de onde vem a solução agora: RTX (Trimble), RTK por NTRIP, rádio…
+function fonteSolucao(){if(G.rtx)return "RTX";if(G.fix<4)return "";if(S.corrLigada||R.ntripSt==="recebendo")return {ntrip:"RTK · NTRIP",radio:"RTK · rádio",rtx:"RTX"}[S.correcaoAtiva||S.correcao]||"RTK";
+  if(marcaRx()==="trimble")return "RTK";return ""}
 // sequências copiadas do app da Trimble (capturas de 30/10/2026, R980 fw 6.63). Hex de cada pacote: [tipo, dados]
 const TR_HEX=h=>Array.from({length:h.length/2},(_,i)=>parseInt(h.substr(i*2,2),16));
 function trSerial32(){const s=(R.serie||"").slice(0,32);const a=[];for(let i=0;i<32;i++)a.push(i<s.length?s.charCodeAt(i):0);return a}
@@ -2933,7 +2945,7 @@ async function sincronizarNativo(){
   const avisos=[];
   if(st.receptor){S.conectado=true;S.fonte="tcp";S.desde=st.desde||Date.now();R.ultimo=Date.now();R.manual=false;avisos.push("receptor")}
   else if(st.receptorDesejado){R.manual=false;R.reconRx=0;setTimeout(()=>reconectarReceptor(),500);avisos.push("receptor (reconectando)")}
-  if(st.ntripDesejado){S.corrLigada=true;S.correcao="ntrip";R.ntripSt=st.ntripStatus;R.ntripBytes=st.ntripBytes;R.ntripMsg=st.mount;avisos.push("NTRIP");
+  if(st.ntripDesejado){S.corrLigada=true;S.correcao="ntrip";S.correcaoAtiva="ntrip";R.ntripSt=st.ntripStatus;R.ntripBytes=st.ntripBytes;R.ntripMsg=st.mount;avisos.push("NTRIP");
     if(!st.ntrip)setTimeout(()=>{if(S.corrLigada)ntripLigar().catch(()=>{})},1500)}
   if(st.gravando){const arq=(st.gravCaminho||"").split("/").pop();R.gravCol={arq,bytes:st.gravBytes||0};
     Object.assign(S.est,{gravando:true,inicio:st.gravInicio||Date.now(),destino:"coletora",formato:"CNB",arqRx:arq});R.gravTimer=setInterval(salvarBrutos,5000);avisos.push("gravação estática")}

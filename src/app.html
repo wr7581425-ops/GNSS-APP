@@ -126,7 +126,7 @@ const S={
   cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
     if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
@@ -1393,8 +1393,13 @@ function sNmea(){
   <section class="card ${R.nmeaGrav?"hl":""}"><div class="split"><h3>Registro de dados (NMEA)</h3><span class="${R.nmeaGrav?"st-fix":"muted"} small">${R.nmeaGrav?"● GRAVANDO":"parado"}</span></div>
     <span class="muted small">Grava a posição corrigida a cada 1 s (hora, N/E, cota, solução e precisão) para cruzar com os pontos do ecobatímetro pela hora.${R.ultProf!=null?` O ecobatímetro está devolvendo a profundidade (${br(R.ultProf,2)} m); ela entra no registro.`:" Se o ecobatímetro devolver a profundidade por esta conexão, ela entra junto."}</span>
     <div class="grid2"><div class="kv"><span>Linhas gravadas</span><b class="m">${(R.nmeaLog||[]).length}</b></div><div class="kv"><span>Agora</span><b class="m">${S.conectado?solucaoTxt()+" · "+br(G.hrms)+" m":"—"}</b></div></div>
-    <button class="${R.nmeaGrav?"":"pri"}" data-act="nmeaGrav">${R.nmeaGrav?"Parar gravação":"Iniciar gravação"}</button>
-    ${(R.nmeaLog||[]).length?`<div class="grid3"><button data-act="nmeaEnviar">Compartilhar CSV</button><button data-act="nmeaBaixar">Salvar em Downloads</button><button data-act="nmeaLimpar">Limpar</button></div>`:""}</section>
+    <button class="${R.nmeaGrav?"":"pri"}" data-act="nmeaGrav">${R.nmeaGrav?"Parar e salvar":"Iniciar gravação"}</button>
+    ${R.nmeaGrav?`<span class="muted small">Salvando no arquivo automaticamente. Ao parar, gera o relatório em PDF.</span>`:""}</section>
+  ${(S.nmeaSessoes||[]).length?`<span class="eyebrow">Gravações salvas</span>${S.nmeaSessoes.map(x=>`<section class="card" style="padding:12px 14px;gap:6px">
+    <div class="split"><b class="m">${esc(x.arq.split("/").pop())}</b><span class="muted small">${x.n} linhas${x.temProf?" · c/ profundidade":""}</span></div>
+    <span class="muted small">${new Date(x.inicio).toLocaleString("pt-BR")} · ${dur(((x.fim||x.inicio)-x.inicio)/1000)} · ${esc(x.receptor||"")}</span>
+    <div class="grid2"><button data-act="sessPdf" data-id="${x.id}" ${x.arqPdf?"":"disabled"}>Relatório (PDF)</button><button data-act="sessCsv" data-id="${x.id}">Dados (CSV)</button></div>
+    <div class="grid2"><button style="min-height:40px;font-size:13px" data-act="sessBaixar" data-id="${x.id}">Salvar CSV em Downloads</button><button style="min-height:40px;font-size:13px" data-act="sessApagar" data-id="${x.id}">Apagar</button></div></section>`).join("")}`:""}
   <span class="eyebrow">Monitor de dados ao vivo</span>
   <div class="monitor" id="mon">${S.conectado?esc(G.nmea.join("\n")):"Conecte o receptor para ver as sentenças."}</div>`;
 }
@@ -1592,10 +1597,11 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
     const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
-  if(a==="nmeaGrav"){R.nmeaGrav=!R.nmeaGrav;if(R.nmeaGrav){R.nmeaLog=R.nmeaLog||[];R.nmeaUlt=Date.now();gravarLinhaNmea();falar("Gravação de dados iniciada");toast("Gravando o registro NMEA")}else{falar("Gravação encerrada");toast((R.nmeaLog||[]).length+" linhas gravadas")}render();return}
-  if(a==="nmeaEnviar"){salvarLogNmea(false);return}
-  if(a==="nmeaBaixar"){salvarLogNmea(true);return}
-  if(a==="nmeaLimpar"){R.nmeaLog=[];render();toast("Registro apagado");return}
+  if(a==="nmeaGrav"){if(R.nmeaGrav)nmeaPararGrav();else nmeaIniciarGrav();return}
+  if(a==="sessCsv"){const x=(S.nmeaSessoes||[]).find(z=>z.id===+b.dataset.id);if(x)compartilharSessao(x,"csv",false);return}
+  if(a==="sessPdf"){const x=(S.nmeaSessoes||[]).find(z=>z.id===+b.dataset.id);if(x)compartilharSessao(x,"pdf",false);return}
+  if(a==="sessBaixar"){const x=(S.nmeaSessoes||[]).find(z=>z.id===+b.dataset.id);if(x)compartilharSessao(x,"csv",true);return}
+  if(a==="sessApagar"){const x=(S.nmeaSessoes||[]).find(z=>z.id===+b.dataset.id);if(x)apagarSessao(x);return}
   if(a==="servidor"&&NATIVO){servidorReal(!S.servidor);return}
   if(a==="servidor"){S.servidor=!S.servidor;render();toast(S.servidor?"Servidor ligado na porta "+S.sport:"Servidor desligado")}
   if(a==="ptMais"){R.ptLim=(R.ptLim||200)+500;render();return}
@@ -3025,27 +3031,97 @@ function gravarLinhaNmea(){
   const prof=(R.ultProf!=null&&Date.now()-(R.ultProfT||0)<4000)?R.ultProf:null;
   R.nmeaLog=R.nmeaLog||[];
   R.nmeaLog.push({t:Date.now(),lat:g.lat,lon:g.lon,E:g.E,N:g.N,cota:cotaTerreno(),st:solucaoTxt(),hrms:g.hrms,vrms:g.vrms||0,sats:g.sats||0,idade:g.idade||0,prof});
-  if(R.nmeaLog.length>200000)R.nmeaLog.splice(0,50000); // segurança: ~55 h a 1 Hz
+  if(R.nmeaLog.length-(R.nmeaFlushIdx||0)>=10)nmeaFlush();
+  if(R.nmeaLog.length>200000){R.nmeaLog.splice(0,50000);R.nmeaFlushIdx=Math.max(0,(R.nmeaFlushIdx||0)-50000)}
 }
 function solucaoTxt(){return G.rtx?"RTX":G.fix===4?"FIX":G.fix===5?"FLOAT":G.dgps?"DGPS":G.fix>0?"AUTONOMO":"-"}
-function exportarLogNmea(){
-  const L=R.nmeaLog||[];if(!L.length){toast("Nenhum dado gravado ainda");return}
-  const d=+S.cfg.dec||3,v=x=>x==null?"":(+x).toFixed(d),temProf=L.some(x=>x.prof!=null);
-  const cab="Data;Hora;Latitude;Longitude;N;E;Cota;Solucao;PrecH;PrecV;Sats;IdadeCorr"+(temProf?";Profundidade;CotaFundo":"");
-  const lin=L.map(x=>{const dt=new Date(x.t);
-    return [dt.toLocaleDateString("pt-BR"),dt.toLocaleTimeString("pt-BR")+"."+String(dt.getMilliseconds()).padStart(3,"0"),
-      x.lat.toFixed(9),x.lon.toFixed(9),v(x.N),v(x.E),v(x.cota),x.st,v(x.hrms),v(x.vrms),x.sats,(x.idade||0).toFixed(1)]
-      .concat(temProf?[x.prof!=null?x.prof.toFixed(3):"",x.prof!=null?v(x.cota-x.prof):""]:[]).join(";")});
-  return "# Registro NMEA · "+(proj()?.nome||"")+" · "+sisTxt()+"\r\n"+cab+"\r\n"+lin.join("\r\n")+"\r\n";
+const NMEA_CAB="Data;Hora;Latitude;Longitude;N;E;Cota;Solucao;PrecH;PrecV;Sats;IdadeCorr;Profundidade;CotaFundo";
+function csvLinhaNmea(x){const d=+S.cfg.dec||3,v=z=>z==null||isNaN(z)?"":(+z).toFixed(d),dt=new Date(x.t);
+  return [dt.toLocaleDateString("pt-BR"),dt.toLocaleTimeString("pt-BR")+"."+String(dt.getMilliseconds()).padStart(3,"0"),
+    x.lat.toFixed(9),x.lon.toFixed(9),v(x.N),v(x.E),v(x.cota),x.st,v(x.hrms),v(x.vrms),x.sats,(x.idade||0).toFixed(1),
+    x.prof!=null?x.prof.toFixed(3):"",x.prof!=null?v(x.cota-x.prof):""].join(";")}
+// ---- gravação que salva em arquivo enquanto grava (não se perde ao fechar o app) ----
+async function nmeaIniciarGrav(){
+  R.nmeaLog=[];R.nmeaFlushIdx=0;R.nmeaGrav=true;
+  const id=Date.now(),arq="WASurvey/nmea/NMEA_"+new Date(id).toISOString().slice(0,16).replace(/[-:T]/g,"")+".csv";
+  R.nmeaSess={id,arq,inicio:id,receptor:nomeRx(),nome:proj()?.nome||"",sis:sisTxt()};
+  if(NATIVO){try{await NP.Filesystem.writeFile({path:arq,data:"# Registro NMEA · "+R.nmeaSess.nome+" · "+R.nmeaSess.sis+"\r\n"+NMEA_CAB+"\r\n",directory:"DATA",encoding:"utf8",recursive:true})}catch(e){toast("Não consegui criar o arquivo: "+(e.message||e))}}
+  R.nmeaUlt=Date.now();gravarLinhaNmea();render();falar("Gravação de dados iniciada");toast("Gravando em "+arq.split("/").pop());
 }
-async function salvarLogNmea(baixar){
-  const txt=exportarLogNmea();if(!txt)return;
-  const nome="NMEA_"+new Date().toISOString().slice(0,16).replace(/[-:T]/g,"")+".csv";
-  if(!NATIVO){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/csv"}));a.download=nome;a.click();return}
-  try{await NP.Filesystem.writeFile({path:"WASurvey/nmea/"+nome,data:txt,directory:"DATA",encoding:"utf8",recursive:true});
-    if(baixar){const r=await NP.GnssTcp.saveToDownloads({path:"WASurvey/nmea/"+nome,mime:"text/csv"});bip("ok");toast("Salvo em "+r.where)}
-    else{await NP.GnssTcp.shareFiles({files:[{path:"WASurvey/nmea/"+nome,dir:"data"}],mime:"text/csv",title:"Enviar "+nome})}}
-  catch(e){toast("Não consegui salvar: "+(e.message||e))}
+async function nmeaFlush(){
+  if(!R.nmeaSess||!NATIVO)return;const from=R.nmeaFlushIdx||0,rows=(R.nmeaLog||[]).slice(from);if(!rows.length)return;
+  R.nmeaFlushIdx=R.nmeaLog.length;
+  try{await NP.Filesystem.appendFile({path:R.nmeaSess.arq,data:rows.map(csvLinhaNmea).join("\r\n")+"\r\n",directory:"DATA",encoding:"utf8"})}catch(e){}
+}
+async function nmeaPararGrav(){
+  R.nmeaGrav=false;await nmeaFlush();
+  const sess=R.nmeaSess,rows=R.nmeaLog||[];
+  if(sess&&rows.length){sess.fim=Date.now();sess.n=rows.length;sess.temProf=rows.some(x=>x.prof!=null);
+    if(NATIVO){try{const pdf=pdfNmea(sess,rows);sess.arqPdf="WASurvey/nmea/"+sess.arq.split("/").pop().replace(".csv","_relatorio.pdf");
+      await NP.Filesystem.writeFile({path:sess.arqPdf,data:b64(pdf),directory:"DATA",recursive:true})}catch(e){}}
+    S.nmeaSessoes=[sess,...(S.nmeaSessoes||[])].slice(0,50);salvar()}
+  R.nmeaSess=null;R.nmeaLog=[];R.nmeaFlushIdx=0;render();bip("ok");falar("Gravação encerrada");toast((rows.length)+" linhas gravadas");
+}
+function estatNmea(rows){
+  const e={n:rows.length,st:{}},hr=[],vr=[],ct=[],pf=[];let dist=0,pe=null;
+  let Emin=1/0,Emax=-1/0,Nmin=1/0,Nmax=-1/0;
+  for(const x of rows){e.st[x.st]=(e.st[x.st]||0)+1;if(x.hrms>0)hr.push(x.hrms);if(x.vrms>0)vr.push(x.vrms);if(x.cota!=null&&!isNaN(x.cota))ct.push(x.cota);if(x.prof!=null)pf.push(x.prof);
+    Emin=Math.min(Emin,x.E);Emax=Math.max(Emax,x.E);Nmin=Math.min(Nmin,x.N);Nmax=Math.max(Nmax,x.N);
+    if(pe)dist+=Math.hypot(x.E-pe[0],x.N-pe[1]);pe=[x.E,x.N]}
+  const ag=a=>a.length?{min:Math.min(...a),max:Math.max(...a),med:a.reduce((s,v)=>s+v,0)/a.length}:null;
+  return Object.assign(e,{hr:ag(hr),vr:ag(vr),ct:ag(ct),pf:ag(pf),dist,Emin,Emax,Nmin,Nmax,cf:pf.length?ag(ct.map((c,i)=>c-pf[i]).filter(v=>!isNaN(v))):null});
+}
+function pdfNmea(s,rows){
+  const W=595,H=842,M=40,br3=(x,n=3)=>x==null?"-":(+x).toFixed(n),esc=t=>String(t).replace(/([()\\])/g,"\\$1");
+  const T=(x,y,sz,txt,b)=>`BT /${b?"F2":"F1"} ${sz} Tf ${x.toFixed(1)} ${y.toFixed(1)} Td (${esc(txt)}) Tj ET\n`;
+  const E=estatNmea(rows);let c="",y=H-M;
+  c+=T(M,y,16,"Relatorio de levantamento (saida NMEA)",true);y-=18;
+  c+=T(M,y,10,(s.nome||"")+"  -  "+(s.sis||""));y-=24;
+  const row=(k,val)=>{c+=T(M,y,10,k,true)+T(M+175,y,10,val);y-=15};
+  row("Receptor",s.receptor||"-");
+  row("Inicio",new Date(s.inicio).toLocaleString("pt-BR"));
+  row("Fim",new Date(s.fim).toLocaleString("pt-BR"));
+  row("Duracao",dur((s.fim-s.inicio)/1000));
+  row("Epocas gravadas (1/s)",String(E.n));
+  const sol=Object.entries(E.st).map(([k,v])=>k+" "+v+" ("+Math.round(v/E.n*100)+"%)").join("   ");
+  row("Solucao",sol);
+  y-=6;c+=T(M,y,12,"Precisao e cota",true);y-=16;
+  row("Precisao H (m)",E.hr?`min ${br3(E.hr.min)}  med ${br3(E.hr.med)}  max ${br3(E.hr.max)}`:"-");
+  row("Precisao V (m)",E.vr?`min ${br3(E.vr.min)}  med ${br3(E.vr.med)}  max ${br3(E.vr.max)}`:"-");
+  row("Cota (m)",E.ct?`min ${br3(E.ct.min)}  med ${br3(E.ct.med)}  max ${br3(E.ct.max)}`:"-");
+  if(E.pf){row("Profundidade (m)",`min ${br3(E.pf.min)}  med ${br3(E.pf.med)}  max ${br3(E.pf.max)}`);
+    row("Cota do fundo (m)",E.cf?`min ${br3(E.cf.min)}  max ${br3(E.cf.max)}`:"-")}
+  y-=6;c+=T(M,y,12,"Extensao",true);y-=16;
+  row("E (m)",`${br3(E.Emin)}  a  ${br3(E.Emax)}`);
+  row("N (m)",`${br3(E.Nmin)}  a  ${br3(E.Nmax)}`);
+  row("Distancia percorrida",br3(E.dist,1)+" m");
+  // croqui do percurso
+  y-=10;const bx=M,by=60,bw=W-2*M,bh=y-70;
+  if(bh>120){c+="0.6 G 0.6 w "+`${bx} ${by} ${bw} ${bh} re S\n`+T(bx+6,by+bh-14,10,"Percurso",true);
+    const dx=E.Emax-E.Emin||1,dy=E.Nmax-E.Nmin||1,esc_=Math.min((bw-50)/dx,(bh-50)/dy),cx=bx+bw/2-(E.Emin+E.Emax)/2*esc_,cy=by+bh/2-(E.Nmin+E.Nmax)/2*esc_;
+    c+="0 0.35 0.7 RG 1 w\n";let first=true;
+    const passo=Math.max(1,Math.floor(rows.length/1500));
+    for(let i=0;i<rows.length;i+=passo){const px=cx+rows[i].E*esc_,py=cy+rows[i].N*esc_;c+=`${px.toFixed(1)} ${py.toFixed(1)} ${first?"m":"l"}\n`;first=false}
+    c+="S\n"}
+  c+=T(M,30,8,"Gerado pelo WA Survey - os dados completos (1 ponto/s) estao no arquivo CSV desta gravacao.");
+  const objs=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
+    `<< /Length ${c.length} >>\nstream\n${c}endstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"];
+  let out="%PDF-1.4\n";const offs=[];
+  objs.forEach((o,i)=>{offs.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`});
+  const xr=out.length;out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+offs.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF\n`;
+  return latin1(out);
+}
+async function compartilharSessao(sess,qual,baixar){
+  const caminho=qual==="pdf"?sess.arqPdf:sess.arq;if(!caminho){toast("Arquivo não disponível");return}
+  if(baixar){try{const r=await NP.GnssTcp.saveToDownloads({path:caminho,mime:qual==="pdf"?"application/pdf":"text/csv"});bip("ok");toast("Salvo em "+r.where)}catch(e){toast("Não consegui salvar: "+(e.message||e))}return}
+  try{await NP.GnssTcp.shareFiles({files:[{path:caminho,dir:"data"}],mime:qual==="pdf"?"application/pdf":"text/csv",title:"Enviar "+caminho.split("/").pop()})}catch(e){if(!String(e.message||e).includes("cancel"))toast("Não consegui compartilhar: "+(e.message||e))}
+}
+async function apagarSessao(sess){
+  if(NATIVO){for(const c of [sess.arq,sess.arqPdf])if(c)try{await NP.Filesystem.deleteFile({path:c,directory:"DATA"})}catch(e){}}
+  S.nmeaSessoes=(S.nmeaSessoes||[]).filter(x=>x.id!==sess.id);salvar();render();toast("Gravação apagada");
 }
 function nmeaCelular(){
   const hh=new Date().toISOString().slice(11,19).replace(/:/g,"")+".00",dt=new Date().toISOString();

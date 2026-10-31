@@ -249,6 +249,8 @@ function tick(){
   render(false);
 }
 setInterval(tick,1000);
+// laço próprio do registro NMEA: não depende do tick do receptor, grava 1 linha por segundo
+setInterval(()=>{if(R.nmeaGrav&&Date.now()-(R.nmeaUlt||0)>=950){R.nmeaUlt=Date.now();const n=(R.nmeaLog||[]).length;gravarLinhaNmea();if((R.nmeaLog||[]).length!==n&&(S.tela==="receptor"&&S.sub==="nmea"))render(false)}},1000);
 
 // ---------- Utilidades ----------
 const $=id=>document.getElementById(id);
@@ -1590,7 +1592,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
     const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}
-  if(a==="nmeaGrav"){R.nmeaGrav=!R.nmeaGrav;if(R.nmeaGrav){R.nmeaUlt=0;falar("Gravação de dados iniciada");toast("Gravando o registro NMEA")}else{falar("Gravação encerrada");toast((R.nmeaLog||[]).length+" linhas gravadas")}render();return}
+  if(a==="nmeaGrav"){R.nmeaGrav=!R.nmeaGrav;if(R.nmeaGrav){R.nmeaLog=R.nmeaLog||[];R.nmeaUlt=Date.now();gravarLinhaNmea();falar("Gravação de dados iniciada");toast("Gravando o registro NMEA")}else{falar("Gravação encerrada");toast((R.nmeaLog||[]).length+" linhas gravadas")}render();return}
   if(a==="nmeaEnviar"){salvarLogNmea(false);return}
   if(a==="nmeaBaixar"){salvarLogNmea(true);return}
   if(a==="nmeaLimpar"){R.nmeaLog=[];render();toast("Registro apagado");return}
@@ -3067,7 +3069,6 @@ function tickReal(now){
   if(semUsoCorrecao()&&marcaRx()!=="trimble"&&(R.envTrocas||0)<6&&Date.now()-S.corrDesde>20000){R.envTrocas=(R.envTrocas||0)+1;S.cnEnv=(R.envUsado||envAtual())==="raw"?"vd":"raw";R.envUsado=S.cnEnv;
     NP.GnssTcp.setEnvelope({mode:S.cnEnv}).catch(()=>{});S.corrDesde=Date.now();toast("O receptor não aceitou a correção. Trocando o formato para "+(S.cnEnv==="vd"?"ComNav ($$VD)":"RTCM direto")+"…")}
   if(S.fonte==="tcp"&&now-R.ultimo>5000)G.fix=0;
-  if(R.nmeaGrav&&now-(R.nmeaUlt||0)>=950){R.nmeaUlt=now;gravarLinhaNmea()}
   avisoSolucao();
   if(S.est.gravando&&+S.est.duracao>0&&(now-S.est.inicio)/60000>=+S.est.duracao&&(S.est.destino!=="receptor"||noReceptorGravando()))pararEstaticoCN(true);
   render(false);

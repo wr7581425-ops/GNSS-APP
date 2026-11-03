@@ -1586,6 +1586,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="iniciarBase"){iniciarBaseCN();return}
   if(a==="iniciarRover"){iniciarRoverCN();return}
   if(a==="passosFechar"){S.passos=null;render();return}
+
   if(a==="baseIrRover"){S.passos=null;R.manual=true;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.modo="rover";S.tela="receptor";S.sub="conexao";render();toast("Base desconectada. Escolha o rover e conecte.");return}
   if(a==="roverIrMapa"){S.passos=null;go("mapa");return}
   if(a==="zoomIn"){S.zoom=Math.max(1,S.zoom/2);S.seguir=S.seguir;render()}
@@ -1660,7 +1661,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="ptDel"){S.ptDelConf=true;render()}
   if(a==="ptApagar"){const pts=proj().pontos,x=pts[S.ptSel];if(S.loc?.tipo==="ponto")S.loc=null;pts.splice(S.ptSel,1);S.ptSel=null;S.ptDelConf=false;salvar();render();toast(x.nome+" apagado")}
   if(a==="calcVoltar"){S.ferr=null;S.aba="ferramentas";S.tela="home";render()}
-  if(a==="voltar"){S.tela="home";S.ferr=null;render()}
+  if(a==="voltar"){voltarApp(false);return}
   if(a==="gerarExp"){gerarExport();render();return}
   if(a==="impEscolher"){const i=$("impArq");if(i){i.value="";i.click()}return}
   if(a==="impColado"){if(!(S.impTxt||"").trim()){toast("Cole a lista primeiro");return}const r=lerTexto(S.impTxt,cfgImp().ordem);R.impPrev={pts:r.pts,origem:"lista colada",aviso:r.aviso};render();return}
@@ -2525,6 +2526,24 @@ function confirmarImport(){
 const APP_VERSAO="__VERSAO__".startsWith("__")?"teste":"__VERSAO__",APP_DATA="__DATA__".startsWith("__")?"—":"__DATA__";
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 const NP=NATIVO?window.Capacitor.Plugins:{};
+// Botão físico de voltar do Android (e o "<" do topo): navega dentro do app em vez de fechar.
+function voltarApp(hw){
+  // 1) fecha o que estiver aberto por cima, um nível de cada vez
+  if(R.dig){R.dig=null;render();return}
+  if(S.passos){S.passos=null;render();return}
+  if(R.impPrev){R.impPrev=null;render();return}
+  if(S.locPick){S.locPick=false;render();toast("Seleção no mapa cancelada");return}
+  if(S.ptApagar!=null){S.ptApagar=null;render();return}
+  if(S.ptDelConf){S.ptDelConf=false;render();return}
+  if(S.ptSel!=null){S.ptSel=null;S.ptEdit=false;render();return}
+  if(S.ptAberto!=null){S.ptAberto=null;render();return}
+  if(S.loc){S.loc=null;chegouAviso=false;render();toast("Locação encerrada");return}
+  if(S.ferr){S.ferr=null;render();return}
+  // 2) de uma sub-tela/aba volta para o início
+  if(S.tela!=="home"||S.sub){S.tela="home";S.sub=null;render();return}
+  // 3) já no início: encolhe o app (não fecha, para não perder a conexão/gravação)
+  if(hw&&NATIVO&&NP.App&&NP.App.minimizeApp)NP.App.minimizeApp();
+}
 const R={cons:[],enviados:0,erroEnvio:"",versao:"",bateria:null,btDevs:[],buf:"",ultimo:0,ultGGA:"",ggaEnv:0,temGST:false,ntripBytes:0,ntripSt:"",ntripMsg:"",srvIps:[],clientes:[],geoId:null,mounts:[]};
 if(!NATIVO&&S.conexao==="celular")S.conexao="wifi";
 
@@ -3008,6 +3027,7 @@ async function prepararSegundoPlano(forcar){
 }
 async function lerSegundoPlano(){try{R.bg=await NP.GnssTcp.backgroundInfo();render()}catch(e){}}
 if(NATIVO&&NP.GnssTcp)setTimeout(()=>{sincronizarNativo();lerSegundoPlano()},300);
+if(NATIVO&&NP.App&&NP.App.addListener)NP.App.addListener("backButton",()=>voltarApp(true));
 if(NATIVO&&NP.Filesystem)carregarObras();else R.obrasCarregadas=true;
 if(NATIVO)setTimeout(()=>verificarAtualizacao(false),4000);
 if(NATIVO&&NP.GnssTcp)NP.GnssTcp.addListener("update",u=>{R.baixando={bytes:u.bytes,total:u.total};render(false)});

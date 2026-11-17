@@ -1305,7 +1305,7 @@ function drStatus(){
   </section>`;
 }
 function sDrone(){
-  const L=S.drLigado,ips=drIps(),ip=ips[0]?.ip||"(ligue o roteador do celular)",simples=NATIVO&&modoSimples(),cn=rec()?.marca==="ComNav"||!rec();
+  const L=S.drLigado,ips=drIps(),ip=ips[0]?.ip||"(ligue o roteador do celular)",simples=NATIVO&&modoSimples(),mr=S.conectado?marcaRx():"",cn=!["trimble","spectra"].includes(mr)&&(rec()?.marca==="ComNav"||!rec()||mr==="comnav");
   const dis=L?"disabled":"";
   return `<section class="card" style="background:var(--panel2)"><span class="eyebrow">Base para drone (PPK/RTK)</span>
     <span class="small">Receptor da base <b>→</b> celular (Bluetooth) <b>→</b> controle do drone. O controle conecta no caster como em <b>RTK de rede personalizado</b> (Custom Network RTK) do DJI Pilot 2.</span></section>
@@ -1317,7 +1317,8 @@ function sDrone(){
     ${ips.length>1?`<span class="small" style="color:#CDEFD9">Outros IPs do celular: ${ips.slice(1).map(x=>esc(x.ip)).join(" · ")}</span>`:""}
     <span class="small" style="color:#CDEFD9">O controle precisa estar no Wi-Fi do roteador do celular.</span>
     <button data-act="drIp">Atualizar IP</button></section>`:""}
-  ${cn?"":`<p class="small" style="color:var(--float);margin:0">A configuração automática da base funciona com receptores ComNav. Em outras marcas, configure pelo app do fabricante a saída RTCM 3 na porta Bluetooth e marque o modo simples na Conexão.</p>`}
+  ${cn?"":mr==="trimble"?`<section class="card" style="border-color:var(--float)"><b style="color:var(--float)">Trimble (R980, R12i…)</b><span class="small">O app não manda comandos para a Trimble. Duas opções:<br>1. <b>Caster da própria Trimble</b> (mais simples): na página web do receptor ligue RTCM 3 MSM4 1 s e o NTripCaster (porta 2101); o controle conecta direto no Wi-Fi do receptor. Nesse caso não precisa iniciar o Drone RTK aqui.<br>2. <b>Pelo celular</b>: na página web, em I/O Configuration, ligue a saída RTCM 3 na porta Bluetooth; o app repassa para o caster do celular ou da internet.</span></section>`
+    :`<p class="small" style="color:var(--float);margin:0">A configuração automática da base funciona com receptores ComNav. Em outras marcas, configure pelo app do fabricante a saída RTCM 3 na porta Bluetooth e marque o modo simples na Conexão.</p>`}
   ${L?"":baseCoordCampos()}
   <section class="card"><div class="split"><h3>Caster no celular</h3><label class="ck small"><input type="checkbox" data-ckbind="drLocal" ${S.drLocal?"checked":""} ${dis}> usar</label></div>
     <span class="muted small">Sem internet. Ligue o <b>roteador Wi-Fi (hotspot)</b> do celular e conecte o controle do drone nele. O celular fica ligado na base pelo Bluetooth.</span>
@@ -1343,7 +1344,7 @@ async function iniciarDrone(){
   if(S.drExt&&!((S.drHost||"").trim()&&(S.drHMount||"").trim())){toast("Preencha o endereço e o ponto de montagem do caster na internet");return}
   const etapas=["Configurar a base"];if(S.drLocal)etapas.push("Ligar o caster no celular");if(S.drExt)etapas.push("Conectar ao caster na internet");
   passos("Drone RTK",etapas);let k=0;const real=receptorReal();
-  passo(k,"run");if(real&&!modoSimples()&&marcaRx()!=="spectra")await enviarLista(cmdsDroneCN(),"Base para drone",80);else await espera(600);passo(k++,"ok");
+  passo(k,"run");if(real&&!modoSimples()&&!["spectra","trimble"].includes(marcaRx()))await enviarLista(cmdsDroneCN(),"Base para drone",80);else await espera(600);passo(k++,"ok");
   if(S.drLocal){passo(k,"run");
     if(NATIVO){try{const r=await NP.GnssTcp.casterStart({port:parseInt(S.drPorta)||2101,mount:S.drMount.trim(),user:(S.drUser||"").trim(),pass:S.drSenha||""});R.drIps=r.ips||[];passo(k++,"ok")}
       catch(e){passo(k++,"erro");toast("Caster no celular: "+(e.message||e)+". Confira se a porta "+S.drPorta+" está livre.")}}

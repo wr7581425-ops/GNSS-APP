@@ -192,10 +192,6 @@ function tipoCota(){return sis().cota||"hnor"}
 function ondCota(lat,lon,sep,tipo){tipo=tipo||tipoCota();if(tipo==="elip")return 0;if(tipo==="hnor"){const n=ondHnor(lat,lon);if(n!=null)return n}return sep!=null?sep:(R.sep||0)}
 function hBase(){return G.h-alturaVertical()-ondCota(G.lat,G.lon,R.sep)}
 // muda o tipo de cota do projeto e recalcula os pontos coletados (os de projeto/importados ficam como estão)
-function mudarCota(novo){const p=proj();if(!p)return;if(rnAtiva()){toast("Desligue a RN-REF antes de trocar o tipo de cota");render();return}
-  if(novo==="hnor"&&!GEOIDE.dv){toast("O modelo hgeoHNOR2020 ainda não carregou. Tente de novo.");render();return}
-  let n=0;for(const x of p.pontos){if(x.hElip==null||["PROJ","CALC"].includes(x.st)||x.rn)continue;x.h=x.hElip-ondCota(x.lat,x.lon,x.sep,novo);x.cotaTipo=novo;n++}
-  p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{cota:novo});salvar();render();toast(`Cota: ${COTA_CURTA[novo]}${n?` · ${n} pontos recalculados`:""}`)}
 function sis(){const p=S.projetos.find(p=>p.id===S.projAtivo);return Object.assign({},SIS_PADRAO,p?.sis||{})}
 function zonaDe(lon){return Math.floor((lon+180)/6)+1}
 function zonaAtual(){const s=sis();if(s.proj==="RTM")return "RTM";return s.zona==="auto"?zonaDe(G.lon):+s.zona}
@@ -447,16 +443,12 @@ let exportTxt="";
 function vProjetos(){
   return `
   <div class="split"><span class="ttl">Projetos</span><button class="pri" data-act="novoProj">Novo projeto</button></div>
-  <div id="novoProjForm" hidden class="card">
-    <label class="f">Nome do projeto<input id="npNome" placeholder="Ex.: Batimetria Igarapé do Quarenta"></label>
-    <label class="f">Cliente<input id="npCli" placeholder="Nome do cliente"></label>
-    <button class="pri" data-act="criarProj">Criar e abrir</button>
-  </div>
+  ${R.obraEd&&R.obraEd.id===null?obraCard():""}
   ${S.projetos.map(p=>`<button class="proj card" data-proj="${p.id}" aria-pressed="${p.id===S.projAtivo}">
      <span class="split" style="width:100%"><b style="font-size:17px">${esc(p.nome)}</b>${p.id===S.projAtivo?`<span style="font-size:12px;color:var(--accent);font-weight:700">ABERTO</span>`:""}</span>
      <span class="muted small">Cliente: ${esc(p.cliente||"—")} · ${esc(Object.assign({},SIS_PADRAO,p.sis||{}).datum)} / ${(p.sis?.proj||"UTM")==="UTM"?"UTM "+((p.sis?.zona||"auto")==="auto"?"auto":p.sis.zona+(p.sis.hemi||"S")):"Geográficas"}</span>
      <span class="small"><b class="m">${p.pontos.length}</b> pontos</span></button>`).join("")}
-  ${proj()?sisCard():""}
+  ${proj()&&!(R.obraEd&&R.obraEd.id===null)?obraCard():""}
   ${proj()?`<section class="card" style="background:var(--panel2)">
     <span class="eyebrow">Arquivos de ${esc(proj().nome)}</span>
     <div class="grid2"><button class="pri" data-go="exportar">Exportar (CSV, TXT, DXF, SHP, PDF…)</button><button data-go="importar">Importar pontos</button></div></section>`:""}`;
@@ -1073,26 +1065,55 @@ function vConfig(){
   ${sec("Dados",`<span class="muted small">Projetos, pontos, receptores e configurações ficam salvos neste aparelho.</span>
     <button data-act="apagarTudo">Apagar todos os dados de teste</button><button data-act="apagarConfirma" hidden id="apagarConfirma" class="pri">Confirmar: apagar tudo</button>`)}`;
 }
-function sisCard(){
-  const s=sis(), zAuto=zonaDe(G.lon);
-  const zonas=[18,19,20,21,22,23,24,25];
+// ---------- Projeto: nome, cliente e sistema de coordenadas com botão Salvar ----------
+// Nada é gravado enquanto edita: as mudanças ficam num rascunho (R.obraEd) até tocar em Salvar.
+function obraDe(p){return {id:p?p.id:null,nome:p?p.nome:"",cliente:p?(p.cliente||""):"",sis:Object.assign({},SIS_PADRAO,p?.sis||{})}}
+function obraRasc(){if(R.obraEd&&(R.obraEd.id===null||R.obraEd.id===S.projAtivo))return R.obraEd;const p=proj();return p?obraDe(p):null}
+function obraEditar(){const d=obraRasc();if(d&&d!==R.obraEd)R.obraEd=d;return d}
+function sisNorm(s){const o={};["datum","proj","zona","hemi","cota","mcRtm"].forEach(k=>{if(s[k]!=null&&s[k]!=="")o[k]=String(s[k])});return JSON.stringify(o)}
+function obraSuja(d){d=d||R.obraEd;if(!d)return false;if(d.id===null)return true;const p=S.projetos.find(x=>x.id===d.id);if(!p)return false;const o=obraDe(p);
+  return d.nome.trim()!==o.nome||d.cliente.trim()!==o.cliente||sisNorm(d.sis)!==sisNorm(o.sis)}
+function obraEstadoDom(){const d=obraRasc();if(!d)return;const novo=d.id===null,suja=obraSuja(d),e=$("obraEstado"),bs=$("obraSalvar"),bd=$("obraDesc");
+  if(e){e.textContent=novo?"ainda não salvo":suja?"● alterações não salvas":"✓ salvo";e.style.color=suja?"var(--float)":"var(--fix)"}
+  if(bs)bs.disabled=!suja;if(bd)bd.disabled=!suja}
+function obraCard(){
+  const d=obraRasc();if(!d)return "";
+  const novo=d.id===null,suja=obraSuja(d),s=d.sis,zAuto=zonaDe(G.lon),zonas=[18,19,20,21,22,23,24,25];
   const ex=planar(s)?`E ${br(G.E)} · N ${br(G.N)}`:s.proj==="GMS"?`${gms(G.lat,"N","S")} · ${gms(G.lon,"E","W")}`:`${br(G.lat,8)}° · ${br(G.lon,8)}°`;
-  return `<section class="card hl">
-    <div class="split"><h3>Sistema de coordenadas</h3><span class="muted small">${esc(proj().nome)}</span></div>
+  return `<section class="card hl" id="obraCard">
+    <div class="split"><h3>${novo?"Novo projeto":"Projeto aberto"}</h3><span id="obraEstado" class="small" style="font-weight:700;color:${suja?"var(--float)":"var(--fix)"}">${novo?"ainda não salvo":suja?"● alterações não salvas":"✓ salvo"}</span></div>
+    <label class="f">Nome do projeto<input data-obra="nome" value="${esc(d.nome)}" placeholder="Ex.: Batimetria Igarapé do Quarenta"></label>
+    <label class="f">Cliente<input data-obra="cliente" value="${esc(d.cliente)}" placeholder="Nome do cliente"></label>
+    <span class="eyebrow">Sistema de coordenadas</span>
     <div class="grid2">
-      <label class="f" style="grid-column:1/-1">Cota (altitude)<select data-sis="cota">${Object.entries(COTAS).map(([k,t])=>`<option value="${k}" ${(s.cota||"hnor")===k?"selected":""}>${t}${k==="hnor"?" · padrão":""}</option>`).join("")}</select>
+      <label class="f" style="grid-column:1/-1">Cota (altitude)<select data-osis="cota">${Object.entries(COTAS).map(([k,t])=>`<option value="${k}" ${(s.cota||"hnor")===k?"selected":""}>${t}${k==="hnor"?" · padrão":""}</option>`).join("")}</select>
         <span class="muted small" style="font-weight:400">${(s.cota||"hnor")==="hnor"?(GEOIDE.dv?`Ondulação aqui: N = ${br(ondHnor(G.lat,G.lon)??0,3)} m (cota = h elipsoidal − N). Padrão do IBGE para topografia e engenharia.`:"Carregando o modelo do IBGE…"):(s.cota==="receptor"?`Usa o geoide que o receptor manda na NMEA (N = ${br(R.sep||0,3)} m). Menos preciso que o hgeoHNOR2020.`:"Altura sobre o elipsoide GRS80, direto do GNSS. Use só quando o cliente pedir.")}</span></label>
-      <label class="f">Datum<select data-sis="datum">${["SIRGAS 2000","WGS 84"].map(v=>`<option ${s.datum===v?"selected":""}>${v}</option>`).join("")}<option disabled>SAD 69 (no app instalado)</option></select></label>
-      <label class="f">Projeção<select data-sis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="RTM" ${s.proj==="RTM"?"selected":""}>RTM Manaus (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
-      ${s.proj==="RTM"?`<label class="f">Meridiano central RTM (°)<input class="m" data-sismc="1" inputmode="decimal" value="${esc(s.mcRtm??"-60")}"></label>
+      <label class="f">Datum<select data-osis="datum">${["SIRGAS 2000","WGS 84"].map(v=>`<option ${s.datum===v?"selected":""}>${v}</option>`).join("")}<option disabled>SAD 69 (no app instalado)</option></select></label>
+      <label class="f">Projeção<select data-osis="proj"><option value="UTM" ${s.proj==="UTM"?"selected":""}>UTM (E, N)</option><option value="RTM" ${s.proj==="RTM"?"selected":""}>RTM Manaus (E, N)</option><option value="GD" ${s.proj==="GD"?"selected":""}>Geográficas (graus decimais)</option><option value="GMS" ${s.proj==="GMS"?"selected":""}>Geográficas (° ' ")</option></select></label>
+      ${s.proj==="RTM"?`<label class="f">Meridiano central RTM (°)<input class="m" data-osis="mcRtm" inputmode="decimal" value="${esc(s.mcRtm??"-60")}"></label>
       <div class="kv"><span>Parâmetros RTM</span><b style="font-size:13px">k0 0,999995 · FE 400.000 · FN 5.000.000</b></div>`:""}
-      ${s.proj==="UTM"?`<label class="f">Fuso / zona UTM<select data-sis="zona"><option value="auto" ${s.zona==="auto"?"selected":""}>Automático (agora ${zAuto})</option>${zonas.map(z=>`<option value="${z}" ${String(s.zona)===String(z)?"selected":""}>Fuso ${z} · MC ${z*6-183}°</option>`).join("")}</select></label>
-      <label class="f">Hemisfério<select data-sis="hemi"><option value="S" ${s.hemi==="S"?"selected":""}>Sul (S)</option><option value="N" ${s.hemi==="N"?"selected":""}>Norte (N)</option><option value="auto" ${s.hemi==="auto"?"selected":""}>Automático</option></select></label>`:""}
+      ${s.proj==="UTM"?`<label class="f">Fuso / zona UTM<select data-osis="zona"><option value="auto" ${s.zona==="auto"?"selected":""}>Automático (agora ${zAuto})</option>${zonas.map(z=>`<option value="${z}" ${String(s.zona)===String(z)?"selected":""}>Fuso ${z} · MC ${z*6-183}°</option>`).join("")}</select></label>
+      <label class="f">Hemisfério<select data-osis="hemi"><option value="S" ${s.hemi==="S"?"selected":""}>Sul (S)</option><option value="N" ${s.hemi==="N"?"selected":""}>Norte (N)</option><option value="auto" ${s.hemi==="auto"?"selected":""}>Automático</option></select></label>`:""}
     </div>
-    <span class="muted small">${S.conectado?"Posição atual nesse sistema: "+ex:"Conecte o receptor para ver a posição nesse sistema."}</span>
+    ${!novo&&!suja?`<span class="muted small">${S.conectado?"Posição atual nesse sistema: "+ex:"Conecte o receptor para ver a posição nesse sistema."}</span>`:""}
     ${s.proj==="UTM"&&s.zona!=="auto"&&+s.zona!==zAuto?`<div class="banner">Você está no fuso ${zAuto}, mas o projeto está fixo no fuso ${s.zona}. Isso é normal quando a obra fica perto da divisa de fusos; a deformação cresce longe do meridiano central.</div>`:""}
+    <div class="grid2"><button id="obraDesc" data-act="obraDescartar" ${suja?"":"disabled"}>${novo?"Cancelar":"Descartar"}</button><button class="pri" id="obraSalvar" data-act="obraSalvar" ${suja?"":"disabled"}>${novo?"Salvar e abrir":"Salvar"}</button></div>
   </section>`;
 }
+function obraSalvar(){
+  const d=obraRasc();if(!d)return;
+  const nome=d.nome.trim();if(!nome){toast("Dê um nome ao projeto");const i=document.querySelector('[data-obra="nome"]');if(i)i.focus();return}
+  if(d.id===null){
+    const id=Date.now();S.projetos.unshift({id,nome,cliente:d.cliente.trim(),pontos:[],sis:Object.assign({},d.sis)});
+    S.projAtivo=id;R.obraEd=null;exportTxt="";R_EXP=null;R.impPrev=null;atualizaEN();salvar();bip("ok");render();toast("Projeto salvo e aberto · "+sisTxt());return}
+  const p=S.projetos.find(x=>x.id===d.id);if(!p){R.obraEd=null;render();return}
+  const cotaAnt=Object.assign({},SIS_PADRAO,p.sis||{}).cota,cotaNova=d.sis.cota||"hnor";let n=0;
+  if(cotaNova!==cotaAnt){
+    if(rnAtiva()){toast("Desligue a RN-REF antes de trocar o tipo de cota");return}
+    if(cotaNova==="hnor"&&!GEOIDE.dv){toast("O modelo hgeoHNOR2020 ainda não carregou. Tente de novo.");return}
+    for(const x of p.pontos){if(x.hElip==null||["PROJ","CALC"].includes(x.st)||x.rn)continue;x.h=x.hElip-ondCota(x.lat,x.lon,x.sep,cotaNova);x.cotaTipo=cotaNova;n++}}
+  p.nome=nome;p.cliente=d.cliente.trim();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},d.sis);
+  R.obraEd=null;atualizaEN();salvar();bip("ok");render();toast(`Projeto salvo · ${sisTxt()}${n?` · ${n} pontos recalculados`:""}`)}
 function vReceptor(){
   const tabs=[["conexao","Conexão"],["baserover","Base/Rover"],["ajuste","Ajustar base"],["correcao","Correção"],["estatico","Estático"],["nmea","NMEA"],["aparelhos","Aparelhos"]];
   return ({conexao:sConexao,baserover:sBase,ajuste:sAjuste,correcao:sCorr,estatico:sEstatico,nmea:sNmea,aparelhos:sAparelhos,console:sCons})[S.sub]();
@@ -1527,13 +1548,14 @@ document.addEventListener("click",e=>{
   if(b.dataset.ptabre!==undefined){const i=+b.dataset.ptabre;S.ptAberto=S.ptAberto===i?null:i;S.ptApagar=null;render();return}
   if(b.dataset.ptapg!==undefined){S.ptApagar=+b.dataset.ptapg;render();return}
   if(b.dataset.ptmapa!==undefined){const i=+b.dataset.ptmapa,x=proj().pontos[i],[E,N]=ptEN(x);S.ptSel=i;S.seguir=false;S.mapCE=E;S.mapCN=N;go("mapa");return}
+  if(S.tela==="projetos"&&(b.dataset.go||b.dataset.aba||b.dataset.tile||b.dataset.sub||b.id==="hBack")&&b.dataset.go!=="projetos"&&obraSuja())toast("Atenção: o projeto tem alterações NÃO salvas");
   if(b.dataset.go){S.tela=b.dataset.go;exportTxt="";render();return}
   if(b.dataset.aba){S.aba=b.dataset.aba;S.tela="home";S.ferr=null;render();window.scrollTo(0,0);return}
   if(b.dataset.tile){const t=Object.values(TILES).flat().find(x=>x[0]===b.dataset.tile);if(t)t[4]();return}
   if(b.dataset.ptdel!==undefined){S.ptAberto=null;S.ptApagar=null;const p=proj();const x=p.pontos[+b.dataset.ptdel];if(S.loc?.tipo==="ponto")S.loc=null;p.pontos.splice(+b.dataset.ptdel,1);salvar();render();toast(x.nome+" apagado");return}
   if(b.dataset.sub){S.tela="receptor";S.sub=b.dataset.sub;render();return}
   if(b.dataset.opt){S[b.dataset.opt]=b.dataset.val;salvar();render();return}
-  if(b.dataset.proj){S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
+  if(b.dataset.proj){if(obraSuja()){toast(R.obraEd.id===null?"Salve ou cancele o projeto novo primeiro":"Salve ou descarte as alterações do projeto aberto primeiro");document.getElementById("obraCard")?.scrollIntoView({behavior:"smooth"});return}R.obraEd=null;S.projAtivo=+b.dataset.proj;exportTxt="";R_EXP=null;R.impPrev=null;salvar();render();toast("Projeto aberto");return}
   if(b.dataset.usar){S.ativo=+b.dataset.usar;if(S.conectado){S.conectado=false;S.corrLigada=false}salvar();render();toast("Receptor selecionado. Conecte em Receptor › Conexão.");return}
   if(acaoExport(b))return;
   manterTela();
@@ -1729,14 +1751,17 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
     p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString(),dist:st.dist}]);salvar();bip("ok");falar("Ponto estaqueado");
     toast(`${nome} salvo · erro ${br(st.dist)} m${st.chegou?"":" (fora da tolerância)"}`);render();return}
   if(a==="marcarLocado"){const al=alvoEN();const p=proj();if(p){p.locados=(p.locados||[]).concat([{nome:al.nome,quando:new Date().toISOString()}]);salvar()}toast(al.nome+" marcado como locado");S.loc=null;render()}
-  if(a==="novoProj"){$("novoProjForm").hidden=false;$("npNome").focus()}
-  if(a==="criarProj"){const n=$("npNome").value.trim();if(!n){toast("Dê um nome ao projeto");return}const id=Date.now();S.projetos.unshift({id,nome:n,cliente:$("npCli").value.trim(),pontos:[]});S.projAtivo=id;salvar();render();toast("Projeto criado e aberto")}
+  if(a==="novoProj"){if(R.obraEd&&R.obraEd.id!==null&&obraSuja()){toast("Salve ou descarte as alterações do projeto aberto primeiro");return}
+    if(!(R.obraEd&&R.obraEd.id===null)){const at=sis();R.obraEd={id:null,nome:"",cliente:"",sis:Object.assign({},SIS_PADRAO,{datum:at.datum,proj:at.proj,zona:at.zona,hemi:at.hemi,mcRtm:at.mcRtm})}}
+    render();window.scrollTo(0,0);const i=document.querySelector('[data-obra="nome"]');if(i)i.focus()}
+  if(a==="obraSalvar")obraSalvar();
+  if(a==="obraDescartar"){const novo=R.obraEd&&R.obraEd.id===null;R.obraEd=null;render();toast(novo?"Novo projeto cancelado":"Alterações descartadas")}
   if(a==="addRec"){const mo=$("nrModelo").value.trim();if(!mo){toast("Informe o modelo");return}const ma=$("nrMarca").value;const leitura=/Trimble|Spectra|Outra/.test(ma);
     S.receptores.push({id:Date.now(),marca:ma.replace(" (genérico NMEA)",""),modelo:mo,serie:$("nrSerie").value.trim(),nivel:leitura?"leitura":"completo"});salvar();render();toast(leitura?"Salvo. Esta marca começa só com leitura NMEA.":"Receptor salvo")}
   if(a==="copiar"){const t=$("expTxt");navigator.clipboard.writeText(exportTxt).then(()=>toast("Arquivo copiado")).catch(()=>{t.select();toast("Texto selecionado: use Copiar do celular")})}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="cmdTxt"){enviarComando(e.target.value);e.target.value=""}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.dig&&R.dig&&el.type!=="checkbox"){R.dig[el.dataset.dig]=el.value;return}if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind==="pNum"){const pj=proj();if(pj){pj.pNum=el.value.trim()||undefined;salvar()}return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.obra){const d=obraEditar();if(d){d[el.dataset.obra]=el.value;obraEstadoDom()}return}if(el.dataset.dig&&R.dig&&el.type!=="checkbox"){R.dig[el.dataset.dig]=el.value;return}if(el.dataset.bind==="senha"&&S.caster){S.senhas=S.senhas||{};S.senhas[S.caster]=el.value}if(el.dataset.bind==="antFase")S.antFaseManual=true;if(el.dataset.radio){const r=rd();r[el.dataset.radio]=el.value;if(el.dataset.radio==="canal")r.freq=freqCanal(el.value);salvar();if(el.tagName==="SELECT")render();return}if(el.dataset.bind==="pNum"){const pj=proj();if(pj){pj.pNum=el.value.trim()||undefined;salvar()}return}if(el.dataset.bind){S[el.dataset.bind]=el.value;salvar()}if(el.dataset.bind==="ptBusca"){clearTimeout(R.tBusca);R.tBusca=setTimeout(()=>{render();const i=document.querySelector('[data-bind="ptBusca"]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},400)}
   if(el.dataset.cfg&&el.tagName==="INPUT"&&el.type!=="checkbox"){S.cfg[el.dataset.cfg]=el.value;salvar()}
   if(el.dataset.est&&el.tagName==="INPUT"){S.est[el.dataset.est]=el.value;salvar()}});
 document.addEventListener("change",e=>{const el=e.target;
@@ -1762,9 +1787,8 @@ document.addEventListener("change",e=>{const el=e.target;
     render()}
   if(el.dataset.cfg){S.cfg[el.dataset.cfg]=el.type==="checkbox"?el.checked:el.value;salvar();if(el.tagName==="SELECT"||el.type==="checkbox")render()}
   if(el.dataset.est&&el.tagName==="SELECT"){S.est[el.dataset.est]=el.value;salvar()}
-  if(el.dataset.sismc){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{mcRtm:el.value});atualizaEN();salvar();render();toast("RTM: meridiano central "+el.value+"°");return}
-  if(el.dataset.sis==="cota"){mudarCota(el.value);return}
-  if(el.dataset.sis){const p=proj();p.sis=Object.assign({},SIS_PADRAO,p.sis||{},{[el.dataset.sis]:el.value});atualizaEN();salvar();render();toast("Sistema do projeto: "+sisTxt())}
+  if(el.dataset.obra)return;
+  if(el.dataset.osis){const d=obraEditar();if(d){d.sis[el.dataset.osis]=el.value;render()}return}
   if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
   if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
   if(el.dataset.bind&&el.tagName==="SELECT"){S[el.dataset.bind]=el.value;salvar()}

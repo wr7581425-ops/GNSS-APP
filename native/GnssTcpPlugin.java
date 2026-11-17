@@ -128,6 +128,8 @@ public class GnssTcpPlugin extends Plugin {
         atual = this;
         uiViva = true;
         uiVisivel = true;
+        CasterNtrip.ouvinte = o -> { GnssTcpPlugin p = atual; if (p != null) p.emitir("caster", o); };
+        CasterNtrip.rede = () -> { GnssTcpPlugin p = atual; return p == null ? null : p.redeInternet(); };
     }
 
     @Override
@@ -152,7 +154,7 @@ public class GnssTcpPlugin extends Plugin {
 
     /** Liga, atualiza ou desliga o serviço com o aviso fixo na barra de notificações. */
     private static void servico() {
-        boolean ativo = rxDesejado || ntripDesejado || grav != null || srv != null;
+        boolean ativo = rxDesejado || ntripDesejado || grav != null || srv != null || CasterNtrip.ativo();
         try {
             if (ativo) GnssService.ligar(app, textoAviso());
             else GnssService.desligar(app);
@@ -186,6 +188,10 @@ public class GnssTcpPlugin extends Plugin {
         if (srv != null) {
             if (b.length() > 0) b.append(" · ");
             b.append("Servidor NMEA (").append(clientes.size()).append(")");
+        }
+        if (CasterNtrip.ativo()) {
+            if (b.length() > 0) b.append(" · ");
+            b.append(CasterNtrip.textoAviso());
         }
         return b.length() == 0 ? "WA Survey em espera" : b.toString();
     }
@@ -626,6 +632,7 @@ public class GnssTcpPlugin extends Plugin {
         srv = null;
         for (Socket c : clientes) { try { c.close(); } catch (Exception ignored) { } }
         clientes.clear();
+        CasterNtrip.pararTudo();
         try { if (wl != null && wl.isHeld()) wl.release(); } catch (Exception ignored) { }
         GnssTcpPlugin p = atual;
         if (p != null) { p.status("desconectado", "Desligado pela notificação"); p.ntripStatus("desligado", ""); }
@@ -793,6 +800,7 @@ public class GnssTcpPlugin extends Plugin {
         while (rxRun && (n = in.read(buf)) > 0) {
             if (repasseBruto) repassarClientes(buf, n);
             gravarBrutos(buf, n);
+            CasterNtrip.alimentar(buf, n);
             String t = new String(buf, 0, n, StandardCharsets.ISO_8859_1);
             procurarGGA(t);
             JSObject d = new JSObject();
@@ -1110,6 +1118,53 @@ public class GnssTcpPlugin extends Plugin {
         avisarClientes();
     }
 
+    // ---------- Drone RTK: caster no celular e envio para caster na internet ----------
+    @PluginMethod
+    public void casterStart(PluginCall call) {
+        try {
+            CasterNtrip.iniciarLocal(call.getInt("port", 2101), call.getString("mount", "WASURVEY"), call.getString("user", ""), call.getString("pass", ""));
+            segurarCpu(true);
+            servico();
+            JSObject r = new JSObject();
+            r.put("ips", ipsLocais());
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void casterStop(PluginCall call) {
+        CasterNtrip.pararLocal();
+        if (!ntripDesejado && !CasterNtrip.ativo()) segurarCpu(false);
+        servico();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void casterUpStart(PluginCall call) {
+        CasterNtrip.iniciarUp(call.getString("host", ""), call.getInt("port", 2101), call.getString("mount", ""),
+                call.getString("user", ""), call.getString("pass", ""), call.getInt("ver", 1));
+        segurarCpu(true);
+        servico();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void casterUpStop(PluginCall call) {
+        CasterNtrip.pararUp();
+        if (!ntripDesejado && !CasterNtrip.ativo()) segurarCpu(false);
+        servico();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void casterState(PluginCall call) {
+        JSObject r = CasterNtrip.estado();
+        r.put("ips", ipsLocais());
+        call.resolve(r);
+    }
+
     // ---------- NTRIP ----------
     private static String auth(String user, String pass) {
         String s = (user == null ? "" : user) + ":" + (pass == null ? "" : pass);
@@ -1251,7 +1306,7 @@ public class GnssTcpPlugin extends Plugin {
         ntripDesejado = false;
         fecharNtrip();
         ntripGen++;
-        segurarCpu(false);
+        if (!CasterNtrip.ativo()) segurarCpu(false);
         filaRtcm.clear();
         filaBytes = 0;
         ntripStatus("desligado", "");

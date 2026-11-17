@@ -135,12 +135,14 @@ const S={
   baseModo:"auto", baseE:"", baseN:"", baseH:"", baseAnt:"2.000", baseFmt:"RTCM 3.2 MSM4", baseId:"0001", baseSaida:"radio", cnPortaRadio:"com2", cnPortaApp:"", altTipo:"vertical", antRaio:"0.075", antFase:"0.000", codigos:["MF","Cerca","Poste","Eixo","Bordo","Árvore","Marco"], mock:false, baseLigada:false, baseMedindo:0, baseFonte:"",
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0.030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
+  drLocal:true, drExt:false, drPorta:"2101", drMount:"WASURVEY", drUser:"drone", drSenha:"wasurvey", drMsg:"MSM4",
+  drHost:"", drHPorta:"2101", drHMount:"", drHUser:"", drHSenha:"", drHVer:"auto", drLigado:false,
   est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2.000",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
   cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes","drLocal","drExt","drPorta","drMount","drUser","drSenha","drMsg","drHost","drHPorta","drHMount","drHUser","drHSenha","drHVer"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
     if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
@@ -792,6 +794,7 @@ function selLista(chave,rotulo){
 
 // ---------- Telas iniciais com ícones ----------
 const IC={
+  drone:'<rect x="9" y="10" width="6" height="4" rx="1"/><path d="M9 11L5 7M15 11l4-4M9 13l-4 4M15 13l4 4"/><circle cx="5" cy="7" r="2.5"/><circle cx="19" cy="7" r="2.5"/><circle cx="5" cy="17" r="2.5"/><circle cx="19" cy="17" r="2.5"/>',
   rnref:'<path d="M4 20h16"/><path d="M12 20V5"/><path d="M8 9l4-4 4 4"/><path d="M6 14h12"/>',
   infopos:'<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/>',
   antena:'<path d="M12 21V9"/><path d="M5 9h14l-2-4H7z"/><path d="M9 21h6"/>',
@@ -835,7 +838,7 @@ const COR={verde:"#2E9E5B",roxo:"#9B4DCA",violeta:"#6E5BD9",laranja:"#E0702A",te
 const TILES={
   projeto:[["projetos","Projetos","projetos","azul",()=>go("projetos")],["sistema","Sistema de coordenadas","sistema","teal",()=>go("projetos")],["pontos","Pontos coletados","pontos","verde",()=>go("pontos")],
            ["importar","Importar pontos","importar","violeta",()=>go("importar")],["codigos","Códigos","codigos","rosa",()=>go("codigos")],["exportar","Exportar","exportar","laranja",()=>go("exportar")],["config","Configurações","config","cinza",()=>go("config")]],
-  dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],
+  dispositivo:[["conexao","Conexão","conexao","verde",()=>sub("conexao")],["rover","Rover","rover","roxo",()=>{S.modo="rover";sub("baserover")}],["base","Base","base","violeta",()=>{S.modo="base";sub("baserover")}],["drone","Drone RTK","drone","ciano",()=>sub("drone")],
            ["correcao","Correção (NTRIP, rádio)","correcao","azul",()=>sub("correcao")],["estatico","Gravar estático","estatico","laranja",()=>sub("estatico")],["ajuste","Ajustar base","ajuste","vermelho",()=>sub("ajuste")],
            ["nmea","Saída NMEA","nmea","teal",()=>sub("nmea")],["info","Info do dispositivo","info","ambar",()=>go("info")],["receptores","Meus receptores","receptores","cinza",()=>sub("aparelhos")],["comandos","Comandos do receptor","nmea","laranja",()=>sub("console")],
            ["infopos","Info posição","infopos","verde",()=>go("infopos")],["antena","Antena","antena","violeta",()=>go("antena")],["mock","Localização simulada","mock","ciano",()=>go("mock")],["reiniciar","Reiniciar RTK","reiniciar","vermelho",()=>{reiniciarRtk()}]],
@@ -1116,7 +1119,7 @@ function obraSalvar(){
   R.obraEd=null;atualizaEN();salvar();bip("ok");render();toast(`Projeto salvo · ${sisTxt()}${n?` · ${n} pontos recalculados`:""}`)}
 function vReceptor(){
   const tabs=[["conexao","Conexão"],["baserover","Base/Rover"],["ajuste","Ajustar base"],["correcao","Correção"],["estatico","Estático"],["nmea","NMEA"],["aparelhos","Aparelhos"]];
-  return ({conexao:sConexao,baserover:sBase,ajuste:sAjuste,correcao:sCorr,estatico:sEstatico,nmea:sNmea,aparelhos:sAparelhos,console:sCons})[S.sub]();
+  return ({conexao:sConexao,baserover:sBase,ajuste:sAjuste,correcao:sCorr,estatico:sEstatico,nmea:sNmea,aparelhos:sAparelhos,console:sCons,drone:sDrone})[S.sub]();
 }
 const opt=(grp,val,cur,t,sm)=>`<button class="opt" data-opt="${grp}" data-val="${val}" aria-pressed="${cur===val}">${t}<small>${sm}</small></button>`;
 function sConexao(){
@@ -1264,6 +1267,18 @@ function sRoverCfg(){
 function sBaseCfg(){
   const pts=proj()?.pontos||[];
   const md=S.baseModo||"auto";
+  return `${baseCoordCampos()}
+  <section class="card"><h3>Rádio interno</h3>${radioCampos(true)}
+    <div class="grid2"><label class="f">Modo diferencial<select data-bind="diff">${Object.keys(DIFF_MSG).map(v=>`<option ${(S.diff||"RTCM3.2")===v?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="f">Elevação (°)<input class="m" inputmode="numeric" value="${esc(S.mascara)}" data-bind="mascara"></label></div></section>
+  ${previaCmds([...cmdsRadio("base"),...cmdsBaseCN()],"")}
+  ${S.baseLigada?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Base iniciada</b><span class="small" style="color:#CDEFD9">Rádio ${esc(rd().freq)} MHz · ${esc(rd().proto)} · ${esc(S.diff||"RTCM3.2")}</span></section>`:""}
+  <button class="pri big" data-act="iniciarBase" ${S.conectado?"":"disabled"}>${S.baseLigada?"Reiniciar base":"Iniciar base"}</button>
+  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte a base primeiro (Dispositivo › Conexão).</p>`}`;
+}
+function baseCoordCampos(){
+  const pts=proj()?.pontos||[];
+  const md=S.baseModo||"auto";
   return `<span class="eyebrow">Iniciar modo</span>
   <div class="grid3">${opt("baseModo","auto",md,"Auto base","o receptor usa a própria posição")}${opt("baseModo","atual",md,"Média","média da posição atual")}${opt("baseModo","conhecida",md,"Coordenada conhecida","marco ou ponto")}</div>
   ${md==="atual"?`<section class="card"><h3>Média da posição atual</h3>
@@ -1275,15 +1290,91 @@ function sBaseCfg(){
     <div class="grid2"><label class="f">Este E (m)<input class="m" inputmode="decimal" value="${esc(S.baseE)}" data-bind="baseE"></label><label class="f">Norte N (m)<input class="m" inputmode="decimal" value="${esc(S.baseN)}" data-bind="baseN"></label>
       <label class="f">Altitude h (m)<input class="m" inputmode="decimal" value="${esc(S.baseH)}" data-bind="baseH"></label>${md==="conhecida"?`<label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(S.baseAnt)}" data-bind="baseAnt"></label>`:"<span></span>"}</div>
     ${md==="conhecida"?`<label class="f">Nome do marco<input value="${esc(S.baseFonte)}" data-bind="baseFonte" placeholder="Ex.: M-01"></label>`:""}</section>`
-  :`<p class="muted small" style="margin:0">Auto base: o receptor fixa a própria posição autônoma (1 a 3 m). As medidas do rover ficam centimétricas em relação à base; para amarrar ao SIRGAS use Ajustar base (PPP do IBGE) depois.</p>`}
-  <section class="card"><h3>Rádio interno</h3>${radioCampos(true)}
-    <div class="grid2"><label class="f">Modo diferencial<select data-bind="diff">${Object.keys(DIFF_MSG).map(v=>`<option ${(S.diff||"RTCM3.2")===v?"selected":""}>${v}</option>`).join("")}</select></label>
-    <label class="f">Elevação (°)<input class="m" inputmode="numeric" value="${esc(S.mascara)}" data-bind="mascara"></label></div></section>
-  ${previaCmds([...cmdsRadio("base"),...cmdsBaseCN()],"")}
-  ${S.baseLigada?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Base iniciada</b><span class="small" style="color:#CDEFD9">Rádio ${esc(rd().freq)} MHz · ${esc(rd().proto)} · ${esc(S.diff||"RTCM3.2")}</span></section>`:""}
-  <button class="pri big" data-act="iniciarBase" ${S.conectado?"":"disabled"}>${S.baseLigada?"Reiniciar base":"Iniciar base"}</button>
-  ${S.conectado?"":`<p class="muted small" style="margin:0">Conecte a base primeiro (Dispositivo › Conexão).</p>`}`;
+  :`<p class="muted small" style="margin:0">Auto base: o receptor fixa a própria posição autônoma (1 a 3 m). As medidas do rover ficam centimétricas em relação à base; para amarrar ao SIRGAS use Ajustar base (PPP do IBGE) depois.</p>`}`;
 }
+// ===================== Drone RTK: a base manda RTCM pelo celular para o controle do drone =====================
+// Caminho: receptor da base → (Bluetooth/Wi-Fi) → celular → caster no celular (hotspot, sem internet) e/ou caster na internet.
+const DRONE_MSG={MSM4:["rtcm1074b ontime 1.00","rtcm1084b ontime 1.00","rtcm1094b ontime 1.00","rtcm1124b ontime 1.00","rtcm1005b ontime 5.00","rtcm1033b ontime 10.00","rtcm1230b ontime 10.00"],
+  MSM5:["rtcm1075b ontime 1.00","rtcm1085b ontime 1.00","rtcm1095b ontime 1.00","rtcm1125b ontime 1.00","rtcm1005b ontime 5.00","rtcm1033b ontime 10.00","rtcm1230b ontime 10.00"]};
+function cmdsDroneCN(){
+  const m=num(S.mascara)||10;let fix="fix auto";
+  if(S.baseModo!=="auto"){const g=coordBaseGeo();if(g)fix=`fix position ${g.la.toFixed(9)} ${g.lo.toFixed(9)} ${g.hOrt.toFixed(4)}`}
+  // "log" sem porta = sai pela mesma conexão do app (Bluetooth ou Wi-Fi), como o NMEA
+  return ["fix none","set maxrefoffset 300","set pvtobsmode single","rtkobsmode 0","set ppp off","set hotspodrtcmmode caster1 off","unlogall",fix,
+    ...(DRONE_MSG[S.drMsg]||DRONE_MSG.MSM4).map(x=>"log "+x),"set smoothedpvt on",`ecutoff ${m}`,`gloecutoff ${m}`,"saveconfig",...nmeaLogs()];
+}
+function drVer(){return S.drHVer==="auto"?(S.drHUser.trim()?2:1):+S.drHVer}
+// IP do roteador (hotspot) do celular: é o que se digita no controle do drone
+function drIps(){const l=(R.drIps||[]).map(x=>{const [n,ip]=String(x).split(" ");return {n,ip}}).filter(x=>x.ip&&!/^rmnet|^ccmni|^v4-|^tun|^dummy|^p2p|^bt-pan/i.test(x.n));
+  const nota=x=>(/^(ap|swlan|softap|wlan1)/i.test(x.n)||/^192\.168\.(43|49)\./.test(x.ip)?2:0)+(/^wlan0/i.test(x.n)?1:0);return l.sort((a,b)=>nota(b)-nota(a))}
+function drStatus(){
+  const d=R.dr||{},liga=S.drLigado,idade=d.rtcmIdade,kb=(d.rtcmBytes||0)/1024;
+  const rtcm=!liga?`<span class="muted">desligado</span>`:idade==null||idade<0?`<b style="color:var(--float)">aguardando RTCM da base…</b>`:idade>5000?`<b style="color:var(--bad)">sem RTCM há ${Math.round(idade/1000)} s</b>`:`<b class="st-fix">chegando</b> · ${br(kb,1)} KB`;
+  const cl=d.clientes||[];
+  return `<section class="card ${liga?"hl":""}" id="drStatus"><div class="split"><h3>Situação</h3><span class="small" style="font-weight:700;color:${liga?"var(--fix)":"var(--muted)"}">${liga?"● LIGADO":"desligado"}</span></div>
+    <div class="kv"><span>Correção da base (RTCM)</span><b style="font-size:14px">${rtcm}</b></div>
+    ${liga&&d.tipos?`<span class="muted small">Mensagens: ${esc(d.tipos)}</span>`:""}
+    ${S.drLocal?`<div class="kv"><span>Controles conectados no celular</span><b style="font-size:14px">${liga?(cl.length?cl.map(c=>`${esc(c.ip)} · ${br((c.bytes||0)/1024,1)} KB`).join("<br>"):"nenhum ainda"):"—"}</b></div>`:""}
+    ${S.drExt?`<div class="kv"><span>Caster na internet</span><b style="font-size:14px">${!liga?"—":d.upSt==="enviando"?`<span class="st-fix">enviando</span> · ${br((d.upBytes||0)/1024,1)} KB${d.upMsg==="sem RTCM da base"?" (sem RTCM da base)":""}`:d.upSt==="erro"?`<span style="color:var(--bad)">${esc(d.upMsg||"erro")}</span> · tentando de novo`:d.upSt==="conectando"?"conectando…":esc(d.upSt||"—")}</b></div>`:""}
+  </section>`;
+}
+function sDrone(){
+  const L=S.drLigado,ips=drIps(),ip=ips[0]?.ip||"(ligue o roteador do celular)",simples=NATIVO&&modoSimples(),cn=rec()?.marca==="ComNav"||!rec();
+  const dis=L?"disabled":"";
+  return `<section class="card" style="background:var(--panel2)"><span class="eyebrow">Base para drone (PPK/RTK)</span>
+    <span class="small">Receptor da base <b>→</b> celular (Bluetooth) <b>→</b> controle do drone. O controle conecta no caster como em <b>RTK de rede personalizado</b> (Custom Network RTK) do DJI Pilot 2.</span></section>
+  ${drStatus()}
+  ${L&&S.drLocal?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Digite no controle do drone</b>
+    <div class="grid2"><div class="kv"><span>Host / IP</span><b class="m" style="font-size:17px">${esc(ip)}</b></div><div class="kv"><span>Porta</span><b class="m" style="font-size:17px">${esc(S.drPorta)}</b></div>
+    <div class="kv"><span>Usuário (conta)</span><b class="m" style="font-size:17px">${esc(S.drUser||"—")}</b></div><div class="kv"><span>Senha</span><b class="m" style="font-size:17px">${esc(S.drSenha||"—")}</b></div>
+    <div class="kv" style="grid-column:1/-1"><span>Ponto de montagem</span><b class="m" style="font-size:17px">${esc(S.drMount)}</b></div></div>
+    ${ips.length>1?`<span class="small" style="color:#CDEFD9">Outros IPs do celular: ${ips.slice(1).map(x=>esc(x.ip)).join(" · ")}</span>`:""}
+    <span class="small" style="color:#CDEFD9">O controle precisa estar no Wi-Fi do roteador do celular.</span>
+    <button data-act="drIp">Atualizar IP</button></section>`:""}
+  ${cn?"":`<p class="small" style="color:var(--float);margin:0">A configuração automática da base funciona com receptores ComNav. Em outras marcas, configure pelo app do fabricante a saída RTCM 3 na porta Bluetooth e marque o modo simples na Conexão.</p>`}
+  ${L?"":baseCoordCampos()}
+  <section class="card"><div class="split"><h3>Caster no celular</h3><label class="ck small"><input type="checkbox" data-ckbind="drLocal" ${S.drLocal?"checked":""} ${dis}> usar</label></div>
+    <span class="muted small">Sem internet. Ligue o <b>roteador Wi-Fi (hotspot)</b> do celular e conecte o controle do drone nele. O celular fica ligado na base pelo Bluetooth.</span>
+    ${S.drLocal?`<div class="grid2"><label class="f">Porta<input class="m" inputmode="numeric" data-bind="drPorta" value="${esc(S.drPorta)}" ${dis}></label><label class="f">Ponto de montagem<input class="m" data-bind="drMount" value="${esc(S.drMount)}" ${dis}></label>
+    <label class="f">Usuário<input class="m" data-bind="drUser" value="${esc(S.drUser)}" autocomplete="off" ${dis}></label><label class="f">Senha<input class="m" data-bind="drSenha" value="${esc(S.drSenha)}" autocomplete="off" ${dis}></label></div>`:""}</section>
+  <section class="card"><div class="split"><h3>Caster na internet</h3><label class="ck small"><input type="checkbox" data-ckbind="drExt" ${S.drExt?"checked":""} ${dis}> usar</label></div>
+    <span class="muted small">Com internet no celular e no controle. O app envia a correção da base para o caster (ex.: RTK2go ou um caster próprio) e o drone se conecta nele.</span>
+    ${S.drExt?`<div class="grid2" style="grid-template-columns:2fr 1fr"><label class="f">Endereço (IP ou domínio)<input class="m" data-bind="drHost" value="${esc(S.drHost)}" placeholder="ex.: rtk2go.com" ${dis}></label><label class="f">Porta<input class="m" inputmode="numeric" data-bind="drHPorta" value="${esc(S.drHPorta)}" ${dis}></label></div>
+    <div class="grid2"><label class="f">Ponto de montagem<input class="m" data-bind="drHMount" value="${esc(S.drHMount)}" ${dis}></label><label class="f">Protocolo<select data-bind="drHVer" ${dis}><option value="auto" ${S.drHVer==="auto"?"selected":""}>Automático</option><option value="1" ${S.drHVer==="1"?"selected":""}>NTRIP 1 (só senha)</option><option value="2" ${S.drHVer==="2"?"selected":""}>NTRIP 2 (usuário e senha)</option></select></label>
+    <label class="f">Usuário<input class="m" data-bind="drHUser" value="${esc(S.drHUser)}" autocomplete="off" ${dis}></label><label class="f">Senha<input class="m" data-bind="drHSenha" value="${esc(S.drHSenha)}" autocomplete="off" ${dis}></label></div>
+    <span class="muted small">Automático: com usuário usa NTRIP 2; sem usuário usa NTRIP 1 (SOURCE com a senha). No controle do drone use o endereço, a porta e o ponto de montagem deste caster, com a conta de rover dele.</span>`:""}</section>
+  <section class="card"><div class="grid2"><label class="f">Mensagens RTCM<select data-bind="drMsg" ${dis}><option value="MSM4" ${S.drMsg==="MSM4"?"selected":""}>RTCM 3.2 MSM4 · 1 s (padrão DJI)</option><option value="MSM5" ${S.drMsg==="MSM5"?"selected":""}>RTCM 3.2 MSM5 · 1 s</option></select></label>
+    <label class="f">Elevação (°)<input class="m" inputmode="numeric" value="${esc(S.mascara)}" data-bind="mascara" ${dis}></label></div>
+    ${simples?`<span class="small" style="color:var(--float)">Modo simples ligado: o app não manda comandos. A base precisa já estar mandando RTCM 3 na porta Bluetooth.</span>`:""}</section>
+  ${L?"":previaCmds(cmdsDroneCN(),"Os comandos fixam a base e mandam a correção pela mesma conexão do app.")}
+  ${L?`<button class="big" data-act="drParar">Parar Drone RTK</button>`:`<button class="pri big" data-act="drIniciar" ${S.conectado?"":"disabled"}>Iniciar Drone RTK</button>`}
+  ${S.conectado||L?"":`<p class="muted small" style="margin:0">Conecte o receptor da base primeiro (Dispositivo › Conexão), de preferência pelo Bluetooth.</p>`}`;
+}
+async function iniciarDrone(){
+  if(!S.drLocal&&!S.drExt){toast("Escolha o caster no celular, o da internet ou os dois");return}
+  if(S.baseModo!=="auto"&&!(S.baseE&&S.baseN&&S.baseH)){toast("Defina a coordenada da base primeiro");return}
+  if(S.drLocal&&!(S.drMount||"").trim()){toast("Preencha o ponto de montagem do caster no celular");return}
+  if(S.drExt&&!((S.drHost||"").trim()&&(S.drHMount||"").trim())){toast("Preencha o endereço e o ponto de montagem do caster na internet");return}
+  const etapas=["Configurar a base"];if(S.drLocal)etapas.push("Ligar o caster no celular");if(S.drExt)etapas.push("Conectar ao caster na internet");
+  passos("Drone RTK",etapas);let k=0;const real=receptorReal();
+  passo(k,"run");if(real&&!modoSimples()&&marcaRx()!=="spectra")await enviarLista(cmdsDroneCN(),"Base para drone",80);else await espera(600);passo(k++,"ok");
+  if(S.drLocal){passo(k,"run");
+    if(NATIVO){try{const r=await NP.GnssTcp.casterStart({port:parseInt(S.drPorta)||2101,mount:S.drMount.trim(),user:(S.drUser||"").trim(),pass:S.drSenha||""});R.drIps=r.ips||[];passo(k++,"ok")}
+      catch(e){passo(k++,"erro");toast("Caster no celular: "+(e.message||e)+". Confira se a porta "+S.drPorta+" está livre.")}}
+    else{R.drIps=["ap0 192.168.43.1"];await espera(400);passo(k++,"ok")}}
+  if(S.drExt){passo(k,"run");
+    if(NATIVO){try{await NP.GnssTcp.casterUpStart({host:S.drHost.trim(),port:parseInt(S.drHPorta)||2101,mount:S.drHMount.trim(),user:(S.drHUser||"").trim(),pass:S.drHSenha||"",ver:drVer()});passo(k++,"ok")}catch(e){passo(k++,"erro")}}
+    else{await espera(400);passo(k++,"ok")}}
+  S.drLigado=true;S.modo="base";if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
+  salvar();bip("ok");
+  const ip=drIps()[0]?.ip;
+  S.passos.fim=S.drLocal?`<b>Base pronta para o drone.</b> No controle: Host <b>${esc(ip||"IP do roteador do celular")}</b> · Porta <b>${esc(S.drPorta)}</b> · Ponto <b>${esc(S.drMount)}</b> · Usuário <b>${esc(S.drUser||"—")}</b> · Senha <b>${esc(S.drSenha||"—")}</b>.`
+    :`<b>Base pronta.</b> A correção está indo para ${esc(S.drHost)}:${esc(S.drHPorta)}/${esc(S.drHMount)}. Conecte o drone nesse caster.`;
+  S.passos.botoes=[["passosFechar","Fechar"]];render();
+}
+async function pararDrone(){
+  if(NATIVO){try{await NP.GnssTcp.casterStop()}catch(e){}try{await NP.GnssTcp.casterUpStop()}catch(e){}}
+  S.drLigado=false;R.dr=null;salvar();render();toast("Drone RTK desligado. A base continua mandando correção pelo Bluetooth até mudar o modo.")}
 function fmtBR(v){return v.toFixed(3)}
 function vMapa(){
   const pts=proj()?.pontos||[];
@@ -1531,7 +1622,7 @@ function render(full=true){
   if(!full&&S.tela==="mapa"&&S.locPick&&!S.loc) return;
   if(!full&&R.gesto) return;
   if(!full&&S.tela==="calc"&&!["medir","locLinha"].includes(S.ferr))return;
-  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
+  if(!full&&!["home","info","painel","coleta","mapa","locacao","calc"].includes(S.tela)&&!(S.tela==="receptor"&&(["nmea","conexao","baserover","estatico","ajuste","console","drone"].includes(S.sub)||(S.sub==="correcao"&&!R.mounts.length)))) return;
   const v=$("view");
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
   v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,exportar:vExportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos()+vDigitarPonto();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
@@ -1620,6 +1711,9 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
         S.baseE=fmtBR(m(0));S.baseN=fmtBR(m(1));S.baseH=fmtBR(m(2));S.baseFonte="Posição autônoma (média de "+am.length+" s)";salvar();toast("Coordenada da base definida")}
       render()},1000)}
   if(a==="iniciarBase"){iniciarBaseCN();return}
+  if(a==="drIniciar"){iniciarDrone();return}
+  if(a==="drParar"){pararDrone();return}
+  if(a==="drIp"){if(NATIVO)NP.GnssTcp.casterState().then(st=>{R.drIps=st.ips||[];R.dr=st;render();toast(drIps().length?"IP: "+drIps()[0].ip:"Ligue o roteador Wi-Fi do celular")}).catch(()=>{});return}
   if(a==="iniciarRover"){iniciarRoverCN();return}
   if(a==="passosFechar"){S.passos=null;render();return}
 
@@ -1788,6 +1882,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.dataset.cfg){S.cfg[el.dataset.cfg]=el.type==="checkbox"?el.checked:el.value;salvar();if(el.tagName==="SELECT"||el.type==="checkbox")render()}
   if(el.dataset.est&&el.tagName==="SELECT"){S.est[el.dataset.est]=el.value;salvar()}
   if(el.dataset.obra)return;
+  if(el.dataset.ckbind){S[el.dataset.ckbind]=el.checked;salvar();render();return}
   if(el.dataset.osis){const d=obraEditar();if(d){d.sis[el.dataset.osis]=el.value;render()}return}
   if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
   if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
@@ -2982,6 +3077,12 @@ if(NATIVO&&NP.GnssTcp){
       if(S.conexao==="wifi"&&(Date.now()-S.desde<15000||!R.ultGGA)){wifiProximaPorta();return}
       toast("Conexão com o receptor caiu. Reconectando…");R.reconRx=0;render();reconectarReceptor()}
   });
+  NP.GnssTcp.addListener("caster",st=>{
+    if(st.evento){if(st.evento==="recusado")toast("Drone RTK: "+st.msg);return}
+    R.dr=st;const n=(st.clientes||[]).length,ant=R.drN||0;R.drN=n;
+    if(S.drLigado&&n>ant){bip("ok");toast("Controle do drone conectado: "+st.clientes[n-1].ip)}
+    if(S.tela==="receptor"&&S.sub==="drone"){const box=$("drStatus");if(box)box.outerHTML=drStatus()}});
+  NP.GnssTcp.casterState().then(st=>{R.dr=st;R.drIps=st.ips||[];R.drN=(st.clientes||[]).length;const on=!!(st.local||st.up);if(on!==!!S.drLigado){S.drLigado=on;salvar();render()}}).catch(()=>{});
   NP.GnssTcp.addListener("ntrip",n=>{
     const agora=Date.now();if(n.bytes>(R.ntripBytes||0)&&n.status==="recebendo"){if(R.ntripT0){const dt=(agora-R.ntripT0)/1000;if(dt>0)R.ntripTaxa=Math.max(0,Math.round((n.bytes-R.ntripB0)/dt))}R.ntripT0=agora;R.ntripB0=n.bytes;R.ntripUlt=agora}
     if(n.descartados!=null)R.descartados=n.descartados;

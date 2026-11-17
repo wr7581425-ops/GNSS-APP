@@ -12,7 +12,7 @@ Cada envio para a branch `main` gera um APK novo automaticamente (GitHub Actions
 ## Estrutura
 - `src/app.html`: interface e lógica do app (é o que se edita).
 - `www/index.html`: versão montada que vai dentro do app (`python3 scripts/montar-www.py`).
-- `native/`: código Android (conexão TCP com o receptor, cliente NTRIP, servidor NMEA).
+- `native/`: código Android (conexão TCP com o receptor, cliente NTRIP, servidor NMEA, caster do Drone RTK em `CasterNtrip.java`).
 - `scripts/patch-android.sh`: ajusta o projeto Android gerado pelo Capacitor.
 - `.github/workflows/android.yml`: monta o APK na nuvem.
 
@@ -20,3 +20,8 @@ Cada envio para a branch `main` gera um APK novo automaticamente (GitHub Actions
 1. Ligue o Wi-Fi do receptor e conecte o celular nessa rede.
 2. No app: Dispositivo › Conexão › Wi-Fi, IP `192.168.1.1` e a porta da saída NMEA do receptor.
 3. Toque em Conectar. O status deve mudar para Autônomo e, com NTRIP ligado, para FIX.
+
+## Drone RTK (base GNSS para o drone)
+Dispositivo › Drone RTK. O receptor da base manda RTCM 3 pelo Bluetooth para o celular e o app repassa:
+- **Caster no celular** (sem internet): ligue o roteador Wi-Fi do celular, conecte o controle do drone nele e use no DJI Pilot 2 › RTK de rede personalizado o IP, a porta, o ponto de montagem, o usuário e a senha que o app mostra.
+- **Caster na internet**: o app envia a correção (NTRIP 1 ou 2) para um caster externo e o drone se conecta nesse caster.

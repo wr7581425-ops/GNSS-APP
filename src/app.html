@@ -1273,6 +1273,9 @@ function baseCoordCampos(){
   const pts=proj()?.pontos||[];
   const md=S.baseModo||"auto";
   return `<span class="eyebrow">Iniciar modo</span>
+  ${S.conectado&&G.fix===4&&!baseTx()?`<section class="card" style="background:var(--fix-bg);border-color:var(--fix)"><b style="color:var(--fix)">Receptor em FIX agora</b>
+    <span class="small" style="color:#CDEFD9">E ${br(G.E,3)} · N ${br(G.N,3)} · cota do chão ${br(cotaTerreno(),3)} m (bastão ${br(alturaVertical(),3)} m). Essa é a coordenada corrigida: use ela para a base.</span>
+    <button class="pri" data-act="baseUsarFix">Usar esta coordenada na base</button></section>`:""}
   <div class="grid3">${opt("baseModo","auto",md,"Auto base","o receptor usa a própria posição")}${opt("baseModo","atual",md,"Média","média da posição atual")}${opt("baseModo","conhecida",md,"Coordenada conhecida","marco ou ponto")}</div>
   ${md==="atual"?`<section class="card"><h3>Média da posição atual</h3>
       <div class="grid2"><label class="f">Tempo de média<select data-bind="baseMedia"><option value="10">10 s (teste)</option><option value="60">1 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select></label>
@@ -1724,6 +1727,10 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
       render()},1000)}
   if(a==="iniciarBase"){iniciarBaseCN();return}
   if(a==="drIniciar"){iniciarDrone();return}
+  if(a==="baseUsarFix"){if(G.fix!==4){toast("O receptor saiu do FIX. Espere fixar de novo.");return}
+    S.baseModo="conhecida";S.baseE=G.E.toFixed(3);S.baseN=G.N.toFixed(3);S.baseH=cotaTerreno().toFixed(3);
+    S.baseFonte="FIX RTK "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});salvar();render();bip("ok");
+    toast("Coordenada FIX copiada para a base. Agora meça a altura da antena no tripé e preencha.");return}
   if(a==="drParar"){pararDrone();return}
   if(a==="drReenviar"){if(S.corrLigada)desligarCorrecao();R.drInicio=Date.now();enviarLista(cmdsDroneCN(),"Base para drone",120).then(()=>toast("Comandos reenviados. Aguarde alguns segundos."));return}
   if(a==="drIp"){if(NATIVO)NP.GnssTcp.casterState().then(st=>{R.drIps=st.ips||[];R.dr=st;render();toast(drIps().length?"IP: "+drIps()[0].ip:"Ligue o roteador Wi-Fi do celular")}).catch(()=>{});return}

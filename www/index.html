@@ -1428,7 +1428,10 @@ function vMapa(){
   if(al){const ax=X(al.E),ay=Y(al.N);alvo=`${S.conectado?`<line x1="${cx}" y1="${cy}" x2="${ax}" y2="${ay}" stroke="#FF8A1F" stroke-width="2" stroke-dasharray="6 5"/>`:""}<g><circle cx="${ax}" cy="${ay}" r="10" fill="none" stroke="#FF8A1F" stroke-width="2.5"/><line x1="${ax-15}" y1="${ay}" x2="${ax+15}" y2="${ay}" stroke="#FF8A1F" stroke-width="2"/><line x1="${ax}" y1="${ay-15}" x2="${ax}" y2="${ay+15}" stroke="#FF8A1F" stroke-width="2"/><text x="${ax+14}" y="${ay-12}" fill="#FFB066" font-size="12" font-weight="700" font-family="Barlow, sans-serif">${esc(al.nome)}</text></g>`}
   const poly=(ps,cor,dash)=>ps.length>=2?`<polyline points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" ${dash?`stroke-dasharray="${dash}"`:""}/>`:"";
   let linhas=linhasProj().map(l=>poly(linhaPts(l),"#E8EEF4","")).join("");
-  if(S.ferr==="medir")linhas+=poly((S.medList||[]).map(getPt).filter(Boolean),"#5BE3E3","4 4");
+  if(S.ferr==="medir"&&S.tela==="calc")linhas+=poly((S.medList||[]).map(getPt).filter(Boolean),"#5BE3E3","4 4");
+  if(R.reguaOn&&R.regua?.length){const rg=R.regua;linhas+=poly(rg,"#5BE3E3","6 4");
+    linhas+=rg.map((q,i)=>{let s=`<circle cx="${X(q.E)}" cy="${Y(q.N)}" r="5" fill="#5BE3E3" stroke="#0B131B" stroke-width="2"/>`;
+      if(i>0){const a=rg[i-1],d=Math.hypot(q.E-a.E,q.N-a.N);s+=`<text x="${(X(q.E)+X(a.E))/2}" y="${(Y(q.N)+Y(a.N))/2-6}" fill="#5BE3E3" font-size="13" font-weight="800" text-anchor="middle" font-family="Barlow, sans-serif" stroke="#0B131B" stroke-width="3" paint-order="stroke">${br(d,2)} m</text>`}return s}).join("")}
   if(S.ferr==="linha")linhas+=poly((S.linhaPts||[]).map(getPt).filter(Boolean),"#FF8A1F","8 4");
   if(S.ferr==="area"){const ps=(S.areaList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=`<polygon points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="#5BE3E3" fill-opacity="0.15" stroke="#5BE3E3" stroke-width="2"/>`}
   if(S.ferr==="volume"){const ps=(S.volList||[]).map(getPt).filter(Boolean);if(ps.length>=3)linhas+=delaunay(ps).map(([a,b,c])=>`<polygon points="${[a,b,c].map(i=>X(ps[i].E)+","+Y(ps[i].N)).join(" ")}" fill="none" stroke="#5B9CFF" stroke-opacity="0.6"/>`).join("")}
@@ -1453,13 +1456,14 @@ function vMapa(){
       ${tb("seguir",ICM.centro,S.seguir?"Seguindo a posição":"Centralizar na posição",S.seguir)}
       ${tb("zoomIn",ICM.mais,"Aproximar")}
       ${tb("zoomOut",ICM.menos,"Afastar")}
-      ${tb("mapMedir",ICM.regua,"Medir distância",S.ferr==="medir")}
+      ${tb("mapMedir",ICM.regua,"Medir distância",R.reguaOn)}
       ${tb("mapRapida",ICM.grade,"Ferramentas rápidas",S.mapRapida)}
     </div>
     <button class="mfab" data-act="coletar" ${podeColetar()||S.coletando?"":"disabled"} aria-label="Coletar ponto ${esc(proxNome())}">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
       <span>${S.coletando?S.coletando+"s":esc(proxNome())}</span></button>
     ${S.mapRapida?mapaRapida():""}
+    ${R.reguaOn?reguaPainel():""}
     ${S.conectado?"":`<div style="position:absolute;left:60px;right:12px;top:56px;padding:10px 12px;border-radius:10px;background:rgba(15,23,32,.85);text-align:center" class="small">Conecte o receptor para ver a sua posição. <button style="min-height:34px;margin-top:6px;width:100%" data-tile="conexao">Conectar</button></div>`}
   </section>
   <div class="mbar">
@@ -1583,6 +1587,13 @@ function pressaoIniciar(x,y){pressaoCancelar();
     const E=S.mapCE+((x-r.left)*k-vb.width/2)*mpp,N=S.mapCN-((y-r.top)*k-vb.height/2)*mpp;
     MG.supr=true;setTimeout(()=>MG.supr=false,600);vib(80,true);abrirDigitarPonto(E,N)},PRESSAO_MS)}
 function pressaoCancelar(){clearTimeout(MG.pressT);const d=document.getElementById("pressAnel");if(d)d.remove()}
+function reguaPainel(){const rg=R.regua||[];let tot=0;for(let i=1;i<rg.length;i++)tot+=Math.hypot(rg[i].E-rg[i-1].E,rg[i].N-rg[i-1].N);
+  const u=rg.length>=2?rg[rg.length-1]:null,a=rg.length>=2?rg[rg.length-2]:null;
+  const ult=u?`${br(Math.hypot(u.E-a.E,u.N-a.N),3)} m · az ${fmtAng(((Math.atan2(u.E-a.E,u.N-a.N)*180/Math.PI)+360)%360)}`:"";
+  return `<div style="position:absolute;left:60px;right:40px;top:50px;padding:10px 12px;border-radius:10px;background:rgba(15,23,32,.92);border:1px solid #5BE3E3;z-index:3;display:grid;gap:6px">
+    ${rg.length<2?`<span class="small"><b style="color:#5BE3E3">Régua:</b> toque em um ponto ou em qualquer lugar do mapa${rg.length?" (falta o segundo)":""}.</span>`
+      :`<span class="m" style="font-weight:800;color:#5BE3E3;font-size:17px">${br(tot,3)} m${rg.length>2?` <span class="small" style="color:var(--muted)">total, ${rg.length-1} trechos</span>`:""}</span><span class="small m">Último trecho: ${ult}</span>`}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><button style="min-height:36px" data-act="reguaDesf" ${rg.length?"":"disabled"}>Desfazer</button><button style="min-height:36px" data-act="reguaLimpar" ${rg.length?"":"disabled"}>Limpar</button><button style="min-height:36px" data-act="mapMedir">Fechar</button></div></div>`}
 function abrirDigitarPonto(E,N){const dc_=+S.cfg.dec||3;R.dig={nome:S.lcNome||"L-01",E:E!=null?E.toFixed(dc_):"",N:N!=null?N.toFixed(dc_):"",h:"",desc:"",salvar:S.lcSalvar!==false};render()}
 function vDigitarPonto(){const d=R.dig;if(!d)return "";
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center" data-digfundo="1">
@@ -1663,6 +1674,11 @@ function render(full=true){
 // ---------- Ações ----------
 document.addEventListener("click",e=>{
   const sel=e.target.closest("[data-ptsel]");
+  if(R.reguaOn&&S.tela==="mapa"&&e.target.closest("#mapSvg")){
+    let q=null;if(sel){const p=proj().pontos[+sel.dataset.ptsel];if(p){const [pe,pn]=ptEN(p);q={E:pe,N:pn,nome:p.nome}}}
+    else{const sv=$("mapSvg"),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,k=vb.width/r.width,mpp=S.zoom/100;
+      q={E:S.mapCE+((e.clientX-r.left)*k-vb.width/2)*mpp,N:S.mapCN-((e.clientY-r.top)*k-vb.height/2)*mpp}}
+    if(q){(R.regua=R.regua||[]).push(q);S.seguir=false;render()}return}
   if(sel){S.ptSel=+sel.dataset.ptsel;S.ptEdit=false;S.ptDelConf=false;S.seguir=false;render();return}
   const b=e.target.closest("button");if(!b||b.disabled)return;
   if(b.dataset.ptf){S.ptFiltro=b.dataset.ptf;S.ptAberto=null;render();return}
@@ -1762,7 +1778,9 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="seguir"){S.seguir=!S.seguir;render()}
   if(a==="mapFundo"){const o=["sat","ruas","grade"],i=o.indexOf(S.cfg.fundoMapa||"sat");S.cfg.fundoMapa=o[(i+1)%3];salvar();render();toast("Fundo: "+({sat:"satélite",ruas:"ruas",grade:"grade"})[S.cfg.fundoMapa]);return}
   if(a==="mapRapida"){S.mapRapida=!S.mapRapida;render();return}
-  if(a==="mapMedir"){if(S.ferr==="medir"){S.ferr=null;toast("Medição desligada")}else{S.ferr="medir";S.medList=S.medList||[];toast("Medir: toque nos pontos do mapa e use Adicionar em Cálculos")}render();return}
+  if(a==="mapMedir"){R.reguaOn=!R.reguaOn;R.regua=[];if(R.reguaOn)toast("Régua: toque nos pontos ou no mapa");render();return}
+  if(a==="reguaDesf"){(R.regua||[]).pop();render();return}
+  if(a==="reguaLimpar"){R.regua=[];render();return}
   if(a==="verTudo"){const ps=(proj()?.pontos||[]).map(p=>ptEN(p));if(S.conectado)ps.push([G.E,G.N]);if(!ps.length){toast("Sem pontos para mostrar");return}
     const es=ps.map(p=>p[0]),ns=ps.map(p=>p[1]);S.seguir=false;S.mapCE=(Math.min(...es)+Math.max(...es))/2;S.mapCN=(Math.min(...ns)+Math.max(...ns))/2;
     const span=Math.max(Math.max(...es)-Math.min(...es),Math.max(...ns)-Math.min(...ns),2);S.zoom=Math.max(1,span*1.4/3.6);render()}

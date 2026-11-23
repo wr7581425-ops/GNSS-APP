@@ -1172,6 +1172,9 @@ function coordBaseGeo(){
   const ant=S.baseModo==="conhecida"?(num(S.baseAnt)||0):0;
   return {la,lo,hElip:h+ant,hOrt:h+ant-(R.sep||0)};
 }
+// distância (m) entre a coordenada da base digitada/média e onde o receptor está agora
+function baseDist(){if(S.baseModo==="auto"||!S.conectado||!(G.fix>0)||isNaN(G.lat))return null;const g=coordBaseGeo();if(!g)return null;
+  const k=Math.PI/180;return Math.hypot((g.la-G.lat)*111320,(g.lo-G.lon)*111320*Math.cos(G.lat*k))}
 function receptorReal(){return NATIVO&&S.conectado&&S.fonte==="tcp"}
 async function enviarLista(lista,titulo,gap=120){
   if(!receptorReal())return false;
@@ -1326,6 +1329,7 @@ function sDrone(){
     <button data-act="drIp">Atualizar IP</button></section>`:""}
   ${cn?"":mr==="trimble"?`<section class="card" style="border-color:var(--float)"><b style="color:var(--float)">Trimble (R980, R12i…)</b><span class="small">O app não manda comandos para a Trimble. Duas opções:<br>1. <b>Caster da própria Trimble</b> (mais simples): na página web do receptor ligue RTCM 3 MSM4 1 s e o NTripCaster (porta 2101); o controle conecta direto no Wi-Fi do receptor. Nesse caso não precisa iniciar o Drone RTK aqui.<br>2. <b>Pelo celular</b>: na página web, em I/O Configuration, ligue a saída RTCM 3 na porta Bluetooth; o app repassa para o caster do celular ou da internet.</span></section>`
     :`<p class="small" style="color:var(--float);margin:0">A configuração automática da base funciona com receptores ComNav. Em outras marcas, configure pelo app do fabricante a saída RTCM 3 na porta Bluetooth e marque o modo simples na Conexão.</p>`}
+  ${(()=>{const d=baseDist();return d!=null&&d>30?`<div class="banner" style="border-color:var(--bad)"><b>A coordenada da base está a ${d>=1000?br(d/1000,2)+" km":Math.round(d)+" m"} de onde o receptor está.</b> Com a base errada o drone fica "convergindo" e não fixa. ${S.baseModo==="atual"?"Toque em <b>Pegar posição atual</b> de novo":"Confira o marco"}${L?", pare e inicie o Drone RTK de novo.":"."}</div>`:""})()}
   ${L?"":baseCoordCampos()}
   <section class="card"><div class="split"><h3>Caster no celular</h3><label class="ck small"><input type="checkbox" data-ckbind="drLocal" ${S.drLocal?"checked":""} ${dis}> usar</label></div>
     <span class="muted small">Sem internet. Ligue o <b>roteador Wi-Fi (hotspot)</b> do celular e conecte o controle do drone nele. O celular fica ligado na base pelo Bluetooth.</span>
@@ -1348,6 +1352,7 @@ async function iniciarDrone(){
   if(!S.drLocal&&!S.drExt){toast("Escolha o caster no celular, o da internet ou os dois");return}
   if(S.baseModo!=="auto"&&!(S.baseE&&S.baseN&&S.baseH)){toast("Defina a coordenada da base primeiro");return}
   if(S.drLocal&&!(S.drMount||"").trim()){toast("Preencha o ponto de montagem do caster no celular");return}
+  {const d=baseDist();if(d!=null&&d>30){toast(`A coordenada da base está a ${d>=1000?br(d/1000,1)+" km":Math.round(d)+" m"} de onde o receptor está. Refaça a média ou confira o marco.`);bip("erro");return}}
   if(S.drExt&&!((S.drHost||"").trim()&&(S.drHMount||"").trim())){toast("Preencha o endereço e o ponto de montagem do caster na internet");return}
   const etapas=["Configurar a base"];if(S.drLocal)etapas.push("Ligar o caster no celular");if(S.drExt)etapas.push("Conectar ao caster na internet");
   if(S.corrLigada)desligarCorrecao();

@@ -1284,7 +1284,8 @@ function baseCoordCampos(){
       <div class="grid2"><label class="f">Tempo de média<select data-bind="baseMedia"><option value="10">10 s (teste)</option><option value="60">1 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select></label>
         <div class="kv"><span>Agora (autônomo)</span><b style="font-size:14px">${S.conectado?`E ${br(G.E,2)}<br>N ${br(G.N,2)}`:"—"}</b></div></div>
       <button data-act="pegarBase" ${S.conectado&&!S.baseMedindo?"":"disabled"}>${S.baseMedindo?`Calculando média… ${S.baseMedindo}s`:"Pegar posição atual"}</button></section>`:""}
-  ${md==="conhecida"&&pts.length?`<label class="f">Usar um ponto do projeto<select id="basePto"><option value="">Escolher…</option>${pts.map((p,i)=>`<option value="${i}">${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}</select></label>`:""}
+  ${pts.length?`<label class="f">Buscar na lista de pontos do projeto<select id="basePto"><option value="">Escolher um ponto coletado…</option>${pts.map((p,i)=>[p,i]).filter(([p])=>p.st!=="PROJ").reverse().map(([p,i])=>`<option value="${i}">${esc(p.nome)}${p.cod?" · "+esc(p.cod):""} · ${esc(p.st||"")}${p.quando?" · "+new Date(p.quando).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</option>`).join("")}</select>
+    <span class="muted small" style="font-weight:400">Use um ponto coletado em FIX (por exemplo, o marco medido com NTRIP). Depois preencha a altura da antena no tripé.</span></label>`:""}
   ${md!=="auto"?`<section class="card ${S.baseE&&S.baseN&&S.baseH?"hl":""}"><div class="split"><h3>Coordenada da base</h3><span class="muted small">${sisTxt()}</span></div>
     <div class="grid2"><label class="f">Este E (m)<input class="m" inputmode="decimal" value="${esc(S.baseE)}" data-bind="baseE"></label><label class="f">Norte N (m)<input class="m" inputmode="decimal" value="${esc(S.baseN)}" data-bind="baseN"></label>
       <label class="f">Altitude h (m)<input class="m" inputmode="decimal" value="${esc(S.baseH)}" data-bind="baseH"></label>${md==="conhecida"?`<label class="f">Altura da antena (m)<input class="m" inputmode="decimal" value="${esc(S.baseAnt)}" data-bind="baseAnt"></label>`:"<span></span>"}</div>
@@ -1907,7 +1908,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.dataset.obra)return;
   if(el.dataset.ckbind){S[el.dataset.ckbind]=el.checked;salvar();render();return}
   if(el.dataset.osis){const d=obraEditar();if(d){d.sis[el.dataset.osis]=el.value;render()}return}
-  if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();toast("Coordenada do ponto "+p.nome+" carregada")}
+  if(el.id==="basePto"&&el.value!==""){const p=proj().pontos[+el.value];const [pe,pn]=ptEN(p);S.baseModo="conhecida";S.baseE=fmtBR(pe);S.baseN=fmtBR(pn);S.baseH=fmtBR(p.h);S.baseFonte="Ponto "+p.nome;salvar();render();if(p.st&&p.st!=="FIX")toast("Atenção: o ponto "+p.nome+" não foi coletado em FIX ("+p.st+")");else toast("Base: ponto "+p.nome+". Preencha a altura da antena.");toast("Coordenada do ponto "+p.nome+" carregada")}
   if(el.dataset.sent){S.sent[el.dataset.sent]=el.checked;salvar()}
   if(el.dataset.bind&&el.tagName==="SELECT"){S[el.dataset.bind]=el.value;salvar()}
 });

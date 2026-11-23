@@ -22,7 +22,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .chip{font-size:12px;font-weight:700;padding:6px 10px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
 .c-fix{color:var(--fix);background:var(--fix-bg)}.c-float{color:var(--float);background:var(--float-bg)}.c-off{color:var(--muted);background:var(--panel)}.c-bad{color:var(--bad);background:var(--bad-bg)}
 #mapBox .minfo{position:absolute;left:8px;top:8px;right:44px;display:flex;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;align-items:center;padding:6px 10px;border-radius:10px;background:rgba(10,17,24,.82);font-size:12px;pointer-events:none}
-#mapBox .mtools{position:absolute;left:8px;top:52px;display:flex;flex-direction:column;gap:6px}
+#mapBox .mtools{position:absolute;left:8px;top:52px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:6px;max-height:calc(100% - 60px)}
 .mtb{width:42px;height:42px;min-height:42px;padding:0;border-radius:10px;background:rgba(15,23,32,.88);border:1px solid var(--line);color:var(--fg);display:flex;align-items:center;justify-content:center}
 .mtb.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 #mapBox .mfab{position:absolute;right:12px;bottom:34px;width:72px;height:72px;min-height:72px;border-radius:50%;padding:0;background:var(--accent);color:var(--accent-ink);border:3px solid #fff3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font-weight:800;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
@@ -1395,7 +1395,7 @@ function fmtBR(v){return v.toFixed(3)}
 function vMapa(){
   const pts=proj()?.pontos||[];
   if(S.seguir||S.mapCE===null){S.mapCE=G.E;S.mapCN=G.N}
-  const W=Math.round(Math.max(300,Math.min((window.innerWidth||390)-32,1000))),H=Math.round(Math.max(330,(window.innerHeight||800)-(S.loc?520:S.ptSel!=null?470:300))),mpp=S.zoom/100; // 1 unidade = 1 px
+  const W=Math.round(Math.max(300,Math.min((window.innerWidth||390)-32,1000))),H=Math.round(Math.max(400,(window.innerHeight||800)-(S.loc?520:S.ptSel!=null?470:300))),mpp=S.zoom/100; // 1 unidade = 1 px
   const X=e=>W/2+(e-S.mapCE)/mpp, Y=n=>H/2-(n-S.mapCN)/mpp;
   const passos=[1,2,5,10,20,50,100,200,500,1000];const gstep=passos.find(s=>s/mpp>=60)||1000;
   let grid="";const e0=Math.floor((S.mapCE-W/2*mpp)/gstep)*gstep,n0=Math.floor((S.mapCN-H/2*mpp)/gstep)*gstep;

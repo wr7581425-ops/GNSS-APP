@@ -1286,7 +1286,8 @@ function cmdsDroneCN(){
   const m=num(S.mascara)||10;let fix="fix auto";
   if(S.baseModo!=="auto"){const g=coordBaseGeo();if(g)fix=`fix position ${g.la.toFixed(9)} ${g.lo.toFixed(9)} ${g.hOrt.toFixed(4)}`}
   // "log" sem porta = sai pela mesma conexão do app (Bluetooth ou Wi-Fi), como o NMEA
-  return ["fix none","set maxrefoffset 300","set pvtobsmode single","rtkobsmode 0","set ppp off","set hotspodrtcmmode caster1 off","unlogall",fix,
+  return ["set rtcmforward off","findcm disconn","tst setcors disconn","set pdacors sinoluowang off","set datalink radio off",...(S.conexao==="bt"?["interfacemode bluetooth compass compass on"]:[]),
+    "fix none","set maxrefoffset 300","set pvtobsmode single","rtkobsmode 0","set ppp off","set hotspodrtcmmode caster1 off","unlogall",fix,
     ...(DRONE_MSG[S.drMsg]||DRONE_MSG.MSM4).map(x=>"log "+x),"set smoothedpvt on",`ecutoff ${m}`,`gloecutoff ${m}`,"saveconfig",...nmeaLogs()];
 }
 function drVer(){return S.drHVer==="auto"?(S.drHUser.trim()?2:1):+S.drHVer}
@@ -1300,6 +1301,8 @@ function drStatus(){
   return `<section class="card ${liga?"hl":""}" id="drStatus"><div class="split"><h3>Situação</h3><span class="small" style="font-weight:700;color:${liga?"var(--fix)":"var(--muted)"}">${liga?"● LIGADO":"desligado"}</span></div>
     <div class="kv"><span>Correção da base (RTCM)</span><b style="font-size:14px">${rtcm}</b></div>
     ${liga&&d.tipos?`<span class="muted small">Mensagens: ${esc(d.tipos)}</span>`:""}
+    ${liga&&!(d.rtcmBytes>0)&&Date.now()-(R.drInicio||0)>15000?`<div class="banner">A base não está mandando correção para o celular. ${modoSimples()?"<b>O modo simples está ligado</b>: desmarque na Conexão e inicie de novo.":"Toque em <b>Reenviar comandos</b>. Se continuar, abra Dispositivo › Comandos do receptor e me mande um print das respostas."}</div>
+    <button data-act="drReenviar">Reenviar comandos para a base</button>`:""}
     ${S.drLocal?`<div class="kv"><span>Controles conectados no celular</span><b style="font-size:14px">${liga?(cl.length?cl.map(c=>`${esc(c.ip)} · ${br((c.bytes||0)/1024,1)} KB`).join("<br>"):"nenhum ainda"):"—"}</b></div>`:""}
     ${S.drExt?`<div class="kv"><span>Caster na internet</span><b style="font-size:14px">${!liga?"—":d.upSt==="enviando"?`<span class="st-fix">enviando</span> · ${br((d.upBytes||0)/1024,1)} KB${d.upMsg==="sem RTCM da base"?" (sem RTCM da base)":""}`:d.upSt==="erro"?`<span style="color:var(--bad)">${esc(d.upMsg||"erro")}</span> · tentando de novo`:d.upSt==="conectando"?"conectando…":esc(d.upSt||"—")}</b></div>`:""}
   </section>`;
@@ -1343,8 +1346,12 @@ async function iniciarDrone(){
   if(S.drLocal&&!(S.drMount||"").trim()){toast("Preencha o ponto de montagem do caster no celular");return}
   if(S.drExt&&!((S.drHost||"").trim()&&(S.drHMount||"").trim())){toast("Preencha o endereço e o ponto de montagem do caster na internet");return}
   const etapas=["Configurar a base"];if(S.drLocal)etapas.push("Ligar o caster no celular");if(S.drExt)etapas.push("Conectar ao caster na internet");
+  if(S.corrLigada)desligarCorrecao();
   passos("Drone RTK",etapas);let k=0;const real=receptorReal();
-  passo(k,"run");if(real&&!modoSimples()&&!["spectra","trimble"].includes(marcaRx()))await enviarLista(cmdsDroneCN(),"Base para drone",80);else await espera(600);passo(k++,"ok");
+  passo(k,"run");
+  if(real&&modoSimples())toast("Modo simples ligado: o app NÃO configurou a base. Desmarque o modo simples na Conexão.");
+  if(real&&!modoSimples()&&!["spectra","trimble"].includes(marcaRx())){await enviarLista(cmdsDroneCN(),"Base para drone",120)}else await espera(600);
+  passo(k++,"ok");R.drInicio=Date.now();
   if(S.drLocal){passo(k,"run");
     if(NATIVO){try{const r=await NP.GnssTcp.casterStart({port:parseInt(S.drPorta)||2101,mount:S.drMount.trim(),user:(S.drUser||"").trim(),pass:S.drSenha||""});R.drIps=r.ips||[];passo(k++,"ok")}
       catch(e){passo(k++,"erro");toast("Caster no celular: "+(e.message||e)+". Confira se a porta "+S.drPorta+" está livre.")}}
@@ -1700,6 +1707,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="iniciarBase"){iniciarBaseCN();return}
   if(a==="drIniciar"){iniciarDrone();return}
   if(a==="drParar"){pararDrone();return}
+  if(a==="drReenviar"){if(S.corrLigada)desligarCorrecao();R.drInicio=Date.now();enviarLista(cmdsDroneCN(),"Base para drone",120).then(()=>toast("Comandos reenviados. Aguarde alguns segundos."));return}
   if(a==="drIp"){if(NATIVO)NP.GnssTcp.casterState().then(st=>{R.drIps=st.ips||[];R.dr=st;render();toast(drIps().length?"IP: "+drIps()[0].ip:"Ligue o roteador Wi-Fi do celular")}).catch(()=>{});return}
   if(a==="iniciarRover"){iniciarRoverCN();return}
   if(a==="passosFechar"){S.passos=null;render();return}

@@ -1170,8 +1170,11 @@ function coordBaseGeo(){
   const E=num(S.baseE),N=num(S.baseN),h=num(S.baseH);if(isNaN(E)||isNaN(N)||isNaN(h))return null;
   const [la,lo]=fromUTM(E,N,zonaAtual(),hemiAtual());
   const ant=S.baseModo==="conhecida"?(num(S.baseAnt)||0):0;
-  return {la,lo,hElip:h+ant,hOrt:h+ant-(R.sep||0)};
+  // cota (sistema do projeto) → elipsoidal → altitude "MSL" do geoide do receptor, que é o que o "fix position" da ComNav espera
+  const hElip=h+ant+ondCota(la,lo,R.sep);
+  return {la,lo,hElip,hOrt:hElip-(R.sep||0)};
 }
+function cotaAntena(){return G.h-ondCota(G.lat,G.lon,R.sep)}
 // distância (m) entre a coordenada da base digitada/média e onde o receptor está agora
 function baseDist(){if(S.baseModo==="auto"||!S.conectado||!(G.fix>0)||isNaN(G.lat))return null;const g=coordBaseGeo();if(!g)return null;
   const k=Math.PI/180;return Math.hypot((g.la-G.lat)*111320,(g.lo-G.lon)*111320*Math.cos(G.lat*k))}
@@ -1201,7 +1204,7 @@ async function iniciarBaseCN(){
   passo(0,"run");if(real){await enviarLista(cmdsRadio("base"),"Rádio da base");await espera(2000)}else await espera(800);passo(0,"ok");
   passo(1,"run");if(real)await enviarLista(cmdsBaseCN(),"Parâmetros da base",80);else await espera(800);passo(1,"ok");
   passo(2,"run");await espera(1500);passo(2,"ok");
-  if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
+  if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(cotaAntena());S.baseFonte="Auto base (autônoma)"}
   S.baseLigada=true;S.rxBase=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
   const prov=S.baseModo!=="conhecida";S.ajuste={status:"gravando",prov};salvar();bip("ok");
   S.passos.fim=`Frequência ${esc(rd().freq)} MHz · ${esc(rd().proto)}. <b>Base iniciada!</b> Desconectar este receptor e conectar o rover?`;
@@ -1371,7 +1374,7 @@ async function iniciarDrone(){
   if(S.drExt){passo(k,"run");
     if(NATIVO){try{await NP.GnssTcp.casterUpStart({host:S.drHost.trim(),port:parseInt(S.drHPorta)||2101,mount:S.drHMount.trim(),user:(S.drHUser||"").trim(),pass:S.drHSenha||"",ver:drVer()});passo(k++,"ok")}catch(e){passo(k++,"erro")}}
     else{await espera(400);passo(k++,"ok")}}
-  S.drLigado=true;S.rxBase=true;S.modo="base";if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
+  S.drLigado=true;S.rxBase=true;S.modo="base";if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(cotaAntena());S.baseFonte="Auto base (autônoma)"}
   salvar();bip("ok");
   const ip=drIps()[0]?.ip;
   S.passos.fim=S.drLocal?`<b>Base pronta para o drone.</b> No controle: Host <b>${esc(ip||"IP do roteador do celular")}</b> · Porta <b>${esc(S.drPorta)}</b> · Ponto <b>${esc(S.drMount)}</b> · Usuário <b>${esc(S.drUser||"—")}</b> · Senha <b>${esc(S.drSenha||"—")}</b>.`
@@ -1721,7 +1724,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="corrOff"){desligarCorrecao();render();toast("Correção desligada");return}
   if(a==="corrOffAntigo"){clearTimeout(R.ntripTimer);R.reconN=0;if(NATIVO)NP.GnssTcp.ntripDisconnect().catch(()=>{});S.corrLigada=false;render();toast("Correção desligada")}
   if(a==="pegarBase"){const tot=Math.min(parseInt(S.baseMedia||"180"),30);const am=[];S.baseMedindo=tot;render();
-    const iv=setInterval(()=>{am.push([G.E,G.N,G.h]);S.baseMedindo--;
+    const iv=setInterval(()=>{am.push([G.E,G.N,cotaAntena()]);S.baseMedindo--;
       if(S.baseMedindo<=0){clearInterval(iv);const m=i=>am.reduce((s,x)=>s+x[i],0)/am.length;
         S.baseE=fmtBR(m(0));S.baseN=fmtBR(m(1));S.baseH=fmtBR(m(2));S.baseFonte="Posição autônoma (média de "+am.length+" s)";salvar();toast("Coordenada da base definida")}
       render()},1000)}

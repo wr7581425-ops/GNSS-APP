@@ -136,13 +136,13 @@ const S={
   zoom:20, seguir:true, anda:false, mapCE:null, mapCN:null, loc:null, locPick:false, locTol:"0.030",
   baseInicio:0, baseProv:null, ajuste:null, semInternet:false,
   drLocal:true, drExt:false, drPorta:"2101", drMount:"WASURVEY", drUser:"drone", drSenha:"wasurvey", drMsg:"MSM4",
-  drHost:"", drHPorta:"2101", drHMount:"", drHUser:"", drHSenha:"", drHVer:"auto", drLigado:false,
+  rxBase:false, drHost:"", drHPorta:"2101", drHMount:"", drHUser:"", drHSenha:"", drHVer:"auto", drLigado:false,
   est:{gravando:false,inicio:0,nome:"BASE01",taxa:"1",destino:"receptor",formato:"CNB",altAnt:"2.000",medida:"Base da rosca",duracao:"60",mascara:"10"},
   arquivos:[],
   cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes","drLocal","drExt","drPorta","drMount","drUser","drSenha","drMsg","drHost","drHPorta","drHMount","drHUser","drHSenha","drHVer"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes","drLocal","drExt","drPorta","drMount","drUser","drSenha","drMsg","drHost","drHPorta","drHMount","drHUser","drHSenha","drHVer","rxBase"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
     if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
@@ -317,7 +317,8 @@ let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;c
 const rec=()=>S.receptores.find(r=>r.id===S.ativo);
 const proj=()=>S.projetos.find(p=>p.id===S.projAtivo);
 function baseTx(){return !!(S.conectado&&(S.drLigado||(S.baseLigada&&S.modo==="base")))}
-function baseTxt(){const d=R.dr||{};return S.drLigado?(d.rtcmIdade>=0&&d.rtcmIdade<5000?`BASE · drone ${(d.clientes||[]).length?"conectado":"sem controle"}`:"BASE · sem RTCM"):"BASE · transmitindo"}
+function solTxt(){return G.fix===4?"FIX":G.fix===5?"FLOAT":G.fix===1?"AUTÔN.":"—"}
+function baseTxt(){const d=R.dr||{};return S.drLigado?(d.rtcmIdade>=0&&d.rtcmIdade<5000?`BASE ${solTxt()} · drone ${(d.clientes||[]).length?"✓":"—"}`:`BASE ${solTxt()} · sem RTCM`):`BASE ${solTxt()}`}
 function stCls(){if(baseTx())return S.drLigado&&!((R.dr||{}).rtcmIdade>=0&&(R.dr||{}).rtcmIdade<5000)?"c-float":"c-fix";return !S.conectado?"c-off":G.fix===4?"c-fix":G.fix===5?"c-float":G.fix===1?"c-bad":"c-off"}
 
 // ---------- Cabeçalho ----------
@@ -860,14 +861,14 @@ function calc(k){S.ferr=k;go("calc")}
 function icone(k,cor,tam=30){return `<span aria-hidden="true" style="width:64px;height:64px;border-radius:50%;background:${COR[cor]};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35)"><svg width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg></span>`}
 function statusStrip(){
   const s=sis(),c=S.conectado;
-  const cor=!c?"var(--muted)":baseTx()?"var(--fix)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
-  const txt=!c?"Sem receptor":baseTx()?(S.drLigado?"Base (Drone RTK)":"Base"):G.fix===4?"Fixo":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
+  const cor=!c?"var(--muted)":G.fix===4?"var(--fix)":G.fix===5?"var(--float)":"var(--bad)";
+  const txt=!c?"Sem receptor":G.fix===4?"Fixo":G.fix===5?"Flutuante":G.fix===1?"Autônomo":"Buscando";
   const coord=!c?`<span class="muted small">Toque em Dispositivo › Conexão para conectar o receptor.</span>`
     :planar(s)?`<div class="m" style="font-size:15px;line-height:1.5">E: ${br(G.E,dc())}<br>N: ${br(G.N,dc())}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`
     :`<div class="m" style="font-size:15px;line-height:1.5">B: ${gms(G.lat,"N","S")}<br>L: ${gms(G.lon,"E","W")}</div><div class="m" style="font-size:15px;align-self:end;text-align:right">${rnAtiva()?"Cota RN":"Cota"}: ${br(cotaTerreno(),dc())} m<br><span class="muted" style="font-size:11px">bastão ${br(alturaVertical(),3)} m${rnAtiva()?" · RN-REF":""}</span></div>`;
   return `<section class="card" style="gap:8px;padding:12px 14px">
     <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr auto;gap:8px;align-items:center">
-      <div style="display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px"><span style="width:14px;height:14px;border-radius:50%;background:${cor};box-shadow:0 0 0 3px rgba(255,255,255,.08)"></span>${txt}</span><span class="muted small">${baseTx()?(S.drLigado?"Enviando correção ao drone":"Transmitindo correção"):c&&S.corrLigada?`Idade: ${br(G.idade,1)} s`:"Sem correção"}</span></div>
+      <div style="display:flex;flex-direction:column"><span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px"><span style="width:14px;height:14px;border-radius:50%;background:${cor};box-shadow:0 0 0 3px rgba(255,255,255,.08)"></span>${txt}</span><span class="muted small">${baseTx()?(S.drLigado?"Base · enviando ao drone":"Base · transmitindo"):c&&S.corrLigada?`Idade: ${br(G.idade,1)} s`:"Sem correção"}</span></div>
       <div style="display:flex;align-items:center;gap:6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M13 7l4 4-6 6-4-4z"/><path d="M4 10l3-3 3 3-3 3zM14 20l3-3 3 3-3 3z"/><path d="M17 4a4 4 0 0 1 3 3"/></svg><span class="m" style="font-size:15px;line-height:1.2">${c?G.sats:0}<br><span class="muted" title="visíveis">${(()=>{const v=Object.values(G.const||{}).reduce((x,y)=>x+(+y||0),0);return c&&v?v:"—"})()}</span></span></div>
       <div class="m" style="font-size:14px;line-height:1.4">H:${c?br(G.hrms):"—"}<br>V:${c?br(G.vrms):"—"}</div>
       <div title="Bateria do receptor" ${S.fonte==="sim"||!c||R.bateria!=null?"":"hidden"} style="display:flex;flex-direction:column;align-items:center;font-size:11px" class="muted"><svg width="16" height="26" viewBox="0 0 16 26" aria-hidden="true"><rect x="5" y="0" width="6" height="3" fill="currentColor"/><rect x="1" y="3" width="14" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="${c?9:22}" width="8" height="${c?13:0}" fill="var(--fix)"/></svg>${c?(S.fonte==="sim"?"76%":R.bateria!=null?R.bateria+"%":""):""}</div>
@@ -1212,7 +1213,7 @@ async function iniciarBaseCN(){
   passo(1,"run");if(real)await enviarLista(cmdsBaseCN(),"Parâmetros da base",80);else await espera(800);passo(1,"ok");
   passo(2,"run");await espera(1500);passo(2,"ok");
   if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
-  S.baseLigada=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
+  S.baseLigada=true;S.rxBase=true;S.baseInicio=Date.now();S.baseProv={E:num(S.baseE),N:num(S.baseN),h:num(S.baseH)};
   const prov=S.baseModo!=="conhecida";S.ajuste={status:"gravando",prov};salvar();bip("ok");
   S.passos.fim=`Frequência ${esc(rd().freq)} MHz · ${esc(rd().proto)}. <b>Base iniciada!</b> Desconectar este receptor e conectar o rover?`;
   S.passos.botoes=[["passosFechar","Não"],["baseIrRover","Sim"]];render();
@@ -1222,7 +1223,7 @@ async function iniciarRoverCN(){
   passos("Iniciar rover",pda?["Config parâmetros do receptor","Ligar NTRIP pelo celular"]:["Config rádio interno","Config parâmetros do receptor"]);
   const real=receptorReal();
   if(pda){
-    passo(0,"run");if(real&&(!modoSimples()||marcaRx()==="spectra"))await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",120);else await espera(500);passo(0,"ok");
+    passo(0,"run");if(real&&(!modoSimples()||marcaRx()==="spectra")){await enviarLista(cmdsRoverPDA(),"Rover PDA Rede",120);S.rxBase=false;S.baseLigada=false}else await espera(500);passo(0,"ok");
     passo(1,"run");S.correcao="ntrip";
     if(NATIVO){try{if(S.corrLigada)await NP.GnssTcp.ntripDisconnect();R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;const ok=await ntripLigar();if(ok){S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}else passo(1,"erro")}catch(e){passo(1,"erro")}}
     else{S.corrLigada=true;S.corrDesde=Date.now();passo(1,"ok")}
@@ -1376,16 +1377,22 @@ async function iniciarDrone(){
   if(S.drExt){passo(k,"run");
     if(NATIVO){try{await NP.GnssTcp.casterUpStart({host:S.drHost.trim(),port:parseInt(S.drHPorta)||2101,mount:S.drHMount.trim(),user:(S.drHUser||"").trim(),pass:S.drHSenha||"",ver:drVer()});passo(k++,"ok")}catch(e){passo(k++,"erro")}}
     else{await espera(400);passo(k++,"ok")}}
-  S.drLigado=true;S.modo="base";if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
+  S.drLigado=true;S.rxBase=true;S.modo="base";if(S.baseModo==="auto"&&S.conectado){S.baseE=fmtBR(G.E);S.baseN=fmtBR(G.N);S.baseH=fmtBR(G.h);S.baseFonte="Auto base (autônoma)"}
   salvar();bip("ok");
   const ip=drIps()[0]?.ip;
   S.passos.fim=S.drLocal?`<b>Base pronta para o drone.</b> No controle: Host <b>${esc(ip||"IP do roteador do celular")}</b> · Porta <b>${esc(S.drPorta)}</b> · Ponto <b>${esc(S.drMount)}</b> · Usuário <b>${esc(S.drUser||"—")}</b> · Senha <b>${esc(S.drSenha||"—")}</b>.`
     :`<b>Base pronta.</b> A correção está indo para ${esc(S.drHost)}:${esc(S.drHPorta)}/${esc(S.drHMount)}. Conecte o drone nesse caster.`;
   S.passos.botoes=[["passosFechar","Fechar"]];render();
 }
-async function pararDrone(){
+async function voltarRover(){ // tira a base (fix position + RTCM) e deixa o receptor pronto para NTRIP pelo celular
+  if(receptorReal()&&!modoSimples()&&!["spectra","trimble"].includes(marcaRx())){await enviarLista(cmdsRoverPDA(),"Voltar para rover",120);S.rxBase=false}
+  else if(!receptorReal())S.rxBase=false;
+  S.baseLigada=false;S.modo="rover";salvar()}
+async function pararDrone(silencio){
   if(NATIVO){try{await NP.GnssTcp.casterStop()}catch(e){}try{await NP.GnssTcp.casterUpStop()}catch(e){}}
-  S.drLigado=false;R.dr=null;salvar();render();toast("Drone RTK desligado. A base continua mandando correção pelo Bluetooth até mudar o modo.")}
+  S.drLigado=false;R.dr=null;salvar();
+  if(!silencio)toast("Drone RTK desligado. Voltando o receptor para rover…");
+  await voltarRover();render();if(!silencio)toast("Receptor de volta em rover. Já pode ligar o NTRIP.")}
 function fmtBR(v){return v.toFixed(3)}
 function vMapa(){
   const pts=proj()?.pontos||[];
@@ -1702,7 +1709,9 @@ document.addEventListener("click",e=>{
   if(a==="conectar"&&NATIVO&&S.conexao!=="demo"){conectarReal();return}
   if(a==="conectar"){S.conectando=true;render();setTimeout(()=>{S.conectando=false;S.conectado=true;S.fonte="sim";S.desde=Date.now();render();toast("Receptor conectado")},1800)}
   if(a==="desconectar"){falar(S.est.gravando&&S.est.destino==="receptor"?"Dispositivo desconectado. O receptor continua gravando":"Dispositivo desconectado");R.manual=true;S.reconectando=false;if(NATIVO)desconectarReal();S.conectado=false;S.corrLigada=false;S.servidor=false;render();toast("Receptor desconectado")}
-  if(a==="corrOn"&&S.drLigado){toast("O Drone RTK está ligado: o receptor está como base. Pare o Drone RTK para usar como rover.");return}
+  if(a==="corrOn"&&S.correcao==="ntrip"&&(S.drLigado||S.rxBase)&&marcaRx()!=="trimble"){
+    toast("O receptor estava como base. Voltando para rover e ligando o NTRIP…");
+    (S.drLigado?pararDrone(true):voltarRover()).then(()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;return ntripLigar()}).then(ok=>{if(ok){S.corrLigada=true;S.correcaoAtiva="ntrip";S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}});return}
   if(a==="corrOn"&&NATIVO&&(S.fonte==="tcp"||S.correcao==="ntrip")){if((S.corrLigada||R.ntripSt==="recebendo")&&S.correcaoAtiva&&S.correcaoAtiva!==S.correcao){toast("Desligando "+(S.correcaoAtiva==="rtx"?"RTX":S.correcaoAtiva==="ntrip"?"NTRIP":"correção anterior")+"…");desligarCorrecao()}if(S.correcao==="radio"){S.roverLink="radio";iniciarRoverCN();return}if(S.correcao==="rtx"&&marcaRx()==="trimble"){toast("Ligando o RTX no receptor…");trimbleRtxIniciar().then(()=>{S.corrLigada=true;S.correcaoAtiva="rtx";S.corrDesde=Date.now();R.rtxDesde=Date.now();render();falar("RTX ligado");toast("RTX ligado. A convergência leva alguns minutos; acompanhe a precisão no topo.")});return}
 if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rádio.");return}
     const ligarNtrip=()=>{R.ntripRecons=0;R.reconN=0;R.ntripUlt=0;ntripLigar().then(ok=>{if(ok){S.corrLigada=true;S.correcaoAtiva="ntrip";S.corrDesde=Date.now();render();toast("Conectando ao caster NTRIP…")}})};

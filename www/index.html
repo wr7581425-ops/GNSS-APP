@@ -1668,6 +1668,8 @@ function render(full=true){
   document.querySelector(".app").style.zoom={normal:1,grande:1.12,maior:1.25}[S.cfg.fonte]||1;
   v.innerHTML=({rnref:vRnRef,home:vHome,info:vInfo,infopos:vInfoPos,antena:vAntena,mock:vMock,codigos:vCodigos,pontos:vPontos,importar:vImportar,exportar:vExportar,painel:vPainel,mapa:vMapa,coleta:vColeta,locacao:vLocacao,calc:vCalc,projetos:vProjetos,receptor:vReceptor,config:vConfig})[S.tela]()+vPassos()+vDigitarPonto();if(rnAtiva())v.innerHTML=rnBanner()+v.innerHTML;
   const m=$("mon");if(m)m.scrollTop=m.scrollHeight;
+  // escolha guardada que não existe mais na lista (ex.: ponto apagado): a tela mostrava outro ponto e o cálculo usava o antigo → alinha com o que aparece
+  v.querySelectorAll("select[data-bind]").forEach(s=>{const k=s.dataset.bind;if(S[k]!==undefined&&S[k]!==null&&s.value!==String(S[k])&&![...s.options].some(o=>o.value===String(S[k])))S[k]=s.value});
   if(full&&key!==ultimaTela){window.scrollTo(0,0);ultimaTela=key}
 }
 

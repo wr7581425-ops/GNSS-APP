@@ -2442,7 +2442,7 @@ function baseDist(){if(S.baseModo==="auto"||!S.conectado||!(G.fix>0)||isNaN(G.la
 const LIC_PUB="5mspHaiHkxriKAUUaGkEbMp2Do3rgPYD2viKoNesvo8=",LIC_TESTE_DIAS=7,LIC_EPOCH=Date.UTC(2024,0,1),DIA=86400000;
 const LIC_PLANOS={mensal:{nome:"Mensal",preco:60,dias:30,txt:"R$ 60 por mês"},anual:{nome:"Anual",preco:504,dias:365,txt:"R$ 504 por ano (30% de desconto, R$ 42 por mês)"}};
 // ---------- Pagamento: Pix estático (QR Code gerado no app, sem servidor) e cartão por link do vendedor ----------
-const PIX={chave:"57752573000199",nome:"W R TOPOGRAFIA E PROJETOS",cidade:"MANAUS",zap:"5592991887297",zapTxt:"(92) 99188-7297"};
+const PIX={chave:"57752573000199",nome:"W R TOPOGRAFIA E PROJETOS",cidade:"MANAUS",zap:"5592986009594",zapTxt:"(92) 98600-9594"};
 function tlv(id,v){return id+String(v.length).padStart(2,"0")+v}
 function crc16(s){let c=0xFFFF;for(let i=0;i<s.length;i++){c^=s.charCodeAt(i)<<8;for(let k=0;k<8;k++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,"0")}
 function pixCodigo(valor,txid){const p=tlv("00","01")+tlv("26",tlv("00","br.gov.bcb.pix")+tlv("01",PIX.chave))+tlv("52","0000")+tlv("53","986")+tlv("54",valor.toFixed(2))+tlv("58","BR")+tlv("59",PIX.nome)+tlv("60",PIX.cidade)+tlv("62",tlv("05",txid))+"6304";return p+crc16(p)}

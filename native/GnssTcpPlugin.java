@@ -1118,6 +1118,17 @@ public class GnssTcpPlugin extends Plugin {
         avisarClientes();
     }
 
+    // ---------- Licença: identificador do aparelho (fica igual mesmo reinstalando o app) ----------
+    @PluginMethod
+    public void aparelhoId(PluginCall call) {
+        String id = null;
+        try { id = android.provider.Settings.Secure.getString(getContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); } catch (Exception ignored) { }
+        if (id == null || id.isEmpty() || "9774d56d682e549c".equals(id)) id = (Build.MANUFACTURER + "|" + Build.MODEL + "|" + Build.BOARD);
+        JSObject r = new JSObject();
+        r.put("id", id);
+        call.resolve(r);
+    }
+
     // ---------- Drone RTK: caster no celular e envio para caster na internet ----------
     @PluginMethod
     public void casterStart(PluginCall call) {

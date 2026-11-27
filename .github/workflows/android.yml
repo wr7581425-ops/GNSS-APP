@@ -64,3 +64,20 @@ jobs:
             APK para instalar no Android.
             Baixe o arquivo WASurvey-1.0.${{ github.run_number }}.apk abaixo e abra no celular.
           files: WASurvey-*.apk
+
+      - name: Publicar no repositório público de atualizações (o app procura as versões novas lá)
+        env:
+          TOKEN_ATUALIZACOES: ${{ secrets.ATUALIZACOES_TOKEN }}
+        run: |
+          if [ -z "$TOKEN_ATUALIZACOES" ]; then echo "::error::Falta o secret ATUALIZACOES_TOKEN"; exit 1; fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          repository: wr7581425-ops/WA-Survey-Atualizacoes
+          token: ${{ secrets.ATUALIZACOES_TOKEN }}
+          tag_name: v1.0.${{ github.run_number }}
+          name: WA Survey 1.0.${{ github.run_number }}
+          body: |
+            APK do WA Survey para Android.
+            Baixe o arquivo WASurvey-1.0.${{ github.run_number }}.apk abaixo e abra no celular.
+          files: WASurvey-*.apk

@@ -146,7 +146,7 @@ const S={
   cfg:{dec:"3",sepDec:"ponto",ang:"gms",prefixo:"",digitos:"2",cfgVer:4,somColeta:true,vibrar:true,somFix:true,voz:true,locVibrar:true,locSom:true,locRaio:"5",rotuloMapa:"num",idadeMax:"5",estacaInt:"20",csvSep:",",cabecalho:true,
        nomesMapa:true,tamPonto:"5",seguirPadrao:true,fonte:"normal",telaLigada:true,tolV:"0.040",pdopAlerta:"4.0",formatoPadrao:"csv",fundoMapa:"sat",unidadeArea:"m2"},
 };
-try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes","drLocal","drExt","drPorta","drMount","drUser","drSenha","drMsg","drHost","drHPorta","drHMount","drHUser","drHSenha","drHVer","rxBase","licChave","licInicio","licMaxT"])if(s[k]!==undefined)S[k]=s[k];
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s){for(const k of ["receptores","ativo","projetos","projAtivo","ip","porta","caster","cport","mount","user","codigo","altura","soFix","tolH","epocas","sport","hz","sent","conexao","correcao","arquivos","btAddr","btNome","ultPos","senha","enviaGGA","modo","mascara","taxa","pdopMax","freq","canal","proto","locTol","baseAnt","baseFmt","baseId","baseSaida","servidorAuto","cnPortaRadio","cnPortaApp","altTipo","antRaio","antFase","codigos","mock","radio","diff","roverLink","baseModo","antFaseManual","cnEnv","senhas","envRx","envFix2","simples","canalTentado","btCanais","bgPedido","exp","impCfg","rnxInt","rnxAlt","rnxSis","colModo","colInt","colDist","obsVal","obsUn","pontosNoArquivo","correcaoAtiva","nmeaSessoes","drLocal","drExt","drPorta","drMount","drUser","drSenha","drMsg","drHost","drHPorta","drHMount","drHUser","drHSenha","drHVer","rxBase","licChave","licInicio","licMaxT","obrig"])if(s[k]!==undefined)S[k]=s[k];
   if(s.cfg){S.cfg=Object.assign(S.cfg,s.cfg);if(!s.cfg.cfgVer){if(S.cfg.prefixo==="P-")S.cfg.prefixo="";if(S.cfg.digitos==="4")S.cfg.digitos="2";if(S.cfg.fundoMapa==="grade")S.cfg.fundoMapa="sat";S.cfg.cfgVer=2}
     // v3: pontos começam em 01, coleta rápida com 1 época, antena 2,000 m
     if(S.cfg.cfgVer<3){if(S.epocas==="5")S.epocas="1";if(/^1[.,]800$/.test(S.altura))S.altura="2.000";S.cfg.cfgVer=3;delete S.pNum}}if(s.est)S.est=Object.assign(S.est,s.est,{gravando:!!(s.est.gravando&&s.est.destino==="receptor")})}}catch(e){}
@@ -1217,8 +1217,14 @@ async function licIniciar(){
   R.licCodigo=licCodigoDe(id);
   if(!S.licInicio){S.licInicio=Date.now();salvar()}
   licRelogio();render()}
-// a data do celular não pode voltar no tempo (senão daria para esticar a licença mexendo no relógio)
-function licRelogio(){const a=Date.now();if(!S.licMaxT||a>S.licMaxT){S.licMaxT=a;salvar()}}
+// Data usada pela licença: a hora do GNSS (vem dos satélites pelo receptor) vale mais que o relógio do celular.
+// Depois de lida, ela segue contando pelo relógio interno que não muda quando alguém mexe na data (performance.now()).
+// Sem receptor: a data do celular não pode voltar no tempo (guardamos a maior já vista).
+function licTempoConfiavel(ms){const prim=!R.tConf;R.tConf={ms,perf:performance.now()};
+  if(S.licMaxT&&S.licMaxT>ms+2*DIA)S.licMaxT=ms; // relógio do celular estava adiantado: o GNSS corrige
+  licRelogio();if(prim&&Math.abs(ms-Date.now())>2*DIA)render()}
+function licAgora(){return R.tConf?R.tConf.ms+(performance.now()-R.tConf.perf):Date.now()}
+function licRelogio(){const a=licAgora();if(!S.licMaxT||a>S.licMaxT){S.licMaxT=a;salvar()}}
 setInterval(licRelogio,10*60000);
 function licLerChave(chave,codigo){
   const b=b32dec(chave);if(!b||b.length<68)return null;
@@ -1228,16 +1234,19 @@ function licLerChave(chave,codigo){
   const dias=(pl[2]<<8)|pl[3];return {tipo:({1:"vitalicia",2:"mensal",3:"anual"})[pl[1]],ate:pl[1]===1?null:LIC_EPOCH+(dias+1)*DIA}}
 function licEstado(){
   if(!R.licCodigo)return {ok:true,tipo:"carregando"};
-  const agora=Date.now();
-  if(S.licMaxT&&agora<S.licMaxT-2*DIA)return {ok:false,tipo:"relogio",msg:"A data do celular está atrasada. Ligue a data e a hora automáticas do Android."};
+  const agora=licAgora();
+  if(!R.tConf&&S.licMaxT&&agora<S.licMaxT-2*DIA)return {ok:false,tipo:"relogio",msg:"A data do celular está atrasada. Ligue a data e a hora automáticas do Android, ou conecte o receptor (ele traz a data certa dos satélites)."};
+  if(obrigVencida())return {ok:false,tipo:"atualizar",msg:`Atualização obrigatória: instale a versão ${S.obrig.versao} para continuar coletando.`};
   const k=S.licChave?licLerChave(S.licChave,R.licCodigo):null;
   if(k&&k.tipo==="vitalicia")return {ok:true,tipo:"vitalicia"};
   if(k){const falta=Math.max(0,Math.floor((k.ate-agora)/DIA));if(agora<k.ate)return {ok:true,tipo:k.tipo,ate:k.ate,falta};return {ok:false,tipo:"vencida",plano:k.tipo,ate:k.ate}}
   const ate=(S.licInicio||agora)+LIC_TESTE_DIAS*DIA,falta=Math.ceil((ate-agora)/DIA);
   return agora<ate?{ok:true,tipo:"teste",ate,falta}:{ok:false,tipo:"teste-fim",ate}}
 function licPode(){const e=licEstado();if(e.ok)return true;
+  if(e.tipo==="atualizar"){toast(e.msg);S.aba="ferramentas";S.tela="home";render();return false}
   toast(e.tipo==="relogio"?e.msg:"Licença vencida: o app está só para leitura. Ative uma chave para conectar e coletar.");S.aba="ferramentas";S.tela="licenca";render();return false}
 function licAviso(){const e=licEstado();
+  if(obrigPendente())return obrigBanner();
   if(!e.ok)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left;border-color:var(--bad)"><b>${e.tipo==="relogio"?"Data do celular atrasada":"Licença vencida"}</b> · modo só leitura. Toque para ativar.</button>`;
   if(["teste","mensal","anual"].includes(e.tipo)&&e.falta<=5)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left">${e.tipo==="teste"?"Teste grátis":"Licença "+LIC_PLANOS[e.tipo].nome.toLowerCase()}: ${e.falta<1?"vence hoje":e.falta===1?"falta 1 dia":"faltam "+e.falta+" dias"}. Toque para ativar ou renovar.</button>`;
   return ""}
@@ -3065,6 +3074,8 @@ function nmea(l){
     if(!R.temGSA&&!isNaN(hdop))G.pdop=+(hdop*1.4).toFixed(1);
   }
   if(t==="GST"){const sl=+f[6],so=+f[7],sa=+f[8];if(!isNaN(sl)&&!isNaN(so)&&f[6]!==""){G.hrms=Math.sqrt(sl*sl+so*so);G.vrms=isNaN(sa)?G.hrms*1.7:sa;R.temGST=true}}
+  if(t==="RMC"&&S.fonte==="tcp"&&f[2]==="A"&&/^\d{6}$/.test(f[9]||"")&&/^\d{6}/.test(f[1]||"")){
+    const d=f[9],h=f[1],ms=Date.UTC(2000+ +d.slice(4,6),+d.slice(2,4)-1,+d.slice(0,2),+h.slice(0,2),+h.slice(2,4),+h.slice(4,6));if(ms>Date.UTC(2025,0,1)&&ms<Date.UTC(2045,0,1))licTempoConfiavel(ms)}
   if(t==="RMC"){const sp=(+f[7]||0)*0.514444,cr=+f[8];G.vel=sp;if(!isNaN(cr)&&f[8]!==""&&sp>0.2)G.course=cr}
   if(t==="VTG"){const cr=+f[1],kmh=+f[7];if(!isNaN(kmh))G.vel=kmh/3.6;if(!isNaN(cr)&&f[1]!==""&&G.vel>0.2)G.course=cr}
   if(t==="GSA"){const p=+f[15],hd=+f[16],vd=parseFloat(f[17]);if(!isNaN(p)&&p>0){G.pdop=p;R.temGSA=true}if(hd>0)G.hdop=hd;if(vd>0){G.vdop=vd;R.temVDOP=true}}
@@ -3279,11 +3290,22 @@ async function sincronizarNativo(){
 // ---------- atualização: confere a última versão no GitHub e instala por cima ----------
 const REPO_API="https://api.github.com/repos/wr7581425-ops/WA-Survey-Atualizacoes/releases/latest"; // repositório público só com os APKs (o código fica privado)
 function numVersao(v){const m=String(v||"").match(/(\d+)\.(\d+)\.(\d+)/);return m?(+m[1])*1e6+(+m[2])*1e3+(+m[3]):0}
+// Atualização obrigatória: quando a versão nova pede, o app dá OBRIG_DIAS para atualizar (pode estar sem internet no campo);
+// depois disso fica só leitura até instalar. Vale só a partir desta versão (as antigas não têm esse controle).
+const OBRIG_DIAS=3;
+function obrigPendente(){if(!S.obrig)return false;if(APP_VERSAO==="teste")return false;if(numVersao(S.obrig.versao)<=numVersao(APP_VERSAO)){S.obrig=null;salvar();return false}return true}
+function obrigVencida(){return obrigPendente()&&Date.now()-S.obrig.desde>OBRIG_DIAS*DIA}
+function obrigBanner(){const falta=Math.max(0,Math.ceil((S.obrig.desde+OBRIG_DIAS*DIA-Date.now())/DIA)),venc=obrigVencida();
+  return `<section class="card" style="border:2px solid ${venc?"var(--bad)":"var(--float)"}"><b style="color:${venc?"var(--bad)":"var(--float)"}">Atualização obrigatória: versão ${esc(S.obrig.versao)}</b>
+    <span class="small">${venc?"O prazo acabou: o app está só para leitura até atualizar.":`Atualize em até ${falta} ${falta===1?"dia":"dias"}. Depois disso o app fica só para leitura.`}</span>
+    ${R.baixando?`<span class="small">Baixando… ${R.baixando.total?Math.round(R.baixando.bytes/R.baixando.total*100)+"%":br(R.baixando.bytes/1048576,1)+" MB"}</span>`:`<button class="pri" data-act="${R.atualiz?.url?"atualizar":"verAtualiz"}">${R.atualiz?.url?"Atualizar agora":"Procurar a atualização"}</button>`}</section>`}
+setInterval(()=>{if(NATIVO)verificarAtualizacao(false)},6*3600000);
 async function verificarAtualizacao(manual){
   if(!NATIVO){if(manual)toast("Só no app instalado");return}
   try{const r=await fetch(REPO_API,{headers:{Accept:"application/vnd.github+json"}});if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();
     const ap=(j.assets||[]).find(a=>/\.apk$/i.test(a.name));const nova=String(j.tag_name||"").replace(/^v/,"");
     R.atualiz={versao:nova,url:ap&&ap.browser_download_url,mb:ap?ap.size/1048576:0,checado:Date.now()};
+    if(numVersao(nova)>numVersao(APP_VERSAO)&&ap&&/\[obrigat[oó]ria\]/i.test(j.body||"")){if(S.obrig?.versao!==nova)S.obrig={versao:nova,desde:Date.now()};salvar()}
     if(numVersao(nova)>numVersao(APP_VERSAO)&&ap){R.atualiz.tem=true;if(manual||S.tela==="home")toast("Nova versão "+nova+" disponível")}
     else if(manual)toast("Você já está na versão mais nova ("+APP_VERSAO+")");
     render()}
@@ -3296,7 +3318,7 @@ async function instalarAtualizacao(){
     if(m.includes("PERMISSAO"))toast("Permita “Instalar apps desconhecidos” para o WA Survey e toque em Atualizar de novo");
     else toast("Não consegui baixar: "+m)}
 }
-function bannerAtualizacao(){const a=R.atualiz;if(!a?.tem)return "";
+function bannerAtualizacao(){const a=R.atualiz;if(!a?.tem||obrigPendente())return "";
   return `<section class="card" style="border:2px solid var(--fix);background:var(--fix-bg)"><div class="split"><b style="color:var(--fix)">Nova versão ${esc(a.versao)} disponível</b><span class="muted small">você está na ${esc(APP_VERSAO)}</span></div>
     ${R.baixando?`<span class="small">Baixando… ${R.baixando.total?Math.round(R.baixando.bytes/R.baixando.total*100)+"%":br(R.baixando.bytes/1048576,1)+" MB"}</span>`:`<button class="pri" data-act="atualizar">Atualizar agora (${br(a.mb,1)} MB)</button><span class="muted small">Instala por cima: obras, pontos e configurações continuam.</span>`}</section>`}
 // ---------- backup das obras ----------

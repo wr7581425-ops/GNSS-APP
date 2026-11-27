@@ -71,6 +71,13 @@ jobs:
         run: |
           if [ -z "$TOKEN_ATUALIZACOES" ]; then echo "::error::Falta o secret ATUALIZACOES_TOKEN"; exit 1; fi
 
+      - name: Atualização obrigatória? (commit com [opcional] não obriga)
+        id: obrig
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if echo "$MSG" | grep -qi "\[opcional\]"; then echo "marca=" >> $GITHUB_OUTPUT; else echo "marca=[obrigatoria]" >> $GITHUB_OUTPUT; fi
+
       - uses: softprops/action-gh-release@v2
         with:
           repository: wr7581425-ops/WA-Survey-Atualizacoes
@@ -78,6 +85,7 @@ jobs:
           tag_name: v1.0.${{ github.run_number }}
           name: WA Survey 1.0.${{ github.run_number }}
           body: |
+            ${{ steps.obrig.outputs.marca }}
             APK do WA Survey para Android.
             Baixe o arquivo WASurvey-1.0.${{ github.run_number }}.apk abaixo e abra no celular.
           files: WASurvey-*.apk

@@ -2002,7 +2002,7 @@ setInterval(()=>{
 function tom(f,d){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(.12,actx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+d);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d+.02)}catch(e){}}
 
 // ---------- Página de Cálculos ----------
-const FERR=[["pontoLinha","Ponto para linha","estaca e afastamento de um ponto"],["deflexao","Ângulo entre pontos","ângulo e deflexão em B"],["media","Média de pontos","cria ponto médio"],["medir","Distância e azimute","entre pontos (inverso)"],["area","Área e perímetro","polígono por pontos"],["volume","Volume","corte e aterro"],["linha","Linha","ligar A→B→C…"],["locLinha","Locar linha","estaca e afastamento"],["offset","Offset","paralela a A→B"],["estender","Estender / dividir","prolongar A→B"],["irradiar","Irradiação","azimute + distância"],["intersecao","Interseção","de duas linhas"],["converter","Converter coordenadas","UTM ⇄ geográficas, fusos"]];
+const FERR=[["estaq","Estaqueamento","estacas de X em X metros"],["pontoLinha","Ponto para linha","estaca e afastamento de um ponto"],["deflexao","Ângulo entre pontos","ângulo e deflexão em B"],["media","Média de pontos","cria ponto médio"],["medir","Distância e azimute","entre pontos (inverso)"],["area","Área e perímetro","polígono por pontos"],["volume","Volume","corte e aterro"],["linha","Linha","ligar A→B→C…"],["locLinha","Locar linha","estaca e afastamento"],["offset","Offset","paralela a A→B"],["estender","Estender / dividir","prolongar A→B"],["irradiar","Irradiação","azimute + distância"],["intersecao","Interseção","de duas linhas"],["converter","Converter coordenadas","UTM ⇄ geográficas, fusos"]];
 function vCalc(){
   const grade=`<div class="grid2">${FERR.map(([k,n,d])=>`<button class="opt" data-ferr="${k}" aria-pressed="${S.ferr===k}" style="min-height:66px">${n}<small>${d}</small></button>`).join("")}</div>`;
   if(!S.ferr)return `<span class="ttl">Cálculos</span><span class="muted small">Escolha uma ferramenta. Os resultados que geram pontos entram no projeto em azul.</span>${grade}`;
@@ -2091,7 +2091,7 @@ const TILES={
            ["locarPonto","Locar ponto","locarPonto","vermelho",()=>{S.lcModo="lista";go("locacao")}],["locarLinha","Locar linha","locarLinha","rosa",()=>calc("locLinha")],["linha","Criar linha","linha","teal",()=>calc("linha")],
            ["pontos2","Lista de pontos","pontos","ciano",()=>go("pontos")]],
   ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
-           ["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
+           ["estaq","Estaqueamento","linha","laranja",()=>calc("estaq")],["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
            ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["rnref","RN - REF","rnref","vermelho",()=>go("rnref")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")],["licenca","Licença","chave","laranja",()=>go("licenca")]],
 };
 const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};
@@ -2786,6 +2786,8 @@ function vMapa(){
   const poly=(ps,cor,dash)=>ps.length>=2?`<polyline points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" ${dash?`stroke-dasharray="${dash}"`:""}/>`:"";
   let linhas=linhasProj().map(l=>poly(linhaPts(l),"#E8EEF4","")).join("");
   if(S.ferr==="medir"&&S.tela==="calc")linhas+=poly((S.medList||[]).map(getPt).filter(Boolean),"#5BE3E3","4 4");
+  {const gs={};(proj()?.pontos||[]).forEach(p=>{if(p.grp&&!p.lado){const [pe,pn]=ptEN(p);(gs[p.grp]=gs[p.grp]||[]).push({E:pe,N:pn,s:p.est||0})}});
+    Object.values(gs).forEach(l=>{if(l.length>1)linhas+=poly(l.sort((a,b)=>a.s-b.s),"#F5A524","8 5")})}
   if(R.reguaOn&&R.regua?.length){const rg=R.regua;linhas+=poly(rg,"#5BE3E3","6 4");
     linhas+=rg.map((q,i)=>{let s=`<circle cx="${X(q.E)}" cy="${Y(q.N)}" r="5" fill="#5BE3E3" stroke="#0B131B" stroke-width="2"/>`;
       if(i>0){const a=rg[i-1],d=Math.hypot(q.E-a.E,q.N-a.N);s+=`<text x="${(X(q.E)+X(a.E))/2}" y="${(Y(q.N)+Y(a.N))/2-6}" fill="#5BE3E3" font-size="13" font-weight="800" text-anchor="middle" font-family="Barlow, sans-serif" stroke="#0B131B" stroke-width="3" paint-order="stroke">${br(d,2)} m</text>`}return s}).join("")}
@@ -2820,7 +2822,7 @@ function vMapa(){
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>
       <span>${S.coletando?S.coletando+"s":esc(proxNome())}</span></button>
     ${S.mapRapida?mapaRapida():""}
-    ${R.reguaOn?reguaPainel():""}
+    ${R.reguaOn?reguaPainel():""}${eqPainel()}
     ${S.conectado?"":`<div style="position:absolute;left:60px;right:12px;top:56px;padding:10px 12px;border-radius:10px;background:rgba(15,23,32,.85);text-align:center" class="small">Conecte o receptor para ver a sua posição. <button style="min-height:34px;margin-top:6px;width:100%" data-tile="conexao">Conectar</button></div>`}
   </section>
   <div class="mbar">
@@ -3219,6 +3221,8 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="impConfirmar"){confirmarImport();return}
   if(a==="impCancelar"){R.impPrev=null;render();return}
   if(a==="locDigitado"){acaoLocDigitado();return}
+  if(a==="fazEstaq"){fazEstaq();return}
+  if(a==="eqApagar"){const n=proj().pontos.filter(p=>p.grp).length;proj().pontos=proj().pontos.filter(p=>!p.grp);S.ptSel=null;salvar();render();toast(`${n} estacas apagadas`);return}
   if(a==="fazIrradiar"){const B=getPt(S.irB??"atual"),az=irAzimute()*Math.PI/180,d=num(S.irD),nome=(S.irNome||"IR-01").trim();
     if(!B){toast("Escolha o ponto de partida");return}if(isNaN(az)){toast((S.irModo||"linha")==="linha"?"Escolha dois pontos diferentes para a direção":"Azimute inválido. Use 173 14 42 ou 173,2450");return}if(!(d>0)){toast("Preencha a distância horizontal");return}
     if(!nome){toast("Dê um nome ao novo ponto");return}if(proj().pontos.some(p=>p.nome===nome)){toast(`Já existe um ponto chamado ${nome}. Troque o nome.`);return}
@@ -3420,6 +3424,56 @@ function getPt(v){
 }
 function irAzimute(){let a;if((S.irModo||"linha")==="linha"){const A=getPt(S.irL1??"0"),B=getPt(S.irL2??"1");if(!A||!B||(A.E===B.E&&A.N===B.N))return NaN;a=Math.atan2(B.E-A.E,B.N-A.N)*180/Math.PI}else a=parseAng(S.irAz);
   if(isNaN(a))return NaN;a+=num(S.irGiro)||0;return ((a%360)+360)%360}
+// ===================== Estaqueamento =====================
+// Dois pontos (da lista ou digitados) definem o alinhamento A→B; cria estacas a cada X m (com a final em B) e, se pedir,
+// os afastamentos à esquerda e à direita. No mapa: linha com as estacas e, chegando perto de uma, a locação aparece sozinha.
+const EQ_PERTO=10; // metros: a partir daqui o mapa mostra a locação da estaca mais próxima
+function eqPt(k){const v=S["eq"+k]??(k==="A"?"0":"1");
+  if(v==="dig"){const E=num(S["eq"+k+"E"]),N=num(S["eq"+k+"N"]),h=num(S["eq"+k+"h"]);return isNaN(E)||isNaN(N)?null:{E,N,h:isNaN(h)?0:h,nome:k}}
+  return getPt(v)}
+function eqCampos(k,rot){const v=S["eq"+k]??(k==="A"?"0":"1");
+  return `<label class="f">${rot}<select data-bind="eq${k}">${ptOpts(v,true)}<option value="dig" ${v==="dig"?"selected":""}>✎ Digitar coordenada</option></select></label>
+  ${v==="dig"?`<div class="grid3"><label class="f">E<input class="m" inputmode="decimal" data-bind="eq${k}E" value="${esc(S["eq"+k+"E"]||"")}"></label><label class="f">N<input class="m" inputmode="decimal" data-bind="eq${k}N" value="${esc(S["eq"+k+"N"]||"")}"></label><label class="f">Cota<input class="m" inputmode="decimal" data-bind="eq${k}h" value="${esc(S["eq"+k+"h"]||"")}"></label></div>`:""}`}
+function eqCalc(){const A=eqPt("A"),B=eqPt("B");if(!A||!B)return null;const L=Math.hypot(B.E-A.E,B.N-A.N);if(L<0.01)return null;
+  const I=num(S.eqInt)||num(S.cfg.estacaInt)||20,n=Math.floor(L/I+1e-9),resto=L-n*I,off=Math.abs(num(S.eqOff)||0);
+  const eixo=n+1+(resto>0.005?1:0);return {A,B,L,I,n,resto,off,eixo,total:eixo*(off>0?3:1)}}
+function vEstaq(){const c=eqCalc();
+  return `<span class="muted small">Escolha dois pontos do alinhamento. O app cria as estacas a cada intervalo, a última em B, e mostra tudo no mapa: chegando perto de uma estaca, a locação abre sozinha.</span>
+  ${eqCampos("A","Ponto inicial (A)")}${eqCampos("B","Ponto final (B)")}
+  <div class="grid2"><label class="f">Intervalo (m)<input class="m" inputmode="decimal" data-bind="eqInt" value="${esc(S.eqInt||S.cfg.estacaInt||"20")}"></label>
+    <label class="f">Afastamento lateral (m)<input class="m" inputmode="decimal" data-bind="eqOff" value="${esc(S.eqOff||"0")}" placeholder="0 = só o eixo"></label>
+    <label class="f">Nome começa com<input class="m" data-bind="eqPref" value="${esc(S.eqPref??"E")}"></label>
+    <label class="f">Primeira estaca nº<input class="m" inputmode="numeric" data-bind="eqIni" value="${esc(S.eqIni||"0")}"></label></div>
+  ${c?`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>Comprimento A→B</span><b>${br(c.L,3)} m</b></div><div class="kv"><span>Azimute</span><b>${fmtAng(((Math.atan2(c.B.E-c.A.E,c.B.N-c.A.N)*180/Math.PI)+360)%360)}</b></div>
+    <div class="kv"><span>Estacas no eixo</span><b>${c.eixo}</b></div><div class="kv"><span>Pontos a criar</span><b>${c.total}</b></div></div>
+    <span class="muted small">${(S.eqPref??"E")}${num(S.eqIni)||0} em A, de ${br(c.I,2)} em ${br(c.I,2)} m${c.resto>0.005?`, última ${(S.eqPref??"E")}${(num(S.eqIni)||0)+c.n}+${br(c.resto,2)} em B`:""}${c.off>0?`. Cada estaca ganha também ${br(c.off,2)} m à esquerda (…E) e à direita (…D)`:""}.</span></section>`
+    :`<span class="small" style="color:var(--float)">Escolha dois pontos diferentes (ou digite as coordenadas).</span>`}
+  <button class="pri big" data-act="fazEstaq">Criar estacas</button>
+  ${proj()?.pontos.some(p=>p.grp)?`<button data-act="eqApagar">Apagar as estacas criadas por esta ferramenta</button>`:""}`}
+function fazEstaq(){const c=eqCalc();if(!c){toast("Escolha dois pontos diferentes para o alinhamento");return}
+  if(c.total>2000){toast("São estacas demais: aumente o intervalo");return}
+  const {A,B,L,I,n,resto,off}=c,ux=(B.E-A.E)/L,uy=(B.N-A.N)/L,gr=(B.h-A.h)/L,pref=(S.eqPref??"E").trim(),ini=Math.round(num(S.eqIni)||0),grp="EQ"+Date.now();
+  const usados=new Set(proj().pontos.map(p=>p.nome));let ren=0;
+  const mk=(nome,E,N,h,s,lado)=>{let nm=nome;while(usados.has(nm)){nm+="'";ren++}usados.add(nm);
+    novoPonto(nm,"ESTACA",E,N,h);const p=proj().pontos[proj().pontos.length-1];p.grp=grp;p.est=s;if(lado)p.lado=lado;
+    p.desc=`${br(s,2)} m de A${lado?` · ${br(off,2)} m à ${lado==="E"?"esquerda":"direita"}`:""}`};
+  const est=(s,rot)=>{const E=A.E+ux*s,N=A.N+uy*s,h=A.h+gr*s;mk(pref+rot,E,N,h,s);
+    if(off>0){mk(pref+rot+"E",E-uy*off,N+ux*off,h,s,"E");mk(pref+rot+"D",E+uy*off,N-ux*off,h,s,"D")}};
+  for(let i=0;i<=n;i++)est(i*I,String(ini+i));
+  if(resto>0.005)est(L,`${ini+n}+${br(resto,2)}`);
+  salvar();bip("ok");toast(`${c.total} estacas criadas${ren?` (${ren} renomeadas para não repetir nomes)`:""}. Veja no mapa.`);render()}
+// no mapa: estaca mais próxima vira locação quando chega perto
+function eqPerto(){if(!S.conectado||!proj()||!(G.fix>0))return null;let best=null;
+  proj().pontos.forEach((p,i)=>{if(p.cod!=="ESTACA"&&!p.grp)return;const [pe,pn]=ptEN(p),d=Math.hypot(pe-G.E,pn-G.N);if(d<=EQ_PERTO&&(!best||d<best.d))best={p,i,d,dE:pe-G.E,dN:pn-G.N}});return best}
+function eqPainel(){if(R.reguaOn||S.loc)return "";const b=eqPerto();if(!b)return "";
+  const az=((Math.atan2(b.dE,b.dN)*180/Math.PI)+360)%360,ok=b.d<=0.05,cor=ok?"var(--fix)":b.d<=0.5?"var(--float)":"#5BE3E3";
+  const dir=(v,pos,neg)=>Math.abs(v)<0.005?"":`${br(Math.abs(v),2)} m ${v>0?pos:neg}`;
+  return `<div style="position:absolute;left:60px;right:84px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.94);border:2px solid ${cor};display:grid;gap:4px;z-index:3">
+    <div style="display:flex;align-items:center;gap:10px"><svg viewBox="-12 -12 24 24" width="34" height="34" style="flex:none;transform:rotate(${az}deg)"><path d="M0-10L7 8L0 4L-7 8Z" fill="${cor}"/></svg>
+      <div style="display:grid;min-width:0"><b style="font-size:15px">${esc(b.p.nome)}${b.p.desc?` <span class="muted small">${esc(b.p.desc)}</span>`:""}</b>
+      <b class="m" style="font-size:22px;color:${cor}">${ok?"Na estaca ✓":br(b.d,2)+" m"}</b></div></div>
+    ${ok?"":`<span class="small m">${[dir(b.dN,"Norte","Sul"),dir(b.dE,"Leste","Oeste")].filter(Boolean).join(" · ")}</span>`}
+    <button style="min-height:34px" data-locp="${b.i}">Locar ${esc(b.p.nome)}</button></div>`}
 function ptOpts(sel,comAtual){const pts=proj()?.pontos||[];return (comAtual?`<option value="atual" ${sel==="atual"?"selected":""}>Posição atual</option>`:"")+pts.map((p,i)=>`<option value="${i}" ${String(sel)===String(i)?"selected":""}>${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}
 function novoPonto(nome,cod,E,N,h){const [lat,lon]=fromUTM(E,N,zonaAtual(),hemiAtual());proj().pontos.push({nome,cod,lat,lon,E,N,h,h_rms:0,st:"CALC",alt:0,quando:new Date().toISOString()})}
 function estaca(m){const I=num(S.cfg.estacaInt)||20,e=Math.floor(m/I+1e-9),r=m-e*I;return `Est. ${e} + ${br(r)}`}
@@ -3550,6 +3604,7 @@ function ferrCorpo(){
       <div class="grid2"><label class="f">Cota de referência<select data-bind="volRef"><option value="media" ${(S.volRef||"media")==="media"?"selected":""}>Média dos pontos</option><option value="min" ${S.volRef==="min"?"selected":""}>Menor cota (pilha)</option><option value="max" ${S.volRef==="max"?"selected":""}>Maior cota (cava)</option><option value="dig" ${S.volRef==="dig"?"selected":""}>Digitar cota de projeto</option></select></label>
       ${S.volRef==="dig"?`<label class="f">Cota (m)<input class="m" inputmode="decimal" data-bind="volCota" value="${esc(S.volCota||"")}"></label>`:""}</div>${res}`;
   }
+  if(S.ferr==="estaq"){body=vEstaq()}
   if(S.ferr==="irradiar"){
     const B=getPt(S.irB??"atual"),az=irAzimute(),d=num(S.irD),dh=num(S.irDh)||0,lin=(S.irModo||"linha")==="linha";
     let res="";if(B&&!isNaN(az)&&d>0){const r=az*Math.PI/180;res=`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>E</span><b>${br(B.E+Math.sin(r)*d)}</b></div><div class="kv"><span>N</span><b>${br(B.N+Math.cos(r)*d)}</b></div><div class="kv"><span>Cota</span><b>${br(B.h+dh)}</b></div><div class="kv"><span>Azimute usado</span><b>${fmtAng(az)}</b></div></div></section>`}

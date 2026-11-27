@@ -2052,6 +2052,7 @@ function selLista(chave,rotulo){
 
 // ---------- Telas iniciais com ícones ----------
 const IC={
+  estaq:'<path d="M2 21h20" stroke-dasharray="2 2.5"/><path d="M5 21V7M12 21V9M19 21V11"/><path d="M5 7l4 1.5-4 1.5M12 9l4 1.5-4 1.5M19 11l3 1-3 1"/>',
   chave:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
   drone:'<rect x="9" y="10" width="6" height="4" rx="1"/><path d="M9 11L5 7M15 11l4-4M9 13l-4 4M15 13l4 4"/><circle cx="5" cy="7" r="2.5"/><circle cx="19" cy="7" r="2.5"/><circle cx="5" cy="17" r="2.5"/><circle cx="19" cy="17" r="2.5"/>',
   rnref:'<path d="M4 20h16"/><path d="M12 20V5"/><path d="M8 9l4-4 4 4"/><path d="M6 14h12"/>',
@@ -2105,7 +2106,7 @@ const TILES={
            ["locarPonto","Locar ponto","locarPonto","vermelho",()=>{S.lcModo="lista";go("locacao")}],["locarLinha","Locar linha","locarLinha","rosa",()=>calc("locLinha")],["linha","Criar linha","linha","teal",()=>calc("linha")],
            ["pontos2","Lista de pontos","pontos","ciano",()=>go("pontos")]],
   ferramentas:[["medir","Distância e azimute","medir","azul",()=>calc("medir")],["area","Área e perímetro","area","verde",()=>calc("area")],["volume","Volume","volume","laranja",()=>calc("volume")],
-           ["estaq","Estaqueamento","linha","laranja",()=>calc("estaq")],["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
+           ["estaq","Estaqueamento","estaq","laranja",()=>calc("estaq")],["offset","Offset","offset","roxo",()=>calc("offset")],["estender","Estender e dividir","estender","violeta",()=>calc("estender")],["irradiar","Irradiação","irradiar","teal",()=>calc("irradiar")],
            ["intersecao","Interseção","intersecao","vermelho",()=>calc("intersecao")],["rnref","RN - REF","rnref","vermelho",()=>go("rnref")],["pontoLinha","Ponto para linha","pontoLinha","ciano",()=>calc("pontoLinha")],["deflexao","Ângulo entre pontos","deflexao","rosa",()=>calc("deflexao")],["media","Média de pontos","media","cinza",()=>calc("media")],["converter","Converter coordenadas","converter","ambar",()=>calc("converter")],["licenca","Licença","chave","laranja",()=>go("licenca")]],
 };
 const ABA_NOME={projeto:"Projeto",dispositivo:"Dispositivo",levantamento:"Levantamento",ferramentas:"Ferramentas"};

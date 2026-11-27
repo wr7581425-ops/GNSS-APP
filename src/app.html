@@ -2266,6 +2266,7 @@ function vConfig(){
   const sec=(t,body)=>`<section class="card"><h3>${t}</h3>${body}</section>`;
   return `<span class="ttl">Configurações</span>
   ${bannerAtualizacao()}
+  ${licCartao()}
   ${sec("Versão e backup",`<div class="kv"><span>Versão instalada</span><b>${esc(APP_VERSAO)}</b></div>
     <div class="grid2"><button data-act="verAtualiz">Procurar atualização</button><button data-act="backup">Fazer backup das obras</button></div>
     <button data-act="restaurar">Restaurar backup</button>
@@ -2490,9 +2491,15 @@ function licEstado(){
 function licPode(){const e=licEstado();if(e.ok)return true;
   if(e.tipo==="atualizar"){toast(e.msg);S.aba="ferramentas";S.tela="home";render();return false}
   toast(e.tipo==="relogio"?e.msg:"Licença vencida: o app está só para leitura. Ative uma chave para conectar e coletar.");S.aba="ferramentas";S.tela="licenca";render();return false}
+function licResumo(e){e=e||licEstado();return ({vitalicia:"Vitalícia",mensal:`Mensal · até ${e.ate?fData(e.ate-DIA):""}`,anual:`Anual · até ${e.ate?fData(e.ate-DIA):""}`,
+  teste:`Teste grátis · ${e.falta} ${e.falta===1?"dia":"dias"}`,"teste-fim":"Teste encerrado (só leitura)",vencida:"Vencida (só leitura)",relogio:"Data do celular atrasada",atualizar:"Atualização obrigatória",carregando:"…"})[e.tipo]||e.tipo}
+function licCartao(){const e=licEstado(),cor=!e.ok?"var(--bad)":e.tipo==="teste"?"var(--float)":"var(--fix)";
+  return `<section class="card" style="border-color:${cor}"><div class="split"><h3>Licença</h3><b style="color:${cor}">${esc(licResumo(e))}</b></div>
+    <button class="${e.ok&&e.tipo!=="teste"?"":"pri"}" data-act="licAbrir">${e.tipo==="vitalicia"?"Ver licença":e.tipo==="mensal"||e.tipo==="anual"?"Ver ou renovar licença":"Ativar licença · planos e pagamento"}</button></section>`}
 function licAviso(){const e=licEstado();
   if(obrigPendente())return obrigBanner();
   if(!e.ok)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left;border-color:var(--bad)"><b>${e.tipo==="relogio"?"Data do celular atrasada":"Licença vencida"}</b> · modo só leitura. Toque para ativar.</button>`;
+  if(e.tipo==="teste"&&e.falta>5)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left">Teste grátis: faltam ${e.falta} dias. Toque para ver os planos e ativar.</button>`;
   if(["teste","mensal","anual"].includes(e.tipo)&&e.falta<=5)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left">${e.tipo==="teste"?"Teste grátis":"Licença "+LIC_PLANOS[e.tipo].nome.toLowerCase()}: ${e.falta<1?"vence hoje":e.falta===1?"falta 1 dia":"faltam "+e.falta+" dias"}. Toque para ativar ou renovar.</button>`;
   return ""}
 const fData=t=>new Date(t).toLocaleDateString("pt-BR");

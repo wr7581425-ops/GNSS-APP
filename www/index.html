@@ -2454,6 +2454,7 @@ function baseDist(){if(S.baseModo==="auto"||!S.conectado||!(G.fix>0)||isNaN(G.la
 // A chave é assinada (Ed25519) pelo gerador do dono; o app tem só a chave pública.
 // Tipos: 1 = vitalícia · 2 = mensal · 3 = anual (2 e 3 vencem numa data). Sem chave: 7 dias de teste.
 // Vencida: só leitura (abre e exporta os projetos, mas não conecta o receptor nem coleta).
+const LIC_CARENCIA=2; // dias que a licença paga ainda funciona depois de vencer, esperando o pagamento
 const LIC_PUB="5mspHaiHkxriKAUUaGkEbMp2Do3rgPYD2viKoNesvo8=",LIC_TESTE_DIAS=7,LIC_EPOCH=Date.UTC(2024,0,1),DIA=86400000;
 const LIC_PLANOS={mensal:{nome:"Mensal",preco:60,dias:30,txt:"R$ 60 por mês"},anual:{nome:"Anual",preco:504,dias:365,txt:"R$ 504 por ano (30% de desconto, R$ 42 por mês)"}};
 // ---------- Pagamento: Pix estático (QR Code gerado no app, sem servidor) e cartão por link do vendedor ----------
@@ -2491,7 +2492,9 @@ function licLerChave(chave,codigo){
   const pl=b.slice(0,4),sig=b.slice(4,68);if(pl[0]!==1||![1,2,3].includes(pl[1]))return null;
   const msg=new Uint8Array([...utf8("WASURVEY|"+codigo+"|"),...pl]);
   try{if(!nacl.sign.detached.verify(msg,sig,b64dec(LIC_PUB)))return null}catch(e){return null}
-  const dias=(pl[2]<<8)|pl[3];return {tipo:({1:"vitalicia",2:"mensal",3:"anual"})[pl[1]],ate:pl[1]===1?null:LIC_EPOCH+(dias+1)*DIA}}
+  const dias=(pl[2]<<8)|pl[3];return {tipo:({1:"vitalicia",2:"mensal",3:"anual"})[pl[1]],ate:pl[1]===1?null:LIC_EPOCH+(dias+1)*DIA+LIC_FUSO}}
+const LIC_FUSO=4*3600000; // a chave vence à meia-noite do horário de Manaus (UTC−4) do dia escolhido
+function fDataLic(ate){return new Date(ate-LIC_FUSO-DIA).toLocaleDateString("pt-BR",{timeZone:"UTC"})}
 function licEstado(){
   if(!R.licCodigo)return {ok:true,tipo:"carregando"};
   const agora=licAgora();
@@ -2499,18 +2502,21 @@ function licEstado(){
   if(obrigVencida())return {ok:false,tipo:"atualizar",msg:`Atualização obrigatória: instale a versão ${S.obrig.versao} para continuar coletando.`};
   const k=S.licChave?licLerChave(S.licChave,R.licCodigo):null;
   if(k&&k.tipo==="vitalicia")return {ok:true,tipo:"vitalicia"};
-  if(k){const falta=Math.max(0,Math.floor((k.ate-agora)/DIA));if(agora<k.ate)return {ok:true,tipo:k.tipo,ate:k.ate,falta};return {ok:false,tipo:"vencida",plano:k.tipo,ate:k.ate}}
+  if(k){const falta=Math.max(0,Math.floor((k.ate-agora)/DIA));if(agora<k.ate)return {ok:true,tipo:k.tipo,ate:k.ate,falta};
+    const fimCar=k.ate+LIC_CARENCIA*DIA;if(agora<fimCar)return {ok:true,tipo:"carencia",plano:k.tipo,ate:k.ate,fimCar,falta:Math.max(1,Math.ceil((fimCar-agora)/DIA))};
+    return {ok:false,tipo:"vencida",plano:k.tipo,ate:k.ate}}
   const ate=(S.licInicio||agora)+LIC_TESTE_DIAS*DIA,falta=Math.ceil((ate-agora)/DIA);
   return agora<ate?{ok:true,tipo:"teste",ate,falta}:{ok:false,tipo:"teste-fim",ate}}
 function licPode(){const e=licEstado();if(e.ok)return true;
   if(e.tipo==="atualizar"){toast(e.msg);S.aba="ferramentas";S.tela="home";render();return false}
   toast(e.tipo==="relogio"?e.msg:"Licença vencida: o app está só para leitura. Ative uma chave para conectar e coletar.");S.aba="ferramentas";S.tela="licenca";render();return false}
-function licResumo(e){e=e||licEstado();return ({vitalicia:"Vitalícia",mensal:`Mensal · até ${e.ate?fData(e.ate-DIA):""}`,anual:`Anual · até ${e.ate?fData(e.ate-DIA):""}`,
-  teste:`Teste grátis · ${e.falta} ${e.falta===1?"dia":"dias"}`,"teste-fim":"Teste encerrado (só leitura)",vencida:"Vencida (só leitura)",relogio:"Data do celular atrasada",atualizar:"Atualização obrigatória",carregando:"…"})[e.tipo]||e.tipo}
+function licResumo(e){e=e||licEstado();return ({vitalicia:"Vitalícia",mensal:`Mensal · até ${e.ate?fDataLic(e.ate):""}`,anual:`Anual · até ${e.ate?fDataLic(e.ate):""}`,
+  teste:`Teste grátis · ${e.falta} ${e.falta===1?"dia":"dias"}`,carencia:`Vencida · carência de ${e.falta} ${e.falta===1?"dia":"dias"}`,"teste-fim":"Teste encerrado (só leitura)",vencida:"Vencida (só leitura)",relogio:"Data do celular atrasada",atualizar:"Atualização obrigatória",carregando:"…"})[e.tipo]||e.tipo}
 function licCartao(){const e=licEstado(),cor=!e.ok?"var(--bad)":e.tipo==="teste"?"var(--float)":"var(--fix)";
   return `<section class="card" style="border-color:${cor}"><div class="split"><h3>Licença</h3><b style="color:${cor}">${esc(licResumo(e))}</b></div>
     <button class="${e.ok&&e.tipo!=="teste"?"":"pri"}" data-act="licAbrir">${e.tipo==="vitalicia"?"Ver licença":e.tipo==="mensal"||e.tipo==="anual"?"Ver ou renovar licença":"Ativar licença · planos e pagamento"}</button></section>`}
 function licAviso(){const e=licEstado();
+  if(e.tipo==="carencia")return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left;border-color:var(--bad)"><b>Licença vencida em ${fDataLic(e.ate)}</b> · carência: o app funciona por mais ${e.falta} ${e.falta===1?"dia":"dias"}. Toque para renovar.</button>`;
   if(obrigPendente())return obrigBanner();
   if(!e.ok)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left;border-color:var(--bad)"><b>${e.tipo==="relogio"?"Data do celular atrasada":"Licença vencida"}</b> · modo só leitura. Toque para ativar.</button>`;
   if(e.tipo==="teste"&&e.falta>5)return `<button class="banner" data-act="licAbrir" style="width:100%;text-align:left">Teste grátis: faltam ${e.falta} dias. Toque para ver os planos e ativar.</button>`;
@@ -2518,12 +2524,13 @@ function licAviso(){const e=licEstado();
   return ""}
 const fData=t=>new Date(t).toLocaleDateString("pt-BR");
 function vLicenca(){
-  const e=licEstado(),c=R.licCodigo||"…",pl=R.licPlano||"anual",P=LIC_PLANOS[pl];
+  const e=licEstado(),c=R.licCodigo||"…",pl=R.licPlano||(e.tipo==="mensal"||e.plano==="mensal"?"mensal":"anual"),P=LIC_PLANOS[pl];
   const pixAtual=pixCodigo(P.preco,"WAS"+String(c).replace(/[^0-9A-Z]/g,"").slice(0,12)+(pl==="anual"?"A":"M"));R.pixAtual=pixAtual;
-  const fim=e.ate?fData(e.ate-DIA):"";
+  const fim=e.ate?fDataLic(e.ate):"";
   const st={vitalicia:["Licença vitalícia","var(--fix)","Ativada neste aparelho, sem vencimento."],
     mensal:["Licença mensal","var(--fix)",`Válida até ${fim} (${e.falta} ${e.falta===1?"dia":"dias"}).`],
     anual:["Licença anual","var(--fix)",`Válida até ${fim} (${e.falta} ${e.falta===1?"dia":"dias"}).`],
+    carencia:["Licença vencida · em carência","var(--bad)",`Venceu em ${fim}. O app continua funcionando até ${e.fimCar?fDataLic(e.fimCar):""} (${e.falta} ${e.falta===1?"dia":"dias"} de carência). Renove para não ficar só leitura.`],
     teste:["Teste grátis","var(--float)",`Faltam ${e.falta} ${e.falta===1?"dia":"dias"} (até ${e.ate?fData(e.ate):""}).`],
     "teste-fim":["Teste encerrado","var(--bad)","O app está só para leitura: dá para abrir e exportar os projetos, mas não conectar o receptor nem coletar."],
     vencida:["Licença vencida","var(--bad)",`Venceu em ${fim}. O app está só para leitura até renovar.`],
@@ -2553,9 +2560,9 @@ function licAtivar(){
   if(!ch){toast("Cole a chave de ativação");return}
   const k=licLerChave(ch,R.licCodigo);
   if(!k){bip("erro");toast("Chave inválida para este aparelho. Ela precisa ser gerada para o código "+R.licCodigo);return}
-  if(k.ate&&Date.now()>=k.ate){toast("Essa chave já venceu em "+fData(k.ate-DIA));return}
+  if(k.ate&&licAgora()>=k.ate+LIC_CARENCIA*DIA){toast("Essa chave já venceu em "+fDataLic(k.ate));return}
   S.licChave=b32enc(b32dec(ch));R.licDigitada="";salvar();bip("ok");render();
-  toast(k.tipo==="vitalicia"?"Licença vitalícia ativada!":`Licença ${LIC_PLANOS[k.tipo].nome.toLowerCase()} ativada até ${fData(k.ate-DIA)}`)}
+  toast(k.tipo==="vitalicia"?"Licença vitalícia ativada!":`Licença ${LIC_PLANOS[k.tipo].nome.toLowerCase()} ativada até ${fDataLic(k.ate)}`)}
 function receptorReal(){return NATIVO&&S.conectado&&S.fonte==="tcp"}
 async function enviarLista(lista,titulo,gap=120){
   if(!receptorReal())return false;

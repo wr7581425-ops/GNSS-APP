@@ -3237,6 +3237,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="impCancelar"){R.impPrev=null;render();return}
   if(a==="locDigitado"){acaoLocDigitado();return}
   if(a==="fazEstaq"){fazEstaq();return}
+  if(a==="eqFechar"){const b=eqPerto();R.eqFechado=b?b.p.nome:null;render();toast("Locação fechada. Ela volta ao chegar perto de outra estaca.");return}
   if(a==="eqApagar"){const n=proj().pontos.filter(p=>p.grp).length;proj().pontos=proj().pontos.filter(p=>!p.grp);S.ptSel=null;salvar();render();toast(`${n} estacas apagadas`);return}
   if(a==="fazIrradiar"){const B=getPt(S.irB??"atual"),az=irAzimute()*Math.PI/180,d=num(S.irD),nome=(S.irNome||"IR-01").trim();
     if(!B){toast("Escolha o ponto de partida");return}if(isNaN(az)){toast((S.irModo||"linha")==="linha"?"Escolha dois pontos diferentes para a direção":"Azimute inválido. Use 173 14 42 ou 173,2450");return}if(!(d>0)){toast("Preencha a distância horizontal");return}
@@ -3449,43 +3450,49 @@ function eqPt(k){const v=S["eq"+k]??(k==="A"?"0":"1");
 function eqCampos(k,rot){const v=S["eq"+k]??(k==="A"?"0":"1");
   return `<label class="f">${rot}<select data-bind="eq${k}">${ptOpts(v,true)}<option value="dig" ${v==="dig"?"selected":""}>✎ Digitar coordenada</option></select></label>
   ${v==="dig"?`<div class="grid3"><label class="f">E<input class="m" inputmode="decimal" data-bind="eq${k}E" value="${esc(S["eq"+k+"E"]||"")}"></label><label class="f">N<input class="m" inputmode="decimal" data-bind="eq${k}N" value="${esc(S["eq"+k+"N"]||"")}"></label><label class="f">Cota<input class="m" inputmode="decimal" data-bind="eq${k}h" value="${esc(S["eq"+k+"h"]||"")}"></label></div>`:""}`}
+// estacas: múltiplos do intervalo de −(estender antes de A) até L+(estender além de B), mais A, B e as pontas
 function eqCalc(){const A=eqPt("A"),B=eqPt("B");if(!A||!B)return null;const L=Math.hypot(B.E-A.E,B.N-A.N);if(L<0.01)return null;
-  const I=num(S.eqInt)||num(S.cfg.estacaInt)||20,n=Math.floor(L/I+1e-9),resto=L-n*I,off=Math.abs(num(S.eqOff)||0);
-  const eixo=n+1+(resto>0.005?1:0);return {A,B,L,I,n,resto,off,eixo,total:eixo*(off>0?3:1)}}
-function vEstaq(){const c=eqCalc();
-  return `<span class="muted small">Escolha dois pontos do alinhamento. O app cria as estacas a cada intervalo, a última em B, e mostra tudo no mapa: chegando perto de uma estaca, a locação abre sozinha.</span>
+  const I=num(S.eqInt)||num(S.cfg.estacaInt)||20,off=Math.abs(num(S.eqOff)||0),antes=Math.abs(num(S.eqAntes)||0),depois=Math.abs(num(S.eqDepois)||0);
+  const ini=-antes,fim=L+depois,ss=new Set();for(let k=Math.ceil(ini/I-1e-9);k*I<=fim+1e-9;k++)ss.add(+(k*I).toFixed(4));
+  [0,L,ini,fim].forEach(s=>{const r=+s.toFixed(4);if(![...ss].some(x=>Math.abs(x-r)<0.005))ss.add(r)});
+  const sts=[...ss].sort((a,b)=>a-b);
+  return {A,B,L,I,off,antes,depois,sts,eixo:sts.length,total:sts.length*(off>0?3:1)}}
+function eqNome(s,I,pref,ini){const k=Math.round(s/I);if(Math.abs(s-k*I)<0.005)return pref+(ini+k);const f=Math.floor(s/I+1e-9);return `${pref}${ini+f}+${br(s-f*I,2)}`}
+function vEstaq(){const c=eqCalc(),pref=S.eqPref??"E",ini=num(S.eqIni)||0;
+  return `<span class="muted small">Escolha dois pontos do alinhamento. O app cria as estacas a cada intervalo, inclusive em B, e mostra tudo no mapa: chegando perto de uma estaca, a locação abre sozinha.</span>
   ${eqCampos("A","Ponto inicial (A)")}${eqCampos("B","Ponto final (B)")}
   <div class="grid2"><label class="f">Intervalo (m)<input class="m" inputmode="decimal" data-bind="eqInt" value="${esc(S.eqInt||S.cfg.estacaInt||"20")}"></label>
     <label class="f">Afastamento lateral (m)<input class="m" inputmode="decimal" data-bind="eqOff" value="${esc(S.eqOff||"0")}" placeholder="0 = só o eixo"></label>
-    <label class="f">Nome começa com<input class="m" data-bind="eqPref" value="${esc(S.eqPref??"E")}"></label>
-    <label class="f">Primeira estaca nº<input class="m" inputmode="numeric" data-bind="eqIni" value="${esc(S.eqIni||"0")}"></label></div>
+    <label class="f">Estender antes de A (m)<input class="m" inputmode="decimal" data-bind="eqAntes" value="${esc(S.eqAntes||"0")}" placeholder="0 = começa em A"></label>
+    <label class="f">Estender além de B (m)<input class="m" inputmode="decimal" data-bind="eqDepois" value="${esc(S.eqDepois||"0")}" placeholder="0 = termina em B"></label>
+    <label class="f">Nome começa com<input class="m" data-bind="eqPref" value="${esc(pref)}"></label>
+    <label class="f">Estaca em A nº<input class="m" inputmode="numeric" data-bind="eqIni" value="${esc(S.eqIni||"0")}"></label></div>
   ${c?`<section class="card" style="background:var(--bg)"><div class="grid2"><div class="kv"><span>Comprimento A→B</span><b>${br(c.L,3)} m</b></div><div class="kv"><span>Azimute</span><b>${fmtAng(((Math.atan2(c.B.E-c.A.E,c.B.N-c.A.N)*180/Math.PI)+360)%360)}</b></div>
     <div class="kv"><span>Estacas no eixo</span><b>${c.eixo}</b></div><div class="kv"><span>Pontos a criar</span><b>${c.total}</b></div></div>
-    <span class="muted small">${(S.eqPref??"E")}${num(S.eqIni)||0} em A, de ${br(c.I,2)} em ${br(c.I,2)} m${c.resto>0.005?`, última ${(S.eqPref??"E")}${(num(S.eqIni)||0)+c.n}+${br(c.resto,2)} em B`:""}${c.off>0?`. Cada estaca ganha também ${br(c.off,2)} m à esquerda (…E) e à direita (…D)`:""}.</span></section>`
+    <span class="muted small">De ${eqNome(c.sts[0],c.I,pref,ini)} até ${eqNome(c.sts[c.sts.length-1],c.I,pref,ini)}, de ${br(c.I,2)} em ${br(c.I,2)} m. ${pref}${ini} fica em A e ${eqNome(c.L,c.I,pref,ini)} em B${c.antes?`; ${br(c.antes,2)} m antes de A`:""}${c.depois?`; ${br(c.depois,2)} m além de B`:""}.${c.off>0?` Cada estaca ganha também ${br(c.off,2)} m à esquerda (…E) e à direita (…D).`:""}</span></section>`
     :`<span class="small" style="color:var(--float)">Escolha dois pontos diferentes (ou digite as coordenadas).</span>`}
   <button class="pri big" data-act="fazEstaq">Criar estacas</button>
   ${proj()?.pontos.some(p=>p.grp)?`<button data-act="eqApagar">Apagar as estacas criadas por esta ferramenta</button>`:""}`}
 function fazEstaq(){const c=eqCalc();if(!c){toast("Escolha dois pontos diferentes para o alinhamento");return}
   if(c.total>2000){toast("São estacas demais: aumente o intervalo");return}
-  const {A,B,L,I,n,resto,off}=c,ux=(B.E-A.E)/L,uy=(B.N-A.N)/L,gr=(B.h-A.h)/L,pref=(S.eqPref??"E").trim(),ini=Math.round(num(S.eqIni)||0),grp="EQ"+Date.now();
+  const {A,B,L,I,off,sts}=c,ux=(B.E-A.E)/L,uy=(B.N-A.N)/L,gr=(B.h-A.h)/L,pref=(S.eqPref??"E").trim(),ini=Math.round(num(S.eqIni)||0),grp="EQ"+Date.now();
   const usados=new Set(proj().pontos.map(p=>p.nome));let ren=0;
   const mk=(nome,E,N,h,s,lado)=>{let nm=nome;while(usados.has(nm)){nm+="'";ren++}usados.add(nm);
     novoPonto(nm,"ESTACA",E,N,h);const p=proj().pontos[proj().pontos.length-1];p.grp=grp;p.est=s;if(lado)p.lado=lado;
-    p.desc=`${br(s,2)} m de A${lado?` · ${br(off,2)} m à ${lado==="E"?"esquerda":"direita"}`:""}`};
-  const est=(s,rot)=>{const E=A.E+ux*s,N=A.N+uy*s,h=A.h+gr*s;mk(pref+rot,E,N,h,s);
-    if(off>0){mk(pref+rot+"E",E-uy*off,N+ux*off,h,s,"E");mk(pref+rot+"D",E+uy*off,N-ux*off,h,s,"D")}};
-  for(let i=0;i<=n;i++)est(i*I,String(ini+i));
-  if(resto>0.005)est(L,`${ini+n}+${br(resto,2)}`);
+    p.desc=`${s<0?br(-s,2)+" m antes de A":s>L+0.004?br(s-L,2)+" m além de B":br(s,2)+" m de A"}${lado?` · ${br(off,2)} m à ${lado==="E"?"esquerda":"direita"}`:""}`};
+  sts.forEach(s=>{const E=A.E+ux*s,N=A.N+uy*s,h=A.h+gr*s,nm=eqNome(s,I,pref,ini);mk(nm,E,N,h,s);
+    if(off>0){mk(nm+"E",E-uy*off,N+ux*off,h,s,"E");mk(nm+"D",E+uy*off,N-ux*off,h,s,"D")}});
   salvar();bip("ok");toast(`${c.total} estacas criadas${ren?` (${ren} renomeadas para não repetir nomes)`:""}. Veja no mapa.`);render()}
 // no mapa: estaca mais próxima vira locação quando chega perto
 function eqPerto(){if(!S.conectado||!proj()||!(G.fix>0))return null;let best=null;
   proj().pontos.forEach((p,i)=>{if(p.cod!=="ESTACA"&&!p.grp)return;const [pe,pn]=ptEN(p),d=Math.hypot(pe-G.E,pn-G.N);if(d<=EQ_PERTO&&(!best||d<best.d))best={p,i,d,dE:pe-G.E,dN:pn-G.N}});return best}
-function eqPainel(){if(R.reguaOn||S.loc)return "";const b=eqPerto();if(!b)return "";
+function eqPainel(){if(R.reguaOn||S.loc)return "";const b=eqPerto();if(!b){R.eqFechado=null;return ""}if(R.eqFechado===b.p.nome)return "";
   const az=((Math.atan2(b.dE,b.dN)*180/Math.PI)+360)%360,ok=b.d<=0.05,cor=ok?"var(--fix)":b.d<=0.5?"var(--float)":"#5BE3E3";
   const dir=(v,pos,neg)=>Math.abs(v)<0.005?"":`${br(Math.abs(v),2)} m ${v>0?pos:neg}`;
   return `<div style="position:absolute;left:60px;right:84px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.94);border:2px solid ${cor};display:grid;gap:4px;z-index:3">
     <div style="display:flex;align-items:center;gap:10px"><svg viewBox="-12 -12 24 24" width="34" height="34" style="flex:none;transform:rotate(${az}deg)"><path d="M0-10L7 8L0 4L-7 8Z" fill="${cor}"/></svg>
-      <div style="display:grid;min-width:0"><b style="font-size:15px">${esc(b.p.nome)}${b.p.desc?` <span class="muted small">${esc(b.p.desc)}</span>`:""}</b>
+      <button data-act="eqFechar" aria-label="Fechar" style="position:absolute;top:6px;right:6px;min-height:30px;width:30px;padding:0;border-radius:8px;font-size:16px">✕</button>
+      <div style="display:grid;min-width:0;padding-right:30px"><b style="font-size:15px">${esc(b.p.nome)}${b.p.desc?` <span class="muted small">${esc(b.p.desc)}</span>`:""}</b>
       <b class="m" style="font-size:22px;color:${cor}">${ok?"Na estaca ✓":br(b.d,2)+" m"}</b></div></div>
     ${ok?"":`<span class="small m">${[dir(b.dN,"Norte","Sul"),dir(b.dE,"Leste","Oeste")].filter(Boolean).join(" · ")}</span>`}
     <button style="min-height:34px" data-locp="${b.i}">Locar ${esc(b.p.nome)}</button></div>`}

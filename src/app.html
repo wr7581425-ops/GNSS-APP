@@ -2779,12 +2779,12 @@ function vMapa(){
   let base="";if(S.baseE&&S.baseN){const bx=X(num(S.baseE)),by=Y(num(S.baseN));base=`<g><rect x="${bx-7}" y="${by-7}" width="14" height="14" fill="none" stroke="#FF8A1F" stroke-width="2.5" transform="rotate(45 ${bx} ${by})"/><text x="${bx+10}" y="${by+4}" fill="#FFB066" font-size="11" font-family="Barlow, sans-serif" font-weight="700">BASE</text></g>`}
   const cx=X(G.E),cy=Y(G.N), acc=Math.min(Math.max(G.hrms/mpp,0),400);
   const cor=G.fix===4?"#3DDC84":G.fix===5?"#FFC24B":"#FF6B5E";
-  const seta=S.conectado?`<circle cx="${cx}" cy="${cy}" r="${acc.toFixed(1)}" fill="${cor}" fill-opacity="0.12" stroke="${cor}" stroke-opacity="0.5"/>
-    <g transform="translate(${cx} ${cy}) rotate(${G.course})"><polygon points="0,-16 11,12 0,6 -11,12" fill="${cor}" stroke="#0F1720" stroke-width="2"/></g>`:"";
+  const seta=S.conectado?`<circle cx="${cx}" cy="${cy}" r="${acc.toFixed(1)}" fill="${cor}" fill-opacity="0.12" stroke="${cor}" stroke-opacity="0.5" pointer-events="none"/>
+    <g transform="translate(${cx} ${cy}) rotate(${G.course})" pointer-events="none"><polygon points="0,-16 11,12 0,6 -11,12" fill="${cor}" stroke="#0F1720" stroke-width="2"/></g>`:"";
   const barra=gstep/mpp;
   const al=alvoEN();let alvo="";
   if(al){const ax=X(al.E),ay=Y(al.N);alvo=`${S.conectado?`<line x1="${cx}" y1="${cy}" x2="${ax}" y2="${ay}" stroke="#FF8A1F" stroke-width="2" stroke-dasharray="6 5"/>`:""}<g><circle cx="${ax}" cy="${ay}" r="10" fill="none" stroke="#FF8A1F" stroke-width="2.5"/><line x1="${ax-15}" y1="${ay}" x2="${ax+15}" y2="${ay}" stroke="#FF8A1F" stroke-width="2"/><line x1="${ax}" y1="${ay-15}" x2="${ax}" y2="${ay+15}" stroke="#FF8A1F" stroke-width="2"/><text x="${ax+14}" y="${ay-12}" fill="#FFB066" font-size="12" font-weight="700" font-family="Barlow, sans-serif">${esc(al.nome)}</text></g>`}
-  const poly=(ps,cor,dash)=>ps.length>=2?`<polyline points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" ${dash?`stroke-dasharray="${dash}"`:""}/>`:"";
+  const poly=(ps,cor,dash)=>ps.length>=2?`<polyline points="${ps.map(p=>X(p.E)+","+Y(p.N)).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.5" pointer-events="none" ${dash?`stroke-dasharray="${dash}"`:""}/>`:"";
   let linhas=linhasProj().map(l=>poly(linhaPts(l),"#E8EEF4","")).join("");
   if(S.ferr==="medir"&&S.tela==="calc")linhas+=poly((S.medList||[]).map(getPt).filter(Boolean),"#5BE3E3","4 4");
   {const gs={};(proj()?.pontos||[]).forEach(p=>{if(p.grp&&!p.lado){const [pe,pn]=ptEN(p);(gs[p.grp]=gs[p.grp]||[]).push({E:pe,N:pn,s:p.est||0})}});
@@ -3041,6 +3041,7 @@ document.addEventListener("click",e=>{
     else{const sv=$("mapSvg"),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,k=vb.width/r.width,mpp=S.zoom/100;
       q={E:S.mapCE+((e.clientX-r.left)*k-vb.width/2)*mpp,N:S.mapCN-((e.clientY-r.top)*k-vb.height/2)*mpp}}
     if(q){(R.regua=R.regua||[]).push(q);S.seguir=false;render()}return}
+  if(sel&&S.tela==="mapa"){const ep=proj()?.pontos[+sel.dataset.ptsel];if(ep&&(ep.cod==="ESTACA"||ep.grp)){R.eqSel=R.eqSel===+sel.dataset.ptsel?null:+sel.dataset.ptsel;S.ptSel=null;render();return}}
   if(sel){S.ptSel=+sel.dataset.ptsel;S.ptEdit=false;S.ptDelConf=false;S.seguir=false;render();return}
   const b=e.target.closest("button");if(!b||b.disabled)return;
   if(b.dataset.ptf){S.ptFiltro=b.dataset.ptf;S.ptAberto=null;render();return}
@@ -3223,7 +3224,7 @@ if(S.correcao!=="ntrip"){toast("RTX/PPP ainda não disponível. Use NTRIP ou rá
   if(a==="impCancelar"){R.impPrev=null;render();return}
   if(a==="locDigitado"){acaoLocDigitado();return}
   if(a==="fazEstaq"){fazEstaq();return}
-  if(a==="eqFechar"){const b=eqPerto();R.eqFechado=b?b.p.nome:null;render();toast("Locação fechada. Ela volta ao chegar perto de outra estaca.");return}
+  if(a==="eqFechar"){R.eqSel=null;render();return}
   if(a==="eqApagar"){const n=proj().pontos.filter(p=>p.grp).length;proj().pontos=proj().pontos.filter(p=>!p.grp);S.ptSel=null;salvar();render();toast(`${n} estacas apagadas`);return}
   if(a==="fazIrradiar"){const B=getPt(S.irB??"atual"),az=irAzimute()*Math.PI/180,d=num(S.irD),nome=(S.irNome||"IR-01").trim();
     if(!B){toast("Escolha o ponto de partida");return}if(isNaN(az)){toast((S.irModo||"linha")==="linha"?"Escolha dois pontos diferentes para a direção":"Azimute inválido. Use 173 14 42 ou 173,2450");return}if(!(d>0)){toast("Preencha a distância horizontal");return}
@@ -3428,8 +3429,7 @@ function irAzimute(){let a;if((S.irModo||"linha")==="linha"){const A=getPt(S.irL
   if(isNaN(a))return NaN;a+=num(S.irGiro)||0;return ((a%360)+360)%360}
 // ===================== Estaqueamento =====================
 // Dois pontos (da lista ou digitados) definem o alinhamento A→B; cria estacas a cada X m (com a final em B) e, se pedir,
-// os afastamentos à esquerda e à direita. No mapa: linha com as estacas e, chegando perto de uma, a locação aparece sozinha.
-const EQ_PERTO=10; // metros: a partir daqui o mapa mostra a locação da estaca mais próxima
+// os afastamentos à esquerda e à direita. No mapa: linha com as estacas; tocar numa estaca mostra a mini locação dela.
 function eqPt(k){const v=S["eq"+k]??(k==="A"?"0":"1");
   if(v==="dig"){const E=num(S["eq"+k+"E"]),N=num(S["eq"+k+"N"]),h=num(S["eq"+k+"h"]);return isNaN(E)||isNaN(N)?null:{E,N,h:isNaN(h)?0:h,nome:k}}
   return getPt(v)}
@@ -3445,7 +3445,7 @@ function eqCalc(){const A=eqPt("A"),B=eqPt("B");if(!A||!B)return null;const L=Ma
   return {A,B,L,I,off,antes,depois,sts,eixo:sts.length,total:sts.length*(off>0?3:1)}}
 function eqNome(s,I,pref,ini){const k=Math.round(s/I);if(Math.abs(s-k*I)<0.005)return pref+(ini+k);const f=Math.floor(s/I+1e-9);return `${pref}${ini+f}+${br(s-f*I,2)}`}
 function vEstaq(){const c=eqCalc(),pref=S.eqPref??"E",ini=num(S.eqIni)||0;
-  return `<span class="muted small">Escolha dois pontos do alinhamento. O app cria as estacas a cada intervalo, inclusive em B, e mostra tudo no mapa: chegando perto de uma estaca, a locação abre sozinha.</span>
+  return `<span class="muted small">Escolha dois pontos do alinhamento. O app cria as estacas a cada intervalo, inclusive em B, e mostra tudo no mapa. Toque numa estaca no mapa para ver a distância e a direção até ela; toque de novo para fechar.</span>
   ${eqCampos("A","Ponto inicial (A)")}${eqCampos("B","Ponto final (B)")}
   <div class="grid2"><label class="f">Intervalo (m)<input class="m" inputmode="decimal" data-bind="eqInt" value="${esc(S.eqInt||S.cfg.estacaInt||"20")}"></label>
     <label class="f">Afastamento lateral (m)<input class="m" inputmode="decimal" data-bind="eqOff" value="${esc(S.eqOff||"0")}" placeholder="0 = só o eixo"></label>
@@ -3469,18 +3469,18 @@ function fazEstaq(){const c=eqCalc();if(!c){toast("Escolha dois pontos diferente
   sts.forEach(s=>{const E=A.E+ux*s,N=A.N+uy*s,h=A.h+gr*s,nm=eqNome(s,I,pref,ini);mk(nm,E,N,h,s);
     if(off>0){mk(nm+"E",E-uy*off,N+ux*off,h,s,"E");mk(nm+"D",E+uy*off,N-ux*off,h,s,"D")}});
   salvar();bip("ok");toast(`${c.total} estacas criadas${ren?` (${ren} renomeadas para não repetir nomes)`:""}. Veja no mapa.`);render()}
-// no mapa: estaca mais próxima vira locação quando chega perto
-function eqPerto(){if(!S.conectado||!proj()||!(G.fix>0))return null;let best=null;
-  proj().pontos.forEach((p,i)=>{if(p.cod!=="ESTACA"&&!p.grp)return;const [pe,pn]=ptEN(p),d=Math.hypot(pe-G.E,pn-G.N);if(d<=EQ_PERTO&&(!best||d<best.d))best={p,i,d,dE:pe-G.E,dN:pn-G.N}});return best}
-function eqPainel(){if(R.reguaOn||S.loc)return "";const b=eqPerto();if(!b){R.eqFechado=null;return ""}if(R.eqFechado===b.p.nome)return "";
-  const az=((Math.atan2(b.dE,b.dN)*180/Math.PI)+360)%360,ok=b.d<=0.05,cor=ok?"var(--fix)":b.d<=0.5?"var(--float)":"#5BE3E3";
+// no mapa: tocar numa estaca abre a mini locação dela; tocar de novo (ou no X) fecha. Não abre sozinho.
+function eqSelInfo(){const i=R.eqSel;if(i==null||!proj())return null;const p=proj().pontos[i];if(!p||(p.cod!=="ESTACA"&&!p.grp)){R.eqSel=null;return null}
+  const [pe,pn]=ptEN(p),ok=S.conectado&&G.fix>0&&!isNaN(G.E);return {p,i,ok,d:ok?Math.hypot(pe-G.E,pn-G.N):null,dE:ok?pe-G.E:0,dN:ok?pn-G.N:0}}
+function eqPainel(){if(R.reguaOn||S.loc)return "";const b=eqSelInfo();if(!b)return "";
+  const az=((Math.atan2(b.dE,b.dN)*180/Math.PI)+360)%360,na=b.ok&&b.d<=0.05,cor=!b.ok?"var(--muted)":na?"var(--fix)":b.d<=0.5?"var(--float)":"#5BE3E3";
   const dir=(v,pos,neg)=>Math.abs(v)<0.005?"":`${br(Math.abs(v),2)} m ${v>0?pos:neg}`;
   return `<div style="position:absolute;left:60px;right:84px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.94);border:2px solid ${cor};display:grid;gap:4px;z-index:3">
-    <div style="display:flex;align-items:center;gap:10px"><svg viewBox="-12 -12 24 24" width="34" height="34" style="flex:none;transform:rotate(${az}deg)"><path d="M0-10L7 8L0 4L-7 8Z" fill="${cor}"/></svg>
-      <button data-act="eqFechar" aria-label="Fechar" style="position:absolute;top:6px;right:6px;min-height:30px;width:30px;padding:0;border-radius:8px;font-size:16px">✕</button>
+    <button data-act="eqFechar" aria-label="Fechar" style="position:absolute;top:6px;right:6px;min-height:30px;width:30px;padding:0;border-radius:8px;font-size:16px">✕</button>
+    <div style="display:flex;align-items:center;gap:10px">${b.ok?`<svg viewBox="-12 -12 24 24" width="34" height="34" style="flex:none;transform:rotate(${az}deg)"><path d="M0-10L7 8L0 4L-7 8Z" fill="${cor}"/></svg>`:""}
       <div style="display:grid;min-width:0;padding-right:30px"><b style="font-size:15px">${esc(b.p.nome)}${b.p.desc?` <span class="muted small">${esc(b.p.desc)}</span>`:""}</b>
-      <b class="m" style="font-size:22px;color:${cor}">${ok?"Na estaca ✓":br(b.d,2)+" m"}</b></div></div>
-    ${ok?"":`<span class="small m">${[dir(b.dN,"Norte","Sul"),dir(b.dE,"Leste","Oeste")].filter(Boolean).join(" · ")}</span>`}
+      <b class="m" style="font-size:22px;color:${cor}">${!b.ok?"Conecte o receptor":na?"Na estaca ✓":br(b.d,2)+" m"}</b></div></div>
+    ${b.ok&&!na?`<span class="small m">${[dir(b.dN,"Norte","Sul"),dir(b.dE,"Leste","Oeste")].filter(Boolean).join(" · ")}</span>`:""}
     <button style="min-height:34px" data-locp="${b.i}">Locar ${esc(b.p.nome)}</button></div>`}
 function ptOpts(sel,comAtual){const pts=proj()?.pontos||[];return (comAtual?`<option value="atual" ${sel==="atual"?"selected":""}>Posição atual</option>`:"")+pts.map((p,i)=>`<option value="${i}" ${String(sel)===String(i)?"selected":""}>${esc(p.nome)} · ${esc(p.cod)}</option>`).join("")}
 function novoPonto(nome,cod,E,N,h){const [lat,lon]=fromUTM(E,N,zonaAtual(),hemiAtual());proj().pontos.push({nome,cod,lat,lon,E,N,h,h_rms:0,st:"CALC",alt:0,quando:new Date().toISOString()})}
